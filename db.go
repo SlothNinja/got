@@ -4,10 +4,8 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/restful"
 	gtype "github.com/SlothNinja/type"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 )
 
 const kind = "Game"
@@ -54,14 +52,20 @@ func (g *Game) options() (s string) {
 	return
 }
 
-func (g *Game) fromForm(c *gin.Context) (err error) {
+func (g *Game) fromForm(c *gin.Context) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	s := new(State)
-	if err = restful.BindWith(c, s, binding.FormPost); err == nil {
-		g.TwoThiefVariant = s.TwoThiefVariant
+	s := struct {
+		TwoThiefVariant bool `form:"two-thief-variant"`
+	}{}
+	err := c.ShouldBind(&s)
+	if err != nil {
+		return err
 	}
+	// if err = restful.BindWith(c, s, binding.FormPost); err == nil {
+	// 	g.TwoThiefVariant = s.TwoThiefVariant
+	// }
 	log.Debugf("err: %v s:%#v", err, s)
-	return
+	return nil
 }
