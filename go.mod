@@ -15,9 +15,13 @@ require (
 	github.com/SlothNinja/sn v0.0.0-20200229185633-ae23f40d2db2
 	github.com/SlothNinja/type v0.0.0-20200229193321-83a182ab5697
 	github.com/SlothNinja/user v0.0.1-alpha
+	github.com/SlothNinja/user-controller v0.0.0-20200301044328-5bf45442533e // indirect
 	github.com/SlothNinja/user-stats v0.0.0-20200229183913-36465a77b51c
+	github.com/SlothNinja/welcome v0.0.0-20200228033230-dc57a12b30d6 // indirect
 	github.com/gin-gonic/gin v1.5.0
+	github.com/kr/pty v1.1.3 // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
+	github.com/stretchr/objx v0.1.1 // indirect
 	go.chromium.org/gae v0.0.0-20190826183307-50a499513efa
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
 	google.golang.org/appengine v1.6.5

@@ -102,7 +102,7 @@ func undo(prefix string) gin.HandlerFunc {
 			return
 		}
 		mkey := g.UndoKey(c)
-		if err := memcache.Delete(c, mkey); err != nil && err != memcache.ErrCacheMiss {
+		if err := memcache.Delete(appengine.NewContext(c.Request), mkey); err != nil && err != memcache.ErrCacheMiss {
 			log.Errorf("Controller#Undo Error: %s", err)
 		}
 	}
@@ -142,7 +142,7 @@ func update(prefix string) gin.HandlerFunc {
 				return
 			}
 			item.Value = v
-			if err := memcache.Set(c, item); err != nil {
+			if err := memcache.Set(appengine.NewContext(c.Request), item); err != nil {
 				log.Errorf(err.Error())
 				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 				return
@@ -157,7 +157,11 @@ func update(prefix string) gin.HandlerFunc {
 				return
 			}
 
-			if err := g.save(c, s); err != nil {
+			ks := []*datastore.Key{s.Key}
+			es := []interface{}{s}
+
+			err = g.saveWith(c, ks, es)
+			if err != nil {
 				log.Errorf("g.save error: %s", err)
 				restful.AddErrorf(c, "g.save error: %s", err)
 				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
@@ -172,7 +176,7 @@ func update(prefix string) gin.HandlerFunc {
 			}
 		case actionType == game.Undo:
 			mkey := g.UndoKey(c)
-			if err := memcache.Delete(c, mkey); err != nil && err != memcache.ErrCacheMiss {
+			if err := memcache.Delete(appengine.NewContext(c.Request), mkey); err != nil && err != memcache.ErrCacheMiss {
 				log.Errorf("memcache.Delete error: %s", err)
 				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 			}
@@ -200,7 +204,40 @@ func update(prefix string) gin.HandlerFunc {
 	}
 }
 
-func (g *Game) save(c *gin.Context, ps ...interface{}) error {
+func (g *Game) save(c *gin.Context) error {
+	dsClient, err := datastore.NewClient(c, "")
+	if err != nil {
+		return err
+	}
+
+	oldG := New(c, g.ID())
+	err = dsClient.Get(c, oldG.Header.Key, oldG.Header)
+	if err != nil {
+		return err
+	}
+
+	if oldG.UpdatedAt != g.UpdatedAt {
+		return fmt.Errorf("game state changed unexpectantly -- try again")
+	}
+
+	err = g.encode(c)
+	if err != nil {
+		return err
+	}
+
+	_, err = dsClient.Put(c, g.Key, g.Header)
+	if err != nil {
+		return err
+	}
+
+	err = memcache.Delete(appengine.NewContext(c.Request), g.UndoKey(c))
+	if err == memcache.ErrCacheMiss {
+		return nil
+	}
+	return err
+}
+
+func (g *Game) saveWith(c *gin.Context, ks []*datastore.Key, es []interface{}) error {
 	dsClient, err := datastore.NewClient(c, "")
 	if err != nil {
 		return err
@@ -208,11 +245,6 @@ func (g *Game) save(c *gin.Context, ps ...interface{}) error {
 
 	_, err = dsClient.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		oldG := New(c, g.ID())
-		// if ok := datastore.PopulateKey(oldG.Header, datastore.KeyForObj(tc, g.Header)); !ok {
-		// 	terr = fmt.Errorf("unable to populate game with key")
-		// 	return
-		// }
-
 		err := tx.Get(oldG.Header.Key, oldG.Header)
 		if err != nil {
 			return err
@@ -227,24 +259,7 @@ func (g *Game) save(c *gin.Context, ps ...interface{}) error {
 			return err
 		}
 
-		l := len(ps)
-		if l%2 == 0 {
-			return fmt.Errorf("ps must be even, have %d", l)
-		}
-
-		l2 := l / 2
-		es := make([]interface{}, l2)
-		ks := make([]*datastore.Key, l2)
-		for i := range es {
-			k, ok := ps[(2 * i)].(*datastore.Key)
-			if !ok {
-				return fmt.Errorf("expected type *datastore.Key, have %T", ps[(2*i)])
-			}
-			ks[i] = k
-			es[i] = ps[(2*i)+1]
-		}
-
-		ks = append(ks, g.Header.Key)
+		ks = append(ks, g.Key)
 		es = append(es, g.Header)
 
 		_, err = tx.PutMulti(ks, es)
@@ -252,7 +267,7 @@ func (g *Game) save(c *gin.Context, ps ...interface{}) error {
 			return err
 		}
 
-		err = memcache.Delete(c, g.UndoKey(c))
+		err = memcache.Delete(appengine.NewContext(c.Request), g.UndoKey(c))
 		if err == memcache.ErrCacheMiss {
 			return nil
 		}
@@ -397,7 +412,8 @@ func newAction(prefix string) gin.HandlerFunc {
 
 		g := New(c, 0)
 		withGame(c, g)
-		if err := g.FromParams(c, gtype.GOT); err != nil {
+		err := g.FromParams(c, gtype.GOT)
+		if err != nil {
 			log.Errorf(err.Error())
 			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 			return
@@ -427,7 +443,7 @@ func create(prefix string) gin.HandlerFunc {
 		g := New(c, 0)
 		withGame(c, g)
 
-		err = g.FromParams(c, g.Type)
+		err = g.FromForm(c, g.Type)
 		if err != nil {
 			log.Errorf(err.Error())
 			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
@@ -480,35 +496,45 @@ func accept(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
-		defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 
 		g := gameFrom(c)
 		if g == nil {
 			log.Errorf("game not found")
+			defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 			return
 		}
 
-		var (
-			start bool
-			err   error
-		)
-
 		u := user.CurrentFrom(c)
-		if start, err = g.Accept(c, u); err == nil && start {
-			err = g.Start(c)
-		}
-
-		if err == nil {
-			err = g.save(c)
-		}
-
-		if err == nil && start {
-			g.SendTurnNotificationsTo(c, g.CurrentPlayer())
-		}
-
+		start, err := g.Accept(c, u)
 		if err != nil {
 			log.Errorf(err.Error())
+			defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
+			return
 		}
+
+		if start {
+			err = g.Start(c)
+			if err != nil {
+				log.Errorf(err.Error())
+				defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
+				return
+			}
+		}
+
+		err = g.save(c)
+		if err != nil {
+			log.Errorf(err.Error())
+			defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
+			return
+		}
+
+		if start {
+			err = g.SendTurnNotificationsTo(c, g.CurrentPlayer())
+			if err != nil {
+				log.Errorf(err.Error())
+			}
+		}
+		defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 
 	}
 }
@@ -517,26 +543,29 @@ func drop(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
-		defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 
 		g := gameFrom(c)
 		if g == nil {
 			log.Errorf("game not found")
+			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 			return
 		}
 
-		var err error
-
 		u := user.CurrentFrom(c)
-		if err = g.Drop(u); err == nil {
-			err = g.save(c)
+		err := g.Drop(u)
+		if err != nil {
+			log.Errorf(err.Error())
+			restful.AddErrorf(c, err.Error())
+			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 		}
+		err = g.save(c)
 
 		if err != nil {
 			log.Errorf(err.Error())
 			restful.AddErrorf(c, err.Error())
+			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 		}
-
+		c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 	}
 }
 
@@ -589,7 +618,7 @@ func mcGet(c *gin.Context, g *Game) error {
 	defer log.Debugf("Exiting")
 
 	mkey := g.GetHeader().UndoKey(c)
-	item, err := memcache.Get(c, mkey)
+	item, err := memcache.Get(appengine.NewContext(c.Request), mkey)
 	if err != nil {
 		return err
 	}

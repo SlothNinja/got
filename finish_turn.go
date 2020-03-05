@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
@@ -115,7 +116,10 @@ func (g *Game) placeThievesFinishTurn(c *gin.Context) error {
 		g.SendTurnNotificationsTo(c, newCP)
 	}
 
-	return g.save(c, s.GetUpdate(c, time.Time(g.UpdatedAt)))
+	s = s.GetUpdate(c, time.Time(g.UpdatedAt))
+	ks := []*datastore.Key{s.Key}
+	es := []interface{}{s}
+	return g.saveWith(c, ks, es)
 }
 
 func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context) (*stats.Stats, error) {
@@ -148,12 +152,12 @@ func (g *Game) moveThiefNextPlayer(pers ...game.Playerer) (np *Player) {
 	return
 }
 
-func (g *Game) moveThiefFinishTurn(c *gin.Context) (err error) {
+func (g *Game) moveThiefFinishTurn(c *gin.Context) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	var s *stats.Stats
-	if s, err = g.validateMoveThiefFinishTurn(c); err != nil {
-		return
+	s, err := g.validateMoveThiefFinishTurn(c)
+	if err != nil {
+		return err
 	}
 
 	oldCP := g.CurrentPlayer()
@@ -170,22 +174,26 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) (err error) {
 		// Need to call SendTurnNotificationsTo before saving the new contests
 		// SendEndGameNotifications relies on pulling the old contests from the db.
 		// Saving the contests resulting in double counting.
-		if err = g.sendEndGameNotifications(c, ps, cs); err != nil {
+		err = g.sendEndGameNotifications(c, ps, cs)
+		if err != nil {
+			// log but otherwise ignore send errors
 			log.Warningf(err.Error())
-			err = nil
 		}
 
-		es := make([]interface{}, len(cs)+1)
-		es[0] = s.GetUpdate(c, time.Time(g.UpdatedAt))
+		s = s.GetUpdate(c, time.Time(g.UpdatedAt))
+		l := len(cs)
+		es := make([]interface{}, l)
+		ks := make([]*datastore.Key, l)
+		es[0] = s
+		ks[0] = s.Key
+
 		for i, c := range cs {
 			es[i+1] = c
+			ks[i+1] = c.Key
 		}
 
-		if err = g.save(c, es...); err != nil {
-			return
-		}
-
-		return
+		err = g.saveWith(c, ks, es)
+		return err
 	}
 
 	// Otherwise, select next player and continue moving theives.
@@ -195,12 +203,18 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) (err error) {
 	}
 	g.Phase = playCard
 
-	if newCP := g.CurrentPlayer(); newCP != nil && oldCP.ID() != newCP.ID() {
-		if err = g.SendTurnNotificationsTo(c, newCP); err != nil {
+	newCP := g.CurrentPlayer()
+	if newCP != nil && oldCP.ID() != newCP.ID() {
+		err = g.SendTurnNotificationsTo(c, newCP)
+		if err != nil {
+			// log but otherwise ignore send errors.
 			log.Warningf(err.Error())
 		}
 	}
-	return g.save(c, s.GetUpdate(c, time.Time(g.UpdatedAt)))
+	s = s.GetUpdate(c, time.Time(g.UpdatedAt))
+	ks := []*datastore.Key{s.Key}
+	es := []interface{}{s}
+	return g.saveWith(c, ks, es)
 }
 
 func (g *Game) validateMoveThiefFinishTurn(c *gin.Context) (*stats.Stats, error) {
