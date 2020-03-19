@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/codec"
 	"github.com/SlothNinja/color"
+	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/mlog"
@@ -274,6 +275,19 @@ func (g *Game) saveWith(c *gin.Context, ks []*datastore.Key, es []interface{}) e
 		return err
 	})
 	return err
+}
+
+func wrap(s *stats.Stats, cs contest.Contests) ([]*datastore.Key, []interface{}) {
+	l := len(cs) + 1
+	es := make([]interface{}, l)
+	ks := make([]*datastore.Key, l)
+	es[0] = s
+	ks[0] = s.Key
+	for i, c := range cs {
+		es[i+1] = c
+		ks[i+1] = c.Key
+	}
+	return ks, es
 }
 
 func (g *Game) encode(c *gin.Context) (err error) {

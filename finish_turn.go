@@ -181,16 +181,18 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) error {
 		}
 
 		s = s.GetUpdate(c, time.Time(g.UpdatedAt))
-		l := len(cs)
-		es := make([]interface{}, l)
-		ks := make([]*datastore.Key, l)
-		es[0] = s
-		ks[0] = s.Key
+		ks, es := wrap(s, cs)
 
-		for i, c := range cs {
-			es[i+1] = c
-			ks[i+1] = c.Key
-		}
+		// l := len(cs)
+		// es := make([]interface{}, l)
+		// ks := make([]*datastore.Key, l)
+		// es[0] = s
+		// ks[0] = s.Key
+
+		// for i, c := range cs {
+		// 	es[i+1] = c
+		// 	ks[i+1] = c.Key
+		// }
 
 		err = g.saveWith(c, ks, es)
 		return err
