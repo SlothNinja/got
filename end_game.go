@@ -13,7 +13,7 @@ import (
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/send"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/appengine/mail"
+	"github.com/mailjet/mailjet-apiv3-go"
 )
 
 func init() {
@@ -89,7 +89,7 @@ type result struct {
 
 type results []result
 
-func (g *Game) sendEndGameNotifications(c *gin.Context, ps contest.Places, cs contest.Contests) (err error) {
+func (g *Game) sendEndGameNotifications(c *gin.Context, ps contest.Places, cs contest.Contests) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
@@ -97,14 +97,12 @@ func (g *Game) sendEndGameNotifications(c *gin.Context, ps contest.Places, cs co
 	g.Status = game.Completed
 	rs := make(results, g.NumPlayers)
 
-	var (
-		i      int
-		cr, nr *rating.CurrentRating
-	)
+	var i int
 	for place, rmap := range ps {
 		for k := range rmap {
 			p := g.PlayerByUserID(k.ID)
-			cr, nr, err = rating.IncreaseFor(c, p.User(), g.Type, cs)
+			cr, nr, err := rating.IncreaseFor(c, p.User(), g.Type, cs)
+			log.Warningf(err.Error())
 			clo, nlo := cr.Rank().GLO(), nr.Rank().GLO()
 			inc := nlo - clo
 
@@ -127,27 +125,36 @@ func (g *Game) sendEndGameNotifications(c *gin.Context, ps contest.Places, cs co
 	ts := restful.TemplatesFrom(c)
 	buf := new(bytes.Buffer)
 	tmpl := ts["got/end_game_notification"]
-	if err = tmpl.Execute(buf, gin.H{
+	err := tmpl.Execute(buf, gin.H{
 		"Results": rs,
 		"Winners": restful.ToSentence(names),
-	}); err != nil {
-		return
+	})
+	if err != nil {
+		return err
 	}
 
-	ms := make([]*mail.Message, len(g.Players()))
-	sender := "webmaster@slothninja.com"
+	ms := make([]mailjet.InfoMessagesV31, len(g.Players()))
 	subject := fmt.Sprintf("SlothNinja Games: Guild of Thieves #%d Has Ended", g.ID)
 	body := buf.String()
 	for i, p := range g.Players() {
-		ms[i] = &mail.Message{
-			To:       []string{p.User().Email},
-			Sender:   sender,
+		u := p.User()
+		ms[i] = mailjet.InfoMessagesV31{
+			From: &mailjet.RecipientV31{
+				Email: "webmaster@slothninja.com",
+				Name:  "Webmaster",
+			},
+			To: &mailjet.RecipientsV31{
+				mailjet.RecipientV31{
+					Email: u.Email,
+					Name:  u.Name,
+				},
+			},
 			Subject:  subject,
-			HTMLBody: body,
+			HTMLPart: body,
 		}
 	}
-	err = send.Message(c, ms...)
-	return
+	_, err = send.Messages(c, ms...)
+	return err
 }
 
 type announceWinnersEntry struct {
