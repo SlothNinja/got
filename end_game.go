@@ -102,7 +102,9 @@ func (g *Game) sendEndGameNotifications(c *gin.Context, ps contest.Places, cs co
 		for k := range rmap {
 			p := g.PlayerByUserID(k.ID)
 			cr, nr, err := rating.IncreaseFor(c, p.User(), g.Type, cs)
-			log.Warningf(err.Error())
+			if err != nil {
+				log.Warningf(err.Error())
+			}
 			clo, nlo := cr.Rank().GLO(), nr.Rank().GLO()
 			inc := nlo - clo
 
