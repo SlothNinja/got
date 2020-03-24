@@ -3,7 +3,6 @@ package got
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/contest"
@@ -14,27 +13,36 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func finish(prefix string) gin.HandlerFunc {
+func (srv server) finish(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
-		defer c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+
+		var (
+			ks  []*datastore.Key
+			es  []interface{}
+			err error
+		)
 
 		g := gameFrom(c)
 		switch g.Phase {
 		case placeThieves:
-			if err := g.placeThievesFinishTurn(c); err != nil {
-				log.Errorf("g.placeThievesFinishTurn error: %v", err)
-				return
-			}
-
+			ks, es, err = g.placeThievesFinishTurn(c)
 		case drawCard:
-			if err := g.moveThiefFinishTurn(c); err != nil {
-				log.Errorf("g.moveThiefFinishTurn error: %v", err)
-				return
-			}
-
+			ks, es, err = g.moveThiefFinishTurn(c)
 		}
+
+		if err != nil {
+			log.Errorf(err.Error())
+			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+			return
+		}
+
+		err = srv.saveWith(c, g, ks, es)
+		if err != nil {
+			log.Errorf(err.Error())
+		}
+		c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 	}
 }
 
@@ -92,12 +100,12 @@ func (g *Game) placeThievesNextPlayer(pers ...game.Playerer) (p *Player) {
 	return
 }
 
-func (g *Game) placeThievesFinishTurn(c *gin.Context) error {
+func (g *Game) placeThievesFinishTurn(c *gin.Context) ([]*datastore.Key, []interface{}, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 	s, err := g.validatePlaceThievesFinishTurn(c)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	oldCP := g.CurrentPlayer()
@@ -116,10 +124,8 @@ func (g *Game) placeThievesFinishTurn(c *gin.Context) error {
 		g.SendTurnNotificationsTo(c, newCP)
 	}
 
-	s = s.GetUpdate(c, time.Time(g.UpdatedAt))
-	ks := []*datastore.Key{s.Key}
-	es := []interface{}{s}
-	return g.saveWith(c, ks, es)
+	s = s.GetUpdate(c, g.UpdatedAt)
+	return []*datastore.Key{s.Key}, []interface{}{s}, nil
 }
 
 func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context) (*stats.Stats, error) {
@@ -152,12 +158,12 @@ func (g *Game) moveThiefNextPlayer(pers ...game.Playerer) (np *Player) {
 	return
 }
 
-func (g *Game) moveThiefFinishTurn(c *gin.Context) error {
+func (g *Game) moveThiefFinishTurn(c *gin.Context) ([]*datastore.Key, []interface{}, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 	s, err := g.validateMoveThiefFinishTurn(c)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	oldCP := g.CurrentPlayer()
@@ -180,22 +186,9 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) error {
 			log.Warningf(err.Error())
 		}
 
-		s = s.GetUpdate(c, time.Time(g.UpdatedAt))
+		s = s.GetUpdate(c, g.UpdatedAt)
 		ks, es := wrap(s, cs)
-
-		// l := len(cs)
-		// es := make([]interface{}, l)
-		// ks := make([]*datastore.Key, l)
-		// es[0] = s
-		// ks[0] = s.Key
-
-		// for i, c := range cs {
-		// 	es[i+1] = c
-		// 	ks[i+1] = c.Key
-		// }
-
-		err = g.saveWith(c, ks, es)
-		return err
+		return ks, es, nil
 	}
 
 	// Otherwise, select next player and continue moving theives.
@@ -213,10 +206,8 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) error {
 			log.Warningf(err.Error())
 		}
 	}
-	s = s.GetUpdate(c, time.Time(g.UpdatedAt))
-	ks := []*datastore.Key{s.Key}
-	es := []interface{}{s}
-	return g.saveWith(c, ks, es)
+	s = s.GetUpdate(c, g.UpdatedAt)
+	return []*datastore.Key{s.Key}, []interface{}{s}, nil
 }
 
 func (g *Game) validateMoveThiefFinishTurn(c *gin.Context) (*stats.Stats, error) {
