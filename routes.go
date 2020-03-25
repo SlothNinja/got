@@ -18,7 +18,7 @@ func NewClient(dsClient *datastore.Client) server {
 	return server{Client: dsClient}
 }
 
-func (s server) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
+func (srv server) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
 	// Game Group
 	g := engine.Group(prefix + "/game")
 
@@ -26,57 +26,57 @@ func (s server) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
 	g.GET("/new",
 		user.RequireCurrentUser(),
 		gtype.SetTypes(),
-		s.newAction(prefix),
+		srv.newAction(prefix),
 	)
 
 	// Create
 	g.POST("",
 		user.RequireCurrentUser(),
-		s.create(prefix),
+		srv.create(prefix),
 	)
 
 	// Show
 	g.GET("/show/:hid",
-		s.fetch,
+		srv.fetch,
 		mlog.Get,
 		game.SetAdmin(false),
-		s.show(prefix),
+		srv.show(prefix),
 	)
 
 	// Undo
 	g.POST("/undo/:hid",
-		s.fetch,
-		s.undo(prefix),
+		srv.fetch,
+		srv.undo(prefix),
 	)
 
 	// Finish
 	g.POST("/finish/:hid",
-		s.fetch,
+		srv.fetch,
 		stats.Fetch(user.CurrentFrom),
-		s.finish(prefix),
+		srv.finish(prefix),
 	)
 
 	// Drop
 	g.POST("/drop/:hid",
 		user.RequireCurrentUser(),
-		s.fetch,
-		s.drop(prefix),
+		srv.fetch,
+		srv.drop(prefix),
 	)
 
 	// Accept
 	g.POST("/accept/:hid",
 		user.RequireCurrentUser(),
-		s.fetch,
-		s.accept(prefix),
+		srv.fetch,
+		srv.accept(prefix),
 	)
 
 	// Update
 	g.PUT("/show/:hid",
 		user.RequireCurrentUser(),
-		s.fetch,
+		srv.fetch,
 		game.RequireCurrentPlayerOrAdmin(),
 		game.SetAdmin(false),
-		s.update(prefix),
+		srv.update(prefix),
 	)
 
 	// Add Message
@@ -92,52 +92,48 @@ func (s server) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
 	// Index
 	gs.GET("/:status",
 		gtype.SetTypes(),
-		s.index(prefix),
+		srv.index(prefix),
 	)
 
 	gs.GET("/:status/user/:uid",
 		gtype.SetTypes(),
-		s.index(prefix),
+		srv.index(prefix),
 	)
 
 	// JSON Data for Index
 	gs.POST("/:status/json",
 		gtype.SetTypes(),
 		game.GetFiltered(gtype.GOT),
-		s.jsonIndexAction(prefix),
+		srv.jsonIndexAction(prefix),
 	)
 
 	// JSON Data for Index
 	gs.POST("/:status/user/:uid/json",
 		gtype.SetTypes(),
 		game.GetFiltered(gtype.GOT),
-		s.jsonIndexAction(prefix),
+		srv.jsonIndexAction(prefix),
 	)
 
 	// Admin Group
 	admin := g.Group("/admin", user.RequireAdmin)
 
 	admin.GET("/:hid",
-		s.fetch,
+		srv.fetch,
 		mlog.Get,
 		game.SetAdmin(true),
-		s.show(prefix),
+		srv.show(prefix),
 	)
 
 	admin.POST("/admin/:hid",
-		user.RequireCurrentUser(),
-		s.fetch,
-		game.RequireCurrentPlayerOrAdmin(),
+		srv.fetch,
 		game.SetAdmin(true),
-		s.update(prefix),
+		srv.update(prefix),
 	)
 
 	admin.PUT("/admin/:hid",
-		user.RequireCurrentUser(),
-		s.fetch,
-		game.RequireCurrentPlayerOrAdmin(),
+		srv.fetch,
 		game.SetAdmin(true),
-		s.update(prefix),
+		srv.update(prefix),
 	)
 
 	return engine
