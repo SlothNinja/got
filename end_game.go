@@ -9,7 +9,6 @@ import (
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/rating"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/send"
 	"github.com/gin-gonic/gin"
@@ -89,7 +88,7 @@ type result struct {
 
 type results []result
 
-func (g *Game) sendEndGameNotifications(c *gin.Context, ps contest.Places, cs contest.Contests) error {
+func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps contest.Places, cs contest.Contests) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
@@ -101,7 +100,7 @@ func (g *Game) sendEndGameNotifications(c *gin.Context, ps contest.Places, cs co
 	for place, rmap := range ps {
 		for k := range rmap {
 			p := g.PlayerByUserID(k.ID)
-			cr, nr, err := rating.IncreaseFor(c, p.User(), g.Type, cs)
+			cr, nr, err := client.Rating.IncreaseFor(c, p.User(), g.Type, cs)
 			if err != nil {
 				log.Warningf(err.Error())
 			}

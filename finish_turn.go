@@ -4,64 +4,115 @@ import (
 	"fmt"
 	"net/http"
 
-	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
+	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
-	stats "github.com/SlothNinja/user-stats"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
-func (srv server) finish(prefix string) gin.HandlerFunc {
+func (client Client) finish(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
 
-		var (
-			ks  []*datastore.Key
-			es  []interface{}
-			err error
-		)
+		cu := user.CurrentFrom(c)
 
-		g := gameFrom(c)
-		switch g.Phase {
-		case placeThieves:
-			ks, es, err = g.placeThievesFinishTurn(c)
-		case drawCard:
-			ks, es, err = g.moveThiefFinishTurn(c)
-		}
-
+		s, err := client.Stats.ByUser(c, cu)
 		if err != nil {
 			log.Errorf(err.Error())
+			restful.AddErrorf(c, err.Error())
 			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 			return
 		}
 
-		err = srv.saveWith(c, g, ks, es)
+		var oldCP, newCP *Player
+		g := gameFrom(c)
+		switch g.Phase {
+		case placeThieves:
+			oldCP, newCP, err = g.placeThievesFinishTurn(c)
+		case drawCard:
+			oldCP, newCP, err = g.moveThiefFinishTurn(c)
+		}
+
 		if err != nil {
 			log.Errorf(err.Error())
+			restful.AddErrorf(c, err.Error())
+			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+			return
+		}
+
+		var cs contest.Contests
+		// newCP == nil => end game
+		if newCP == nil {
+			err = client.getCurrentRatings(c, g)
+			if err != nil {
+				log.Errorf(err.Error())
+				restful.AddErrorf(c, err.Error())
+				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+				return
+			}
+
+			g.finalClaim(c)
+			ps := g.endGame(c)
+			cs = contest.GenContests(c, ps)
+			g.Status = game.Completed
+			g.Phase = gameOver
+
+			// Need to call SendEndGameNotifications before saving the new contests
+			// SendEndGameNotifications relies on pulling the old contests from the db.
+			// Saving the contests would result in double counting.
+			err = client.sendEndGameNotifications(c, g, ps, cs)
+			if err != nil {
+				// log but otherwise ignore send errors
+				log.Warningf(err.Error())
+			}
+
+		}
+
+		if newCP != nil && oldCP.ID() != newCP.ID() {
+			g.SendTurnNotificationsTo(c, newCP)
+		}
+
+		s = s.GetUpdate(c, g.UpdatedAt)
+		ks, es := wrap(s, cs)
+		err = client.saveWith(c, g, ks, es)
+		if err != nil {
+			log.Errorf(err.Error())
+			restful.AddErrorf(c, err.Error())
 		}
 		c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 	}
+}
+
+func (client Client) getCurrentRatings(c *gin.Context, g *Game) (err error) {
+	for _, p := range g.Players() {
+		p.Rating, err = client.Rating.GetRating(c, g.UserKeyFor(p), g.Type)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func showPath(prefix string, sid string) string {
 	return fmt.Sprintf("/%s/game/show/%s", prefix, sid)
 }
 
-func (g *Game) validateFinishTurn(c *gin.Context) (*stats.Stats, error) {
+func (g *Game) validateFinishTurn(c *gin.Context) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	switch cp, s := g.CurrentPlayer(), stats.Fetched(c); {
-	case s == nil:
-		return nil, sn.NewVError("missing stats for player.")
+
+	cp := g.CurrentPlayer()
+	switch {
 	case !g.CUserIsCPlayerOrAdmin(c):
-		return nil, sn.NewVError("Only the current player may finish a turn.")
+		return sn.NewVError("Only the current player may finish a turn.")
 	case !cp.PerformedAction:
-		return nil, sn.NewVError("%s has yet to perform an action.", g.NameFor(cp))
+		return sn.NewVError("%s has yet to perform an action.", g.NameFor(cp))
 	default:
-		return s, nil
+		return nil
 	}
 }
 
@@ -100,10 +151,11 @@ func (g *Game) placeThievesNextPlayer(pers ...game.Playerer) (p *Player) {
 	return
 }
 
-func (g *Game) placeThievesFinishTurn(c *gin.Context) ([]*datastore.Key, []interface{}, error) {
+func (g *Game) placeThievesFinishTurn(c *gin.Context) (*Player, *Player, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	s, err := g.validatePlaceThievesFinishTurn(c)
+
+	err := g.validatePlaceThievesFinishTurn(c)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,24 +172,21 @@ func (g *Game) placeThievesFinishTurn(c *gin.Context) ([]*datastore.Key, []inter
 	}
 
 	newCP := g.CurrentPlayer()
-	if newCP != nil && oldCP.ID() != newCP.ID() {
-		g.SendTurnNotificationsTo(c, newCP)
-	}
-
-	s = s.GetUpdate(c, g.UpdatedAt)
-	return []*datastore.Key{s.Key}, []interface{}{s}, nil
+	return oldCP, newCP, nil
 }
 
-func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context) (*stats.Stats, error) {
+func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	switch s, err := g.validateFinishTurn(c); {
+
+	err := g.validateFinishTurn(c)
+	switch {
 	case err != nil:
-		return nil, err
+		return err
 	case g.Phase != placeThieves:
-		return nil, sn.NewVError("Expected %q phase but have %q phase.", placeThieves, g.Phase)
+		return sn.NewVError("Expected %q phase but have %q phase.", placeThieves, g.Phase)
 	default:
-		return s, nil
+		return nil
 	}
 }
 
@@ -158,10 +207,11 @@ func (g *Game) moveThiefNextPlayer(pers ...game.Playerer) (np *Player) {
 	return
 }
 
-func (g *Game) moveThiefFinishTurn(c *gin.Context) ([]*datastore.Key, []interface{}, error) {
+func (g *Game) moveThiefFinishTurn(c *gin.Context) (*Player, *Player, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	s, err := g.validateMoveThiefFinishTurn(c)
+
+	err := g.validateMoveThiefFinishTurn(c)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -171,24 +221,7 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) ([]*datastore.Key, []interfac
 
 	// If no next player, end game
 	if np == nil {
-		g.finalClaim(c)
-		ps := g.endGame(c)
-		cs := contest.GenContests(c, ps)
-		g.Status = game.Completed
-		g.Phase = gameOver
-
-		// Need to call SendTurnNotificationsTo before saving the new contests
-		// SendEndGameNotifications relies on pulling the old contests from the db.
-		// Saving the contests resulting in double counting.
-		err = g.sendEndGameNotifications(c, ps, cs)
-		if err != nil {
-			// log but otherwise ignore send errors
-			log.Warningf(err.Error())
-		}
-
-		s = s.GetUpdate(c, g.UpdatedAt)
-		ks, es := wrap(s, cs)
-		return ks, es, nil
+		return oldCP, np, nil
 	}
 
 	// Otherwise, select next player and continue moving theives.
@@ -199,26 +232,20 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) ([]*datastore.Key, []interfac
 	g.Phase = playCard
 
 	newCP := g.CurrentPlayer()
-	if newCP != nil && oldCP.ID() != newCP.ID() {
-		err = g.SendTurnNotificationsTo(c, newCP)
-		if err != nil {
-			// log but otherwise ignore send errors.
-			log.Warningf(err.Error())
-		}
-	}
-	s = s.GetUpdate(c, g.UpdatedAt)
-	return []*datastore.Key{s.Key}, []interface{}{s}, nil
+	return oldCP, newCP, nil
 }
 
-func (g *Game) validateMoveThiefFinishTurn(c *gin.Context) (*stats.Stats, error) {
+func (g *Game) validateMoveThiefFinishTurn(c *gin.Context) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	switch s, err := g.validateFinishTurn(c); {
+
+	err := g.validateFinishTurn(c)
+	switch {
 	case err != nil:
-		return nil, err
+		return err
 	case g.Phase != drawCard:
-		return nil, sn.NewVError(`Expected "Draw Card" phase but have %q phase.`, g.Phase)
+		return sn.NewVError(`Expected "Draw Card" phase but have %q phase.`, g.Phase)
 	default:
-		return s, nil
+		return nil
 	}
 }
