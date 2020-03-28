@@ -7,7 +7,7 @@ require (
 	github.com/SlothNinja/color v0.0.0-20200316011031-586fe3c95fae
 	github.com/SlothNinja/confucius v0.0.0-20200325040612-b6bfb12e681b // indirect
 	github.com/SlothNinja/contest v0.0.0-20200326205205-9c14973aeaac
-	github.com/SlothNinja/game v0.0.0-20200326225752-141c2677653d
+	github.com/SlothNinja/game v0.0.0-20200328012705-d72fdd01bc90
 	github.com/SlothNinja/indonesia v0.0.0-20200325225148-449c5d39ed68 // indirect
 	github.com/SlothNinja/log v0.0.2
 	github.com/SlothNinja/memcache v0.0.0-20200321195207-184761e76825

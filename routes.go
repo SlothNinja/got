@@ -5,7 +5,6 @@ import (
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/mlog"
 	"github.com/SlothNinja/rating"
-	gtype "github.com/SlothNinja/type"
 	"github.com/SlothNinja/user"
 	stats "github.com/SlothNinja/user-stats"
 	"github.com/gin-gonic/gin"
@@ -28,122 +27,65 @@ func NewClient(dsClient *datastore.Client) Client {
 }
 
 func (client Client) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
-	// Game Group
-	g := engine.Group(prefix + "/game")
-
-	// New
-	g.GET("/new",
-		user.RequireCurrentUser(),
-		gtype.SetTypes(),
-		client.newAction(prefix),
-	)
-
-	// Create
-	g.POST("",
-		user.RequireCurrentUser(),
-		client.create(prefix),
-	)
+	/////////////////////////////////////////
+	// Game Public Routes
+	gpublic := engine.Group(prefix + "/game")
 
 	// Show
-	g.GET("/show/:hid",
-		client.fetch,
-		mlog.Get,
-		game.SetAdmin(false),
-		client.show(prefix),
-	)
+	gpublic.GET("/show/:hid", client.show(prefix))
+
+	///////////////////////////////////////////
+	// Game Private Routes
+	gprivate := engine.Group(prefix+"/game", user.RequireCurrentUser)
+
+	// New
+	gprivate.GET("/new", client.newAction(prefix))
+
+	// Create
+	gprivate.POST("", client.create(prefix))
 
 	// Undo
-	g.POST("/undo/:hid",
-		client.fetch,
-		client.undo(prefix),
-	)
+	gprivate.POST("/undo/:hid", client.undo(prefix))
 
 	// Finish
-	g.POST("/finish/:hid",
-		// client.fetch,
-		// stats.Fetch(user.CurrentFrom),
-		client.finish(prefix),
-	)
+	gprivate.POST("/finish/:hid", client.finish(prefix))
 
 	// Drop
-	g.POST("/drop/:hid",
-		user.RequireCurrentUser(),
-		client.fetch,
-		client.drop(prefix),
-	)
+	gprivate.POST("/drop/:hid", client.drop(prefix))
 
 	// Accept
-	g.POST("/accept/:hid",
-		user.RequireCurrentUser(),
-		client.fetch,
-		client.accept(prefix),
-	)
+	gprivate.POST("/accept/:hid", client.accept(prefix))
 
 	// Update
-	g.PUT("/show/:hid",
-		user.RequireCurrentUser(),
-		client.fetch,
-		game.RequireCurrentPlayerOrAdmin(),
-		game.SetAdmin(false),
-		client.update(prefix),
-	)
+	gprivate.PUT("/show/:hid", client.update(prefix))
 
 	// Add Message
-	g.PUT("/show/:hid/addmessage",
-		user.RequireCurrentUser(),
-		mlog.Get,
-		mlog.AddMessage(prefix),
-	)
+	gprivate.PUT("/show/:hid/addmessage", mlog.AddMessage(prefix))
 
-	// Games Group
-	gs := engine.Group(prefix + "/games")
+	///////////////////////////////////////////////////////////////
+	// Games Public Routes
+	gspublic := engine.Group(prefix + "/games")
 
 	// Index
-	gs.GET("/:status",
-		gtype.SetTypes(),
-		client.index(prefix),
-	)
+	gspublic.GET("/:status", client.index(prefix))
 
-	gs.GET("/:status/user/:uid",
-		gtype.SetTypes(),
-		client.index(prefix),
-	)
+	gspublic.GET("/:status/user/:uid", client.index(prefix))
 
 	// JSON Data for Index
-	gs.POST("/:status/json",
-		gtype.SetTypes(),
-		client.Game.GetFiltered(gtype.GOT),
-		client.jsonIndexAction(prefix),
-	)
+	gspublic.POST("/:status/json", client.jsonIndexAction(prefix))
 
 	// JSON Data for Index
-	gs.POST("/:status/user/:uid/json",
-		gtype.SetTypes(),
-		client.Game.GetFiltered(gtype.GOT),
-		client.jsonIndexAction(prefix),
-	)
+	gspublic.POST("/:status/user/:uid/json", client.jsonIndexAction(prefix))
 
-	// Admin Group
-	admin := g.Group("/admin", user.RequireAdmin)
+	////////////////////////////////////////////////////////////////
+	// Game Admin Routes
+	gadmin := engine.Group(prefix+"/game/admin", user.RequireAdmin)
 
-	admin.GET("/:hid",
-		client.fetch,
-		mlog.Get,
-		game.SetAdmin(true),
-		client.show(prefix),
-	)
+	gadmin.GET("/:hid", client.show(prefix))
 
-	admin.POST("/admin/:hid",
-		client.fetch,
-		game.SetAdmin(true),
-		client.update(prefix),
-	)
+	gadmin.POST("/:hid", client.update(prefix))
 
-	admin.PUT("/admin/:hid",
-		client.fetch,
-		game.SetAdmin(true),
-		client.update(prefix),
-	)
+	gadmin.PUT("/:hid", client.update(prefix))
 
 	return engine
 }

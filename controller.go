@@ -649,7 +649,7 @@ func (client Client) jsonIndexAction(prefix string) gin.HandlerFunc {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
 
-		client.Game.JSONIndexAction(c)
+		client.Game.JSONIndexAction(c, gtype.GOT)
 	}
 }
 
