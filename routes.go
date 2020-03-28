@@ -4,88 +4,137 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/mlog"
-	"github.com/SlothNinja/rating"
+	gtype "github.com/SlothNinja/type"
 	"github.com/SlothNinja/user"
 	stats "github.com/SlothNinja/user-stats"
 	"github.com/gin-gonic/gin"
 )
 
-type Client struct {
+type server struct {
 	*datastore.Client
-	Game   game.Client
-	Rating rating.Client
-	Stats  stats.Client
 }
 
-func NewClient(dsClient *datastore.Client) Client {
-	return Client{
-		Client: dsClient,
-		Game:   game.NewClient(dsClient),
-		Rating: rating.NewClient(dsClient),
-		Stats:  stats.NewClient(dsClient),
-	}
+func NewClient(dsClient *datastore.Client) server {
+	return server{Client: dsClient}
 }
 
-func (client Client) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
-	/////////////////////////////////////////
-	// Game Public Routes
-	gpublic := engine.Group(prefix + "/game")
-
-	// Show
-	gpublic.GET("/show/:hid", client.show(prefix))
-
-	///////////////////////////////////////////
-	// Game Private Routes
-	gprivate := engine.Group(prefix+"/game", user.RequireCurrentUser)
+func (srv server) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
+	// Game Group
+	g := engine.Group(prefix + "/game")
 
 	// New
-	gprivate.GET("/new", client.newAction(prefix))
+	g.GET("/new",
+		user.RequireCurrentUser(),
+		gtype.SetTypes(),
+		srv.newAction(prefix),
+	)
 
 	// Create
-	gprivate.POST("", client.create(prefix))
+	g.POST("",
+		user.RequireCurrentUser(),
+		srv.create(prefix),
+	)
+
+	// Show
+	g.GET("/show/:hid",
+		srv.fetch,
+		mlog.Get,
+		game.SetAdmin(false),
+		srv.show(prefix),
+	)
 
 	// Undo
-	gprivate.POST("/undo/:hid", client.undo(prefix))
+	g.POST("/undo/:hid",
+		srv.fetch,
+		srv.undo(prefix),
+	)
 
 	// Finish
-	gprivate.POST("/finish/:hid", client.finish(prefix))
+	g.POST("/finish/:hid",
+		srv.fetch,
+		stats.Fetch(user.CurrentFrom),
+		srv.finish(prefix),
+	)
 
 	// Drop
-	gprivate.POST("/drop/:hid", client.drop(prefix))
+	g.POST("/drop/:hid",
+		user.RequireCurrentUser(),
+		srv.fetch,
+		srv.drop(prefix),
+	)
 
 	// Accept
-	gprivate.POST("/accept/:hid", client.accept(prefix))
+	g.POST("/accept/:hid",
+		user.RequireCurrentUser(),
+		srv.fetch,
+		srv.accept(prefix),
+	)
 
 	// Update
-	gprivate.PUT("/show/:hid", client.update(prefix))
+	g.PUT("/show/:hid",
+		user.RequireCurrentUser(),
+		srv.fetch,
+		game.RequireCurrentPlayerOrAdmin(),
+		game.SetAdmin(false),
+		srv.update(prefix),
+	)
 
 	// Add Message
-	gprivate.PUT("/show/:hid/addmessage", mlog.AddMessage(prefix))
+	g.PUT("/show/:hid/addmessage",
+		user.RequireCurrentUser(),
+		mlog.Get,
+		mlog.AddMessage(prefix),
+	)
 
-	///////////////////////////////////////////////////////////////
-	// Games Public Routes
-	gspublic := engine.Group(prefix + "/games")
+	// Games Group
+	gs := engine.Group(prefix + "/games")
 
 	// Index
-	gspublic.GET("/:status", client.index(prefix))
+	gs.GET("/:status",
+		gtype.SetTypes(),
+		srv.index(prefix),
+	)
 
-	gspublic.GET("/:status/user/:uid", client.index(prefix))
+	gs.GET("/:status/user/:uid",
+		gtype.SetTypes(),
+		srv.index(prefix),
+	)
 
 	// JSON Data for Index
-	gspublic.POST("/:status/json", client.jsonIndexAction(prefix))
+	gs.POST("/:status/json",
+		gtype.SetTypes(),
+		game.GetFiltered(gtype.GOT),
+		srv.jsonIndexAction(prefix),
+	)
 
 	// JSON Data for Index
-	gspublic.POST("/:status/user/:uid/json", client.jsonIndexAction(prefix))
+	gs.POST("/:status/user/:uid/json",
+		gtype.SetTypes(),
+		game.GetFiltered(gtype.GOT),
+		srv.jsonIndexAction(prefix),
+	)
 
-	////////////////////////////////////////////////////////////////
-	// Game Admin Routes
-	gadmin := engine.Group(prefix+"/game/admin", user.RequireAdmin)
+	// Admin Group
+	admin := g.Group("/admin", user.RequireAdmin)
 
-	gadmin.GET("/:hid", client.show(prefix))
+	admin.GET("/:hid",
+		srv.fetch,
+		mlog.Get,
+		game.SetAdmin(true),
+		srv.show(prefix),
+	)
 
-	gadmin.POST("/:hid", client.update(prefix))
+	admin.POST("/admin/:hid",
+		srv.fetch,
+		game.SetAdmin(true),
+		srv.update(prefix),
+	)
 
-	gadmin.PUT("/:hid", client.update(prefix))
+	admin.PUT("/admin/:hid",
+		srv.fetch,
+		game.SetAdmin(true),
+		srv.update(prefix),
+	)
 
 	return engine
 }

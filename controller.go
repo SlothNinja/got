@@ -47,7 +47,7 @@ func withJSON(c *gin.Context, g *Game) {
 	c.Set(jsonKey, g)
 }
 
-func (client Client) show(prefix string) gin.HandlerFunc {
+func (srv server) show(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -90,7 +90,7 @@ func (g *Game) update(c *gin.Context) (tmpl string, act game.ActionType, err err
 	return
 }
 
-func (client Client) undo(prefix string) gin.HandlerFunc {
+func (srv server) undo(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -109,7 +109,7 @@ func (client Client) undo(prefix string) gin.HandlerFunc {
 	}
 }
 
-func (client Client) update(prefix string) gin.HandlerFunc {
+func (srv server) update(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -135,7 +135,7 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 				Key:        mkey,
 				Expiration: time.Minute * 30,
 			}
-
+			// item := memcache.NewItem(c, mkey).SetExpiration(time.Minute * 30)
 			v, err := codec.Encode(g)
 			if err != nil {
 				log.Errorf(err.Error())
@@ -148,8 +148,28 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 				return
 			}
+		case actionType == game.SaveAndStatUpdate:
+			cu := user.CurrentFrom(c)
+			st, err := stats.ByUser(c, cu)
+			if err != nil {
+				log.Errorf("stat.ByUser error: %v", err)
+				restful.AddErrorf(c, "stats.ByUser error: %s", err)
+				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+				return
+			}
+
+			ks := []*datastore.Key{st.Key}
+			es := []interface{}{st}
+
+			err = srv.saveWith(c, g, ks, es)
+			if err != nil {
+				log.Errorf("g.save error: %s", err)
+				restful.AddErrorf(c, "g.save error: %s", err)
+				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+				return
+			}
 		case actionType == game.Save:
-			if err := client.save(c, g); err != nil {
+			if err := srv.save(c, g); err != nil {
 				log.Errorf("%s", err)
 				restful.AddErrorf(c, "Controller#Update Save Error: %s", err)
 				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
@@ -185,9 +205,9 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 	}
 }
 
-func (client Client) save(c *gin.Context, g *Game) error {
+func (srv server) save(c *gin.Context, g *Game) error {
 	oldG := New(c, g.ID())
-	err := client.Get(c, oldG.Header.Key, oldG.Header)
+	err := srv.Get(c, oldG.Header.Key, oldG.Header)
 	if err != nil {
 		return err
 	}
@@ -201,7 +221,7 @@ func (client Client) save(c *gin.Context, g *Game) error {
 		return err
 	}
 
-	_, err = client.Put(c, g.Key, g.Header)
+	_, err = srv.Put(c, g.Key, g.Header)
 	if err != nil {
 		return err
 	}
@@ -213,8 +233,8 @@ func (client Client) save(c *gin.Context, g *Game) error {
 	return err
 }
 
-func (client Client) saveWith(c *gin.Context, g *Game, ks []*datastore.Key, es []interface{}) error {
-	_, err := client.RunInTransaction(c, func(tx *datastore.Transaction) error {
+func (srv server) saveWith(c *gin.Context, g *Game, ks []*datastore.Key, es []interface{}) error {
+	_, err := srv.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		oldG := New(c, g.ID())
 		err := tx.Get(oldG.Header.Key, oldG.Header)
 		if err != nil {
@@ -320,7 +340,7 @@ func newGamer(c *gin.Context) game.Gamer {
 	return New(c, 0)
 }
 
-func (client Client) index(prefix string) gin.HandlerFunc {
+func (srv server) index(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -389,7 +409,7 @@ func newPath(prefix string) string {
 	return fmt.Sprintf("/%s/game/new", prefix)
 }
 
-func (client Client) newAction(prefix string) gin.HandlerFunc {
+func (srv server) newAction(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -412,7 +432,7 @@ func (client Client) newAction(prefix string) gin.HandlerFunc {
 	}
 }
 
-func (client Client) create(prefix string) gin.HandlerFunc {
+func (srv server) create(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -441,7 +461,7 @@ func (client Client) create(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		ks, err := client.AllocateIDs(c, []*datastore.Key{g.Header.Key})
+		ks, err := srv.AllocateIDs(c, []*datastore.Key{g.Header.Key})
 		if err != nil {
 			log.Errorf(err.Error())
 			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
@@ -449,7 +469,7 @@ func (client Client) create(prefix string) gin.HandlerFunc {
 		}
 		g.Header.Key = ks[0]
 
-		_, err = client.RunInTransaction(c, func(tx *datastore.Transaction) error {
+		_, err = srv.RunInTransaction(c, func(tx *datastore.Transaction) error {
 			m := mlog.New(g.Header.Key.ID)
 			ks := []*datastore.Key{g.Header.Key, m.Key}
 			es := []interface{}{g.Header, m}
@@ -469,7 +489,7 @@ func (client Client) create(prefix string) gin.HandlerFunc {
 	}
 }
 
-func (client Client) accept(prefix string) gin.HandlerFunc {
+func (srv server) accept(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -498,7 +518,7 @@ func (client Client) accept(prefix string) gin.HandlerFunc {
 			}
 		}
 
-		err = client.save(c, g)
+		err = srv.save(c, g)
 		if err != nil {
 			log.Errorf(err.Error())
 			defer c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
@@ -516,7 +536,7 @@ func (client Client) accept(prefix string) gin.HandlerFunc {
 	}
 }
 
-func (client Client) drop(prefix string) gin.HandlerFunc {
+func (srv server) drop(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
@@ -535,7 +555,7 @@ func (client Client) drop(prefix string) gin.HandlerFunc {
 			restful.AddErrorf(c, err.Error())
 			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
 		}
-		err = client.save(c, g)
+		err = srv.save(c, g)
 
 		if err != nil {
 			log.Errorf(err.Error())
@@ -546,110 +566,120 @@ func (client Client) drop(prefix string) gin.HandlerFunc {
 	}
 }
 
-func (client Client) fetch(c *gin.Context) {
+func (srv server) fetch(c *gin.Context) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-
-	g, err := client.getGame(c)
+	// create Gamer
+	log.Debugf("hid: %v", c.Param("hid"))
+	id, err := strconv.ParseInt(c.Param("hid"), 10, 64)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	withGame(c, g)
-	cm := g.ColorMapFor(user.CurrentFrom(c))
-	color.WithMap(c, cm)
-}
-
-func (client Client) getGame(c *gin.Context) (*Game, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-
-	id, err := strconv.ParseInt(c.Param("hid"), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
+	log.Debugf("id: %v", id)
 	g := New(c, id)
-	switch c.PostForm("action") {
-	case "reset", "undo":
-		return client.dsGet(c, g)
+
+	switch action := c.PostForm("action"); {
+	case action == "reset":
+		// pull from memcache/datastore
+		// same as undo
+		fallthrough
+	case action == "undo":
+		// pull from memcache/datastore
+		if err := srv.dsGet(c, g); err != nil {
+			c.Redirect(http.StatusSeeOther, homePath)
+			return
+		}
 	default:
 		if user.CurrentFrom(c) != nil {
-			g, err = client.mcGet(c, g)
+			// pull from memcache and return if successful; otherwise pull from datastore
+			err := mcGet(c, g)
 			if err == nil {
-				return g, nil
+				return
 			}
 		}
 
-		return client.dsGet(c, g)
+		log.Debugf("g: %#v", g)
+		log.Debugf("k: %v", g.Header.Key)
+		err := srv.dsGet(c, g)
+		if err != nil {
+			log.Debugf("dsGet error: %v", err)
+			c.Redirect(http.StatusSeeOther, homePath)
+			return
+		}
 	}
 }
 
 // pull temporary game state from memcache.  Note may be different from value stored in datastore.
-func (client Client) mcGet(c *gin.Context, g *Game) (*Game, error) {
+func mcGet(c *gin.Context, g *Game) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
 	mkey := g.GetHeader().UndoKey(c)
 	item, err := memcache.Get(c, mkey)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = codec.Decode(g, item.Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = client.afterCache(c, g)
+	err = g.afterCache()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return g, nil
+	withGame(c, g)
+	color.WithMap(c, g.ColorMapFor(user.CurrentFrom(c)))
+	return nil
 }
 
 // pull game state from memcache/datastore.  returned memcache should be same as datastore.
-func (client Client) dsGet(c *gin.Context, g *Game) (*Game, error) {
+func (srv server) dsGet(c *gin.Context, g *Game) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	err := client.Get(c, g.Header.Key, g.Header)
+	err := srv.Get(c, g.Header.Key, g.Header)
 	switch {
 	case err != nil:
 		restful.AddErrorf(c, err.Error())
-		return nil, err
+		return err
 	case g == nil:
 		err = fmt.Errorf("Unable to get game for id: %v", g.ID)
 		restful.AddErrorf(c, err.Error())
-		return nil, err
+		return err
 	}
 
 	state := newState()
 	err = codec.Decode(&state, g.SavedState)
 	if err != nil {
 		restful.AddErrorf(c, err.Error())
-		return nil, err
+		return err
 	}
 
 	g.State = state
 
-	err = client.init(c, g)
+	err = g.init(c)
 	if err != nil {
 		restful.AddErrorf(c, err.Error())
-		return nil, err
+		return err
 	}
 
-	return g, nil
+	withGame(c, g)
+	cm := g.ColorMapFor(user.CurrentFrom(c))
+	color.WithMap(c, cm)
+	return nil
 }
 
-func (client Client) jsonIndexAction(prefix string) gin.HandlerFunc {
+func (srv server) jsonIndexAction(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
 
-		client.Game.JSONIndexAction(c, gtype.GOT)
+		game.JSONIndexAction(c)
 	}
 }
 

@@ -22,11 +22,13 @@ func init() {
 }
 
 // Register assigns a game type and routes.
-func (client Client) Register(t gtype.Type, r *gin.Engine) *gin.Engine {
+func (s server) Register(t gtype.Type, r *gin.Engine) *gin.Engine {
 	gob.Register(new(Game))
 	game.Register(t, newGamer, phaseNames, nil)
-	return client.addRoutes(t.Prefix(), r)
+	return s.addRoutes(t.Prefix(), r)
 }
+
+//var ErrMustBeGame = errors.New("Resource must have type *Game.")
 
 const noPID = game.NoPlayerID
 

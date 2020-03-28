@@ -28,20 +28,21 @@ func pk(c *gin.Context) *datastore.Key {
 	return datastore.NameKey(gtype.GOT.SString(), "root", game.GamesRoot(c))
 }
 
-func (client Client) init(c *gin.Context, g *Game) error {
-	err := client.Game.AfterLoad(c, g.Header, g)
-	if err != nil {
-		return err
+func (g *Game) init(c *gin.Context) (err error) {
+	if err = g.Header.AfterLoad(g); err == nil {
+		for _, player := range g.Players() {
+			player.init(g)
+		}
 	}
 
-	for _, player := range g.Players() {
-		player.init(g)
-	}
-	return nil
+	//	for _, entry := range g.Log {
+	//		entry.Init(g)
+	//	}
+	return
 }
 
-func (client Client) afterCache(c *gin.Context, g *Game) error {
-	return client.init(c, g)
+func (g *Game) afterCache() error {
+	return g.init(g.CTX())
 }
 
 func (g *Game) options() (s string) {
