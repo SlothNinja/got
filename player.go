@@ -261,30 +261,45 @@ func (p *Player) clearActions() {
 // CanClick indicates whether a particular player can select an area.
 func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) (b bool) {
 	cp := g.CurrentPlayer()
-	switch g.Phase {
-	case placeThieves:
-		b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == noPID
-	case selectThief:
-		b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == cp.ID()
-	case moveThief:
+	switch {
+	case g == nil:
+		return false
+	case g.PlayedCard == nil:
+		return false
+	case cp == nil:
+		return false
+	case a == nil:
+		return false
+	case p == nil:
+		return false
+	case p.ID() != cp.ID():
+		return false
+	case g.Phase == placeThieves:
+		return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == noPID
+	case g.Phase == selectThief:
+		return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == cp.ID()
+	case g.Phase == moveThief:
 		switch {
 		case g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp:
-			b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isLampArea(a)
+			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isLampArea(a)
 		case g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel:
-			b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCamelArea(a)
+			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCamelArea(a)
 		case g.PlayedCard.Type == sword:
-			b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isSwordArea(a)
+			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isSwordArea(a)
 		case g.PlayedCard.Type == carpet:
-			b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCarpetArea(a)
+			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCarpetArea(a)
 		case g.PlayedCard.Type == turban && g.Stepped == 0:
-			b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isTurban0Area(a)
+			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isTurban0Area(a)
 		case g.PlayedCard.Type == turban && g.Stepped == 1:
-			b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isTurban1Area(a)
+			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isTurban1Area(a)
 		case g.PlayedCard.Type == coins:
-			b = g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCoinsArea(a)
+			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCoinsArea(a)
+		default:
+			return false
 		}
+	default:
+		return false
 	}
-	return
 }
 
 // CanPlaceThief indicates whether a particular player can place a thief.
