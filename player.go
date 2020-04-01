@@ -264,15 +264,9 @@ func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) (b bool) {
 	switch {
 	case g == nil:
 		return false
-	case g.PlayedCard == nil:
-		return false
 	case cp == nil:
 		return false
 	case a == nil:
-		return false
-	case p == nil:
-		return false
-	case p.ID() != cp.ID():
 		return false
 	case g.Phase == placeThieves:
 		return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == noPID
@@ -280,6 +274,12 @@ func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) (b bool) {
 		return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == cp.ID()
 	case g.Phase == moveThief:
 		switch {
+		case p == nil:
+			return false
+		case p.ID() != cp.ID():
+			return false
+		case g.PlayedCard == nil:
+			return false
 		case g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp:
 			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isLampArea(a)
 		case g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel:
