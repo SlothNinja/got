@@ -594,7 +594,7 @@ func (client Client) fetch(c *gin.Context) {
 	default:
 		if user.CurrentFrom(c) != nil {
 			// pull from memcache and return if successful; otherwise pull from datastore
-			err := mcGet(c, g)
+			err := client.mcGet(c, g)
 			if err == nil {
 				return
 			}
@@ -612,7 +612,7 @@ func (client Client) fetch(c *gin.Context) {
 }
 
 // pull temporary game state from memcache.  Note may be different from value stored in datastore.
-func mcGet(c *gin.Context, g *Game) error {
+func (client Client) mcGet(c *gin.Context, g *Game) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
@@ -627,7 +627,7 @@ func mcGet(c *gin.Context, g *Game) error {
 		return err
 	}
 
-	err = g.afterCache()
+	err = client.afterCache(c, g)
 	if err != nil {
 		return err
 	}
@@ -662,7 +662,7 @@ func (client Client) dsGet(c *gin.Context, g *Game) error {
 
 	g.State = state
 
-	err = g.init(c)
+	err = client.init(c, g)
 	if err != nil {
 		restful.AddErrorf(c, err.Error())
 		return err
@@ -679,7 +679,7 @@ func (client Client) jsonIndexAction(prefix string) gin.HandlerFunc {
 		log.Debugf("Entering")
 		defer log.Debugf("Exiting")
 
-		game.JSONIndexAction(c)
+		client.Game.JSONIndexAction(c)
 	}
 }
 

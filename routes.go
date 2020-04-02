@@ -16,6 +16,7 @@ type Client struct {
 	Stats  stats.Client
 	MLog   mlog.Client
 	Rating rating.Client
+	Game   game.Client
 }
 
 func NewClient(dsClient *datastore.Client) Client {
@@ -24,6 +25,7 @@ func NewClient(dsClient *datastore.Client) Client {
 		Stats:  stats.NewClient(dsClient),
 		MLog:   mlog.NewClient(dsClient),
 		Rating: rating.NewClient(dsClient),
+		Game:   game.NewClient(dsClient),
 	}
 }
 
@@ -112,14 +114,14 @@ func (client Client) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
 	// JSON Data for Index
 	gs.POST("/:status/json",
 		gtype.SetTypes(),
-		game.GetFiltered(gtype.GOT),
+		client.Game.GetFiltered(gtype.GOT),
 		client.jsonIndexAction(prefix),
 	)
 
 	// JSON Data for Index
 	gs.POST("/:status/user/:uid/json",
 		gtype.SetTypes(),
-		game.GetFiltered(gtype.GOT),
+		client.Game.GetFiltered(gtype.GOT),
 		client.jsonIndexAction(prefix),
 	)
 

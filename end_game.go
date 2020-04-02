@@ -20,15 +20,18 @@ func init() {
 	gob.Register(new(announceWinnersEntry))
 }
 
-func (g *Game) endGame(c *gin.Context) (ps contest.Places) {
+func (client Client) endGame(c *gin.Context, g *Game) (contest.Places, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
 	g.Phase = endGame
-	ps = g.determinePlaces(c)
+	ps, err := client.determinePlaces(c, g)
+	if err != nil {
+		return nil, err
+	}
 	g.setWinners(ps[0])
 	g.newEndGameEntry()
-	return
+	return ps, nil
 }
 
 func toIDS(places []Players) [][]int64 {

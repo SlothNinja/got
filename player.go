@@ -128,20 +128,7 @@ func (p *Player) compareByCards(p2 *Player) game.Comparison {
 	return game.EqualTo
 }
 
-//func (g *Game) determinePlaces() []Players {
-//	// sort players by score
-//	players := g.Players()
-//	sort.Sort(Reverse{ByScore{players}})
-//	g.setPlayers(players)
-//
-//	places := make([]Players, 0)
-//	for _, p := range g.Players() {
-//		places = append(places, Players{p})
-//	}
-//	return places
-//}
-
-func (g *Game) determinePlaces(c *gin.Context) contest.Places {
+func (client Client) determinePlaces(c *gin.Context, g *Game) (contest.Places, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 	// sort players by score
@@ -155,11 +142,15 @@ func (g *Game) determinePlaces(c *gin.Context) contest.Places {
 		results := make(contest.Results, 0)
 		tie := false
 		for j, p2 := range g.Players() {
+			r, err := client.Rating.For(c, p2.User(), g.Type)
+			if err != nil {
+				return nil, err
+			}
 			result := &contest.Result{
 				GameID: g.ID(),
 				Type:   g.Type,
-				R:      p2.Rating().R,
-				RD:     p2.Rating().RD,
+				R:      r.R,
+				RD:     r.RD,
 			}
 			switch c := p1.compareByScore(p2); {
 			case i == j:
@@ -183,7 +174,7 @@ func (g *Game) determinePlaces(c *gin.Context) contest.Places {
 			places = append(places, rmap)
 		}
 	}
-	return places
+	return places, nil
 }
 
 // Reverse is a wrapper for sorting in reverse order.
@@ -192,19 +183,8 @@ type Reverse struct{ sort.Interface }
 // Less indicates if one element should preceed another.
 func (r Reverse) Less(i, j int) bool { return r.Interface.Less(j, i) }
 
-//var NotFound = errors.New("Not Found")
-
 func (p *Player) init(gr game.Gamer) {
 	p.SetGame(gr)
-
-	//	g, ok := gr.(*Game)
-	//	if !ok {
-	//		return
-	//	}
-
-	//	for _, entry := range p.Log {
-	//		entry.Init(g)
-	//	}
 }
 
 func newPlayer() *Player {

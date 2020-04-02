@@ -28,21 +28,19 @@ func pk(c *gin.Context) *datastore.Key {
 	return datastore.NameKey(gtype.GOT.SString(), "root", game.GamesRoot(c))
 }
 
-func (g *Game) init(c *gin.Context) (err error) {
-	if err = g.Header.AfterLoad(g); err == nil {
-		for _, player := range g.Players() {
-			player.init(g)
-		}
+func (client Client) init(c *gin.Context, g *Game) error {
+	err := client.Game.AfterLoad(c, g.Header)
+	if err != nil {
+		return err
 	}
-
-	//	for _, entry := range g.Log {
-	//		entry.Init(g)
-	//	}
-	return
+	for _, player := range g.Players() {
+		player.init(g)
+	}
+	return nil
 }
 
-func (g *Game) afterCache() error {
-	return g.init(g.CTX())
+func (client Client) afterCache(c *gin.Context, g *Game) error {
+	return client.init(c, g)
 }
 
 func (g *Game) options() (s string) {
@@ -63,9 +61,6 @@ func (g *Game) fromForm(c *gin.Context) error {
 	if err != nil {
 		return err
 	}
-	// if err = restful.BindWith(c, s, binding.FormPost); err == nil {
-	// 	g.TwoThiefVariant = s.TwoThiefVariant
-	// }
-	log.Debugf("err: %v s:%#v", err, s)
+	g.TwoThiefVariant = s.TwoThiefVariant
 	return nil
 }

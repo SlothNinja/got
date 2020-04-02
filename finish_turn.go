@@ -172,7 +172,7 @@ func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game) ([]*datastore.
 	// If no next player, end game
 	if np == nil {
 		g.finalClaim(c)
-		ps := g.endGame(c)
+		ps, err := client.endGame(c, g)
 		cs := contest.GenContests(c, ps)
 		g.Status = game.Completed
 		g.Phase = gameOver
