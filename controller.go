@@ -207,7 +207,7 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 
 func (client Client) save(c *gin.Context, g *Game) error {
 	oldG := New(c, g.ID())
-	err := client.Get(c, oldG.Header.Key, oldG.Header)
+	err := client.DS.Get(c, oldG.Header.Key, oldG.Header)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (client Client) save(c *gin.Context, g *Game) error {
 		return err
 	}
 
-	_, err = client.Put(c, g.Key, g.Header)
+	_, err = client.DS.Put(c, g.Key, g.Header)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (client Client) save(c *gin.Context, g *Game) error {
 }
 
 func (client Client) saveWith(c *gin.Context, g *Game, ks []*datastore.Key, es []interface{}) error {
-	_, err := client.RunInTransaction(c, func(tx *datastore.Transaction) error {
+	_, err := client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		oldG := New(c, g.ID())
 		err := tx.Get(oldG.Header.Key, oldG.Header)
 		if err != nil {
@@ -461,7 +461,7 @@ func (client Client) create(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		ks, err := client.AllocateIDs(c, []*datastore.Key{g.Header.Key})
+		ks, err := client.DS.AllocateIDs(c, []*datastore.Key{g.Header.Key})
 		if err != nil {
 			log.Errorf(err.Error())
 			c.Redirect(http.StatusSeeOther, recruitingPath(prefix))
@@ -469,7 +469,7 @@ func (client Client) create(prefix string) gin.HandlerFunc {
 		}
 		g.Header.Key = ks[0]
 
-		_, err = client.RunInTransaction(c, func(tx *datastore.Transaction) error {
+		_, err = client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 			m := mlog.New(g.Header.Key.ID)
 			ks := []*datastore.Key{g.Header.Key, m.Key}
 			es := []interface{}{g.Header, m}
@@ -642,7 +642,7 @@ func (client Client) dsGet(c *gin.Context, g *Game) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	err := client.Get(c, g.Header.Key, g.Header)
+	err := client.DS.Get(c, g.Header.Key, g.Header)
 	switch {
 	case err != nil:
 		restful.AddErrorf(c, err.Error())

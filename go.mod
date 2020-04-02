@@ -4,12 +4,12 @@ require (
 	cloud.google.com/go/datastore v1.1.0
 	github.com/SlothNinja/codec v0.0.0-20200229214548-e3da7deddffb
 	github.com/SlothNinja/color v0.0.0-20200316011031-586fe3c95fae
-	github.com/SlothNinja/contest v0.0.0-20200319032446-29b690351b81
-	github.com/SlothNinja/game v0.0.0-20200321040413-d51ae22f32e0
+	github.com/SlothNinja/contest v0.0.0-20200326205205-9c14973aeaac
+	github.com/SlothNinja/game v0.0.0-20200402003323-6c3a4303cace
 	github.com/SlothNinja/log v0.0.2
 	github.com/SlothNinja/memcache v0.0.0-20200321195207-184761e76825
 	github.com/SlothNinja/mlog v0.0.0-20200328184746-00a4dcf73e02
-	github.com/SlothNinja/rating v0.0.0-20200321184620-3c544e573b3b
+	github.com/SlothNinja/rating v0.0.0-20200402000143-d750ecc77bc4
 	github.com/SlothNinja/restful v0.0.0-20200317231650-e1a2eb3f56b2
 	github.com/SlothNinja/schema v0.0.0-20200301053948-c765147c924d
 	github.com/SlothNinja/send v0.0.0-20200321040208-716c0a7a4470

@@ -29,7 +29,7 @@ func (client Client) finish(prefix string) gin.HandlerFunc {
 		case placeThieves:
 			ks, es, err = g.placeThievesFinishTurn(c)
 		case drawCard:
-			ks, es, err = g.moveThiefFinishTurn(c)
+			ks, es, err = client.moveThiefFinishTurn(c, g)
 		}
 
 		if err != nil {
@@ -158,7 +158,7 @@ func (g *Game) moveThiefNextPlayer(pers ...game.Playerer) (np *Player) {
 	return
 }
 
-func (g *Game) moveThiefFinishTurn(c *gin.Context) ([]*datastore.Key, []interface{}, error) {
+func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game) ([]*datastore.Key, []interface{}, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 	s, err := g.validateMoveThiefFinishTurn(c)
@@ -180,7 +180,7 @@ func (g *Game) moveThiefFinishTurn(c *gin.Context) ([]*datastore.Key, []interfac
 		// Need to call SendTurnNotificationsTo before saving the new contests
 		// SendEndGameNotifications relies on pulling the old contests from the db.
 		// Saving the contests resulting in double counting.
-		err = g.sendEndGameNotifications(c, ps, cs)
+		err = client.sendEndGameNotifications(c, g, ps, cs)
 		if err != nil {
 			// log but otherwise ignore send errors
 			log.Warningf(err.Error())

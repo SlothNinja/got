@@ -4,6 +4,7 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/mlog"
+	"github.com/SlothNinja/rating"
 	gtype "github.com/SlothNinja/type"
 	"github.com/SlothNinja/user"
 	stats "github.com/SlothNinja/user-stats"
@@ -11,16 +12,18 @@ import (
 )
 
 type Client struct {
-	*datastore.Client
-	Stats stats.Client
-	MLog  mlog.Client
+	DS     *datastore.Client
+	Stats  stats.Client
+	MLog   mlog.Client
+	Rating rating.Client
 }
 
 func NewClient(dsClient *datastore.Client) Client {
 	return Client{
-		Client: dsClient,
+		DS:     dsClient,
 		Stats:  stats.NewClient(dsClient),
 		MLog:   mlog.NewClient(dsClient),
+		Rating: rating.NewClient(dsClient),
 	}
 }
 
