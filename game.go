@@ -40,17 +40,11 @@ type Game struct {
 
 // State stores the game state.
 type State struct {
-	Playerers       game.Playerers
-	Log             GameLog
-	Grid            grid
-	Jewels          Card
-	TwoThiefVariant bool `form:"two-thief-variant"`
-	*TempData       `datastore:"-"`
-}
-
-// TempData provides storage for non-persistent values.
-// They are cached but ignored by datastore
-type TempData struct {
+	Playerers          game.Playerers
+	Log                GameLog
+	Grid               grid
+	Jewels             Card
+	TwoThiefVariant    bool `form:"two-thief-variant"`
 	SelectedPlayerID   int
 	BumpedPlayerID     int
 	SelectedAreaF      *Area

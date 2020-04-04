@@ -239,7 +239,7 @@ func (p *Player) clearActions() {
 }
 
 // CanClick indicates whether a particular player can select an area.
-func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) (b bool) {
+func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) bool {
 	cp := g.CurrentPlayer()
 	switch {
 	case g == nil:

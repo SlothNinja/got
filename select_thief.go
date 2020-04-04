@@ -14,17 +14,17 @@ func (g *Game) startSelectThief(c *gin.Context) (tmpl string, err error) {
 	return "got/played_card_update", nil
 }
 
-func (g *Game) selectThief(c *gin.Context) (tmpl string, err error) {
+func (g *Game) selectThief(c *gin.Context) (string, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if err = g.validateSelectThief(c); err != nil {
-		tmpl = "got/flash_notice"
-	} else {
-		g.SelectedThiefAreaF = g.SelectedArea()
-		tmpl, err = g.startMoveThief(c)
+	err := g.validateSelectThief(c)
+	if err != nil {
+		return "got/flash_notice", err
 	}
-	return
+
+	g.SelectedThiefAreaF = g.SelectedArea()
+	return g.startMoveThief(c)
 }
 
 func (g *Game) validateSelectThief(c *gin.Context) error {

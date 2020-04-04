@@ -27,6 +27,11 @@ func (g *Game) playCard(c *gin.Context) (tmpl string, err error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
+	// reset card played related flags
+	g.Stepped = 0
+	g.JewelsPlayed = false
+	g.PlayedCard = nil
+
 	if err = g.validatePlayCard(c); err != nil {
 		tmpl = "got/flash_notice"
 		return
@@ -35,6 +40,7 @@ func (g *Game) playCard(c *gin.Context) (tmpl string, err error) {
 	cp := g.CurrentPlayer()
 	card := cp.Hand.playCardAt(g.SelectedCardIndex)
 	cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
+
 	if card.Type == jewels {
 		pc := g.Jewels
 		g.PlayedCard = &pc

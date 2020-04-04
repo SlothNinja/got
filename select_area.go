@@ -19,6 +19,7 @@ func (g *Game) selectArea(c *gin.Context) (string, game.ActionType, error) {
 		return "got/flash_notice", game.None, err
 	}
 
+	g.Admin = ""
 	switch cp := g.CurrentPlayer(); {
 	case g.Admin == "admin-header":
 		return "got/admin/header_dialog", game.Cache, nil

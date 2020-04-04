@@ -256,8 +256,6 @@ func (g *Game) encode(c *gin.Context) (err error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	g.TempData = nil
-
 	var encoded []byte
 	if encoded, err = codec.Encode(g.State); err != nil {
 		return

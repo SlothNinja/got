@@ -21,7 +21,7 @@ func New(c *gin.Context, id int64) *Game {
 }
 
 func newState() *State {
-	return &State{TempData: new(TempData)}
+	return new(State)
 }
 
 func pk(c *gin.Context) *datastore.Key {

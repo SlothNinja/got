@@ -14,8 +14,9 @@ func init() {
 	gob.Register(new(moveThiefEntry))
 }
 
-func (g *Game) startMoveThief(c *gin.Context) (tmpl string, err error) {
+func (g *Game) startMoveThief(c *gin.Context) (string, error) {
 	g.Phase = moveThief
+	g.ClickAreas = nil
 	return "got/select_thief_update", nil
 }
 
@@ -45,35 +46,39 @@ func (g *Game) moveThief(c *gin.Context) (tmpl string, err error) {
 	return g.claimItem(c)
 }
 
-func (g *Game) validateMoveThief(c *gin.Context) (err error) {
+func (g *Game) validateMoveThief(c *gin.Context) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
 	a := g.SelectedArea()
-	switch err = g.validatePlayerAction(c); {
+	g.ClickAreas = nil
+	err := g.validatePlayerAction(c)
+	switch {
 	case err != nil:
+		return err
 	case a == nil:
-		err = sn.NewVError("You must select a space which to move your thief.")
+		return sn.NewVError("You must select a space which to move your thief.")
 	case g.SelectedThiefArea() != nil && g.SelectedThiefArea().Thief != g.CurrentPlayer().ID():
-		err = sn.NewVError("You must first select one of your thieves.")
+		return sn.NewVError("You must first select one of your thieves.")
 	case (g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp) && !g.isLampArea(a):
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	case (g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel) && !g.isCamelArea(a):
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	case g.PlayedCard.Type == coins && !g.isCoinsArea(a):
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	case g.PlayedCard.Type == sword && !g.isSwordArea(a):
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	case g.PlayedCard.Type == carpet && !g.isCarpetArea(a):
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	case g.PlayedCard.Type == turban && g.Stepped == 0 && !g.isTurban0Area(a):
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	case g.PlayedCard.Type == turban && g.Stepped == 1 && !g.isTurban1Area(a):
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	case g.PlayedCard.Type == guard:
-		err = sn.NewVError("You can't move the selected thief to area %s%s", a.Row, a.Column)
+		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
+	default:
+		return nil
 	}
-	return
 }
 
 type moveThiefEntry struct {

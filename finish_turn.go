@@ -32,6 +32,18 @@ func (client Client) finish(prefix string) gin.HandlerFunc {
 			ks, es, err = client.moveThiefFinishTurn(c, g)
 		}
 
+		// zero flags
+		g.SelectedPlayerID = 0
+		g.BumpedPlayerID = 0
+		g.SelectedAreaF = nil
+		g.SelectedCardIndex = 0
+		g.Stepped = 0
+		g.PlayedCard = nil
+		g.JewelsPlayed = false
+		g.SelectedThiefAreaF = nil
+		g.ClickAreas = nil
+		g.Admin = ""
+
 		if err != nil {
 			log.Errorf(err.Error())
 			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
