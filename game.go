@@ -45,11 +45,11 @@ type State struct {
 	Grid            grid
 	Jewels          Card
 	TwoThiefVariant bool `form:"two-thief-variant"`
-	*TempData
+	*TempData       `datastore:"-"`
 }
 
 // TempData provides storage for non-persistent values.
-// They are memcached but ignored by datastore
+// They are cached but ignored by datastore
 type TempData struct {
 	SelectedPlayerID   int
 	BumpedPlayerID     int

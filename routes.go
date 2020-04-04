@@ -1,6 +1,8 @@
 package got
 
 import (
+	"time"
+
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/mlog"
@@ -9,6 +11,7 @@ import (
 	"github.com/SlothNinja/user"
 	stats "github.com/SlothNinja/user-stats"
 	"github.com/gin-gonic/gin"
+	"github.com/patrickmn/go-cache"
 )
 
 type Client struct {
@@ -17,6 +20,7 @@ type Client struct {
 	MLog   mlog.Client
 	Rating rating.Client
 	Game   game.Client
+	Cache  *cache.Cache
 }
 
 func NewClient(dsClient *datastore.Client) Client {
@@ -26,6 +30,7 @@ func NewClient(dsClient *datastore.Client) Client {
 		MLog:   mlog.NewClient(dsClient),
 		Rating: rating.NewClient(dsClient),
 		Game:   game.NewClient(dsClient),
+		Cache:  cache.New(30*time.Minute, 10*time.Minute),
 	}
 }
 

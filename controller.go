@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/codec"
@@ -12,7 +11,6 @@ import (
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/memcache"
 	"github.com/SlothNinja/mlog"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
@@ -97,14 +95,13 @@ func (client Client) undo(prefix string) gin.HandlerFunc {
 
 		g := gameFrom(c)
 		if g == nil {
-			log.Errorf("Controller#Update Game Not Found")
+			log.Errorf("game not found")
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "game not found"})
 			return
 		}
 
 		mkey := g.UndoKey(c)
-		if err := memcache.Delete(c, mkey); err != nil && err != memcache.ErrCacheMiss {
-			log.Errorf("Controller#Undo Error: %s", err)
-		}
+		client.Cache.Delete(mkey)
 		c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 	}
 }
@@ -131,23 +128,7 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 			return
 		case actionType == game.Cache:
 			mkey := g.UndoKey(c)
-			item := &memcache.Item{
-				Key:        mkey,
-				Expiration: time.Minute * 30,
-			}
-			// item := memcache.NewItem(c, mkey).SetExpiration(time.Minute * 30)
-			v, err := codec.Encode(g)
-			if err != nil {
-				log.Errorf(err.Error())
-				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
-				return
-			}
-			item.Value = v
-			if err := memcache.Set(c, item); err != nil {
-				log.Errorf(err.Error())
-				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
-				return
-			}
+			client.Cache.SetDefault(mkey, g)
 		case actionType == game.SaveAndStatUpdate:
 			cu := user.CurrentFrom(c)
 			st, err := client.Stats.ByUser(c, cu)
@@ -177,10 +158,7 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 			}
 		case actionType == game.Undo:
 			mkey := g.UndoKey(c)
-			if err := memcache.Delete(c, mkey); err != nil && err != memcache.ErrCacheMiss {
-				log.Errorf("memcache.Delete error: %s", err)
-				c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
-			}
+			client.Cache.Delete(mkey)
 		}
 
 		switch jData := jsonFrom(c); {
@@ -226,11 +204,8 @@ func (client Client) save(c *gin.Context, g *Game) error {
 		return err
 	}
 
-	err = memcache.Delete(c, g.UndoKey(c))
-	if err == memcache.ErrCacheMiss {
-		return nil
-	}
-	return err
+	client.Cache.Delete(g.UndoKey(c))
+	return nil
 }
 
 func (client Client) saveWith(c *gin.Context, g *Game, ks []*datastore.Key, es []interface{}) error {
@@ -258,11 +233,8 @@ func (client Client) saveWith(c *gin.Context, g *Game, ks []*datastore.Key, es [
 			return err
 		}
 
-		err = memcache.Delete(c, g.UndoKey(c))
-		if err == memcache.ErrCacheMiss {
-			return nil
-		}
-		return err
+		client.Cache.Delete(g.UndoKey(c))
+		return nil
 	})
 	return err
 }
@@ -295,46 +267,6 @@ func (g *Game) encode(c *gin.Context) (err error) {
 
 	return
 }
-
-//func (g *Game) saveAndUpdateStats(c *gin.Context) error {
-//	ctx := restful.ContextFrom(c)
-//	cu := user.CurrentFrom(c)
-//	s, err := stats.ByUser(c, cu)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return datastore.RunInTransaction(ctx, func(tc context.Context) error {
-//		c = restful.WithContext(c, tc)
-//		oldG := New(c)
-//		if ok := datastore.PopulateKey(oldG.Header, datastore.KeyForObj(tc, g.Header)); !ok {
-//			return fmt.Errorf("Unable to populate game with key.")
-//		}
-//		if err := datastore.Get(tc, oldG.Header); err != nil {
-//			return err
-//		}
-//
-//		if oldG.UpdatedAt != g.UpdatedAt {
-//			return fmt.Errorf("Game state changed unexpectantly.  Try again.")
-//		}
-//
-//		g.TempData = nil
-//		if encoded, err := codec.Encode(g.State); err != nil {
-//			return err
-//		} else {
-//			g.SavedState = encoded
-//		}
-//
-//		es := []interface{}{s, g.Header}
-//		if err := datastore.Put(tc, es); err != nil {
-//			return err
-//		}
-//		if err := memcache.Delete(tc, g.UndoKey(c)); err != nil && err != memcache.ErrCacheMiss {
-//			return err
-//		}
-//		return nil
-//	}, &datastore.TransactionOptions{XG: true})
-//}
 
 func newGamer(c *gin.Context) game.Gamer {
 	return New(c, 0)
@@ -582,62 +514,56 @@ func (client Client) fetch(c *gin.Context) {
 
 	switch action := c.PostForm("action"); {
 	case action == "reset":
-		// pull from memcache/datastore
+		// pull from cache/datastore
 		// same as undo
 		fallthrough
 	case action == "undo":
-		// pull from memcache/datastore
-		if err := client.dsGet(c, g); err != nil {
+		// pull from cache/datastore
+		err = client.dsGet(c, g)
+		if err != nil {
 			c.Redirect(http.StatusSeeOther, homePath)
 			return
 		}
 	default:
 		if user.CurrentFrom(c) != nil {
-			// pull from memcache and return if successful; otherwise pull from datastore
-			err := client.mcGet(c, g)
+			// pull from cache and return if successful; otherwise pull from datastore
+			err = client.mcGet(c, g)
 			if err == nil {
 				return
 			}
 		}
 
-		log.Debugf("g: %#v", g)
-		log.Debugf("k: %v", g.Header.Key)
-		err := client.dsGet(c, g)
+		err = client.dsGet(c, g)
 		if err != nil {
-			log.Debugf("dsGet error: %v", err)
 			c.Redirect(http.StatusSeeOther, homePath)
 			return
 		}
 	}
 }
 
-// pull temporary game state from memcache.  Note may be different from value stored in datastore.
+// pull temporary game state from cache.  Note may be different from value stored in datastore.
 func (client Client) mcGet(c *gin.Context, g *Game) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	mkey := g.GetHeader().UndoKey(c)
-	item, err := memcache.Get(c, mkey)
-	if err != nil {
-		return err
+	mkey := g.UndoKey(c)
+	item, found := client.Cache.Get(mkey)
+	if !found {
+		return fmt.Errorf("not found")
 	}
 
-	err = codec.Decode(g, item.Value)
-	if err != nil {
-		return err
+	g2, ok := item.(*Game)
+	if !ok {
+		return fmt.Errorf("item in cache is not a *Game")
 	}
-
-	err = client.afterCache(c, g)
-	if err != nil {
-		return err
-	}
+	g = g2
 
 	withGame(c, g)
 	color.WithMap(c, g.ColorMapFor(user.CurrentFrom(c)))
 	return nil
 }
 
-// pull game state from memcache/datastore.  returned memcache should be same as datastore.
+// pull game state from cache/datastore.  returned cache should be same as datastore.
 func (client Client) dsGet(c *gin.Context, g *Game) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
