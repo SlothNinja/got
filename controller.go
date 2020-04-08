@@ -554,10 +554,13 @@ func (client Client) mcGet(c *gin.Context, g *Game) error {
 	if !ok {
 		return fmt.Errorf("item in cache is not a *Game")
 	}
+	g2.SetCTX(c)
+
 	g = g2
 
 	withGame(c, g)
-	color.WithMap(c, g.ColorMapFor(user.CurrentFrom(c)))
+	cm := g.ColorMapFor(user.CurrentFrom(c))
+	color.WithMap(c, cm)
 	return nil
 }
 
