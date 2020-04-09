@@ -138,13 +138,13 @@ func (client Client) addRoutes(prefix string, engine *gin.Engine) *gin.Engine {
 		client.show(prefix),
 	)
 
-	admin.POST("/admin/:hid",
+	admin.POST("/:hid",
 		client.fetch,
 		game.SetAdmin(true),
 		client.update(prefix),
 	)
 
-	admin.PUT("/admin/:hid",
+	admin.PUT("/:hid",
 		client.fetch,
 		game.SetAdmin(true),
 		client.update(prefix),
