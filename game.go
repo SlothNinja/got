@@ -263,11 +263,16 @@ func (g *Game) adminHeader(c *gin.Context) (string, game.ActionType, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if err := g.adminUpdateHeader(c, headerValues); err != nil {
-		return "got/flash_notice", game.None, err
-	}
+	g.Phase = selectThief
+	g.CurrentPlayer().PerformedAction = false
+	g.SelectedAreaF = nil
+	g.PlayedCard = newCard(lamp, true)
 
-	return "", game.Save, nil
+	// if err := g.adminUpdateHeader(c, headerValues); err != nil {
+	// 	return "got/flash_notice", game.None, err
+	// }
+
+	return "", game.Cache, nil
 }
 
 func (g *Game) adminUpdateHeader(c *gin.Context, ss sslice) error {

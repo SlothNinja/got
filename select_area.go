@@ -19,7 +19,6 @@ func (g *Game) selectArea(c *gin.Context) (string, game.ActionType, error) {
 		return "got/flash_notice", game.None, err
 	}
 
-	g.Admin = ""
 	switch cp := g.CurrentPlayer(); {
 	case g.Admin == "admin-header":
 		return "got/admin/header_dialog", game.Cache, nil
@@ -64,6 +63,7 @@ func (g *Game) validateSelectArea(c *gin.Context) (err error) {
 		return
 	}
 
+	g.Admin = ""
 	areaID := c.PostForm("area")
 	switch splits := strings.Split(areaID, "-"); splits[0] {
 	case "admin":
