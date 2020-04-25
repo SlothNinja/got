@@ -1,0 +1,22 @@
+<template>
+  <sn-user-btn 
+    :color='color'
+    :user='player.user'
+    :size='size'
+  >
+  </sn-user-btn>
+</template>
+
+<script>
+  import Button from '@/components/user/Button'
+  import CurrentUser from '@/components/mixins/CurrentUser'
+
+  export default {
+    mixins: [ CurrentUser ],
+    name: 'sn-player-btn',
+    props: [ 'player', 'size', 'color' ],
+    components: {
+      'sn-user-btn': Button
+    }
+  }
+</script>
