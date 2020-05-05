@@ -49,7 +49,7 @@
       <sn-game-log
         @message='sbMessage = $event; sbOpen = true'
         v-if='history'
-        :stack='stack'
+        :stack='value.undo'
       >
       </sn-game-log>
     </sn-rdrawer>
@@ -169,12 +169,12 @@
 
   const _ = require('lodash')
   const axios = require('axios')
-  const phaseNone = 0
-  const phasePlaceThieves = 1
-  const phasePlayCard = 2
-  const phaseSelectThief = 3
-  const phaseMoveThief = 4
-  const phaseGameOver = 5
+  const phaseNone = "None"
+  const phasePlaceThieves = "Place Thieves"
+  const phasePlayCard = "Play Card"
+  const phaseSelectThief = "Select Thief"
+  const phaseMoveThief = "Move Thief"
+  const phaseGameOver = "Game Over"
 
   export default {
     mixins: [ CurrentUser, Player ],
@@ -182,8 +182,14 @@
     data () {
       return {
         game: {
-          header: { title: '', id: 0, turn: 0, phase: 0, colorMaps: [], options: {} },
-          state: { glog: [], jewels: {} }
+          title: '',
+          id: 0,
+          turn: 0,
+          phase: phaseNone,
+          colorMaps: [],
+          options: {},
+          glog: [],
+          jewels: {}
         },
         tab: 'player-1',
         path: '/game',
@@ -220,7 +226,7 @@
 
         if (_.has(data, 'game')) {
           self.game = data.game
-          document.title = data.game.header.title + ' #' + data.game.id
+          document.title = data.game.title + ' #' + data.game.id
         }
 
         if (_.has(data, 'message') && (data.message != '')) {
@@ -256,7 +262,7 @@
       },
       selected: function (data) {
         var self = this
-        switch (self.game.header.phase) {
+        switch (self.game.phase) {
           case phasePlaceThieves:
             self.action({
               action: 'place-thief',
@@ -312,7 +318,9 @@
           self.fetchData()
           return
         }
+        console.log(`data: ${JSON.stringify(data.data)}`)
         self.tab = `player-${self.pidByUID(self.cu.id)}`
+        console.log(`data: ${JSON.stringify(data.data)}`)
         axios.put(`${self.path}/${action}/${self.$route.params.id}`, data.data)
           .then(function (response) {
             self.loading = false
@@ -369,10 +377,6 @@
         var self = this
         return self.playerByPID(self.cardbar)
       },
-      stack: function () {
-        var self = this
-        return self.game.undoStack
-      },
       waitMessage: function () {
         var self = this
         var name = _.get(self.cp, 'user.name', 'current player')
@@ -380,7 +384,7 @@
       },
       message: function () {
         var self = this
-        switch (self.game.header.phase) {
+        switch (self.game.phase) {
           case phaseNone:
             return self.waitMessage
           case phasePlaceThieves:

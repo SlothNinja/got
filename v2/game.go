@@ -2,35 +2,45 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/rand"
+	"time"
 
+	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
 )
 
 // Game stores game state and header information.
 type Game struct {
-	*Header
-	*State
+	Key          *datastore.Key `json:"key" datastore:"__key__"`
+	EncodedState string         `json:"-" datastore:",noindex"`
+	EncodedLog   string         `json:"-" datastore:",noindex"`
+	Header
+	State `datastore:"-"`
+	Log   `datastore:"-"`
 }
+
+type Log []map[string]interface{}
 
 // State stores the game state.
 type State struct {
-	Players            []*Player
-	Log                GameLog
-	Grid               grid
-	Jewels             Card
-	SelectedPlayerID   int
-	BumpedPlayerID     int
-	SelectedAreaF      *Area
-	SelectedCardIndex  int
-	Stepped            int
-	PlayedCard         *Card
-	JewelsPlayed       bool
-	SelectedThiefAreaF *Area
-	ClickAreas         areas
-	Admin              string
+	Players             []*Player `json:"players"`
+	Log                 GameLog   `json:"-"`
+	Grid                Grid      `json:"grid"`
+	Jewels              Card      `json:"jewels"`
+	SelectedPlayerID    int       `json:"selectedPlayerID"`
+	BumpedPlayerID      int       `json:"bumpedPlayerID"`
+	SelectedAreaID      areaID    `json:"selectedAreaID"`
+	SelectedCardIndex   int       `json:"selectedCardIndex"`
+	Stepped             int       `json:"stepped"`
+	PlayedCard          *Card     `json:"playedCard"`
+	JewelsPlayed        bool      `json:"jewelsPlayed"`
+	SelectedThiefAreaID areaID    `json:"selectedThiefAreaID"`
+	ClickAreas          []*Area   `json:"clickAreas"`
+	Admin               string    `json:"admin"`
 }
 
 // // GetPlayerers implements the GetPlayerers interfaces of the sn/games package.
@@ -135,9 +145,9 @@ func (g *Game) start(c *gin.Context) error {
 // }
 
 func (g *Game) setCurrentPlayer(p *Player) {
-	g.CPUserIndices = nil
+	g.CPIDS = nil
 	if p != nil {
-		g.CPUserIndices = append(g.CPUserIndices, p.ID)
+		g.CPIDS = append(g.CPIDS, p.ID)
 	}
 }
 
@@ -169,7 +179,7 @@ func (g *Game) PlayerByUserID(id int64) *Player {
 	}
 
 	for _, p := range g.Players {
-		if p != nil && p.User.ID() == id {
+		if p != nil && p.User.ID == id {
 			return p
 		}
 	}
@@ -197,16 +207,17 @@ func (g *Game) undoTurn(c *gin.Context) error {
 
 // CurrentPlayer returns the player whose turn it is.
 func (g *Game) CurrentPlayer() *Player {
-	l := len(g.CPUserIndices)
+	l := len(g.CPIDS)
 	if l != 1 {
 		return nil
 	}
-	i := g.CPUserIndices[0]
-	l = len(g.Players)
-	if i >= l {
-		return nil
+	pid := g.CPIDS[0]
+	for _, p := range g.Players {
+		if p.ID == pid {
+			return p
+		}
 	}
-	return g.Players[i]
+	return nil
 }
 
 // Convenience method for conditionally logging Debug information
@@ -293,12 +304,96 @@ func (g *Game) BumpedPlayer() *Player {
 }
 
 func (g *Game) ID() int64 {
-	if g == nil || g.Header == nil || g.Header.Key == nil {
+	if g == nil || g.Key == nil {
 		return -1
 	}
-	return g.Header.Key.ID
+	return g.Key.ID
 }
 
 func (g *Game) randomTurnOrder() {
 	rand.Shuffle(len(g.Players), func(i, j int) { g.Players[i], g.Players[j] = g.Players[j], g.Players[i] })
+}
+
+func (g *Game) Load(ps []datastore.Property) error {
+	err := datastore.LoadStruct(g, ps)
+	if err != nil {
+		return err
+	}
+
+	var s State
+	err = json.Unmarshal([]byte(g.EncodedState), &s)
+	if err != nil {
+		return err
+	}
+	g.State = s
+
+	var l Log
+	err = json.Unmarshal([]byte(g.EncodedLog), &l)
+	if err != nil {
+		return err
+	}
+	g.Log = l
+	return nil
+}
+
+func (g *Game) Save() ([]datastore.Property, error) {
+
+	encodedState, err := json.Marshal(g.State)
+	if err != nil {
+		return nil, err
+	}
+	g.EncodedState = string(encodedState)
+
+	encodedLog, err := json.Marshal(g.Log)
+	if err != nil {
+		return nil, err
+	}
+	g.EncodedLog = string(encodedLog)
+
+	t := time.Now()
+	if g.CreatedAt.IsZero() {
+		g.CreatedAt = t
+	}
+
+	g.UpdatedAt = t
+	return datastore.SaveStruct(g)
+}
+
+func (g *Game) LoadKey(k *datastore.Key) error {
+	g.Key = k
+	return nil
+}
+
+func (g Game) MarshalJSON() ([]byte, error) {
+	type JGame Game
+
+	return json.Marshal(struct {
+		JGame
+		ID           int64   `json:"id"`
+		Creator      *User   `json:"creator"`
+		Users        []*User `json:"users"`
+		LastUpdated  string  `json:"lastUpdated"`
+		Public       bool    `json:"public"`
+		CreatorEmail omit    `json:"creatorEmail,omitempty"`
+		CreatorKey   omit    `json:"creatorKey,omitempty"`
+		CreatorName  omit    `json:"creatorName,omitempty"`
+		UserEmails   omit    `json:"userEmails,omitempty"`
+		UserKeys     omit    `json:"userKeys,omitempty"`
+		UserNames    omit    `json:"userNames,omitempty"`
+	}{
+		JGame:       JGame(g),
+		ID:          g.Key.ID,
+		Creator:     toUser(g.CreatorKey, g.CreatorName, g.CreatorEmail),
+		Users:       toUsers(g.UserKeys, g.UserNames, g.UserEmails),
+		LastUpdated: sn.LastUpdated(g.UpdatedAt),
+		Public:      g.Password == "",
+	})
+}
+
+func newHistoryKey(id, at int64) *datastore.Key {
+	return datastore.NameKey(historyKind, fmt.Sprintf("%d-%d", id, at), rootKey(id))
+}
+
+func rootKey(id int64) *datastore.Key {
+	return datastore.IDKey(rootKind, id, nil)
 }

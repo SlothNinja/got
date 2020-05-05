@@ -1,85 +1,73 @@
 package main
 
 import (
-	"strconv"
+	"encoding/json"
+	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/sn"
-	"github.com/gin-gonic/gin"
+	"github.com/SlothNinja/sn/v2"
 )
-
-// func newHeaderEntity(g *Game) *headerEntity {
-// 	return &headerEntity{Header: g.Header, Key: newHeaderKey(g.ID())}
-// }
-//
-// func newHeaderKey(id int64) *datastore.Key {
-// 	return datastore.IDKey(headerKind, id, nil)
-// }
-//
-// type headerEntity struct {
-// 	Key *datastore.Key `datastore:"__key__" json:"-"`
-// 	Header
-// }
-//
-// func (e *headerEntity) Accept(c *gin.Context, cu *user.User) (bool, error) {
-// 	return e.Header.Header.Accept(c, cu)
-// }
-//
-// func (e *headerEntity) Drop(cu *user.User) error {
-// 	return e.Header.Header.Drop(cu)
-// }
-//
-// func (e *headerEntity) AddUser(cu *user.User) {
-// 	e.Header.Header.AddUser(cu)
-// }
-//
-// func (e headerEntity) LastUpdated() string {
-// 	return restful.LastUpdated(e.UpdatedAt)
-// }
-//
-// func (e headerEntity) LastUpdate() time.Time {
-// 	return e.UpdatedAt
-// }
-//
-// func (e headerEntity) ID() int64 {
-// 	return e.Key.ID
-// }
-//
-// func (e headerEntity) MarshalJSON() ([]byte, error) {
-// 	status := "Public"
-// 	if e.Password != "" {
-// 		status = "Private"
-// 	}
-//
-// 	type JEntity headerEntity
-// 	return json.Marshal(struct {
-// 		JEntity
-// 		ID          int64  `json:"id"`
-// 		Public      string `json:"public"`
-// 		LastUpdated string `json:"lastUpdated"`
-// 	}{
-// 		JEntity:     JEntity(e),
-// 		ID:          e.Key.ID,
-// 		Public:      status,
-// 		LastUpdated: e.LastUpdated(),
-// 	})
-// }
 
 // Header provides game/invitation header data
 type Header struct {
-	Key             *datastore.Key `datastore:"__key__"`
-	TwoThiefVariant bool           `json:"twoThief"`
+	TwoThiefVariant bool  `json:"twoThief"`
+	Phase           Phase `json:"phase"`
 	sn.Header
 }
 
-func newHeader(id int64) *Header {
-	return &Header{Key: newHeaderKey(id)}
+type GHeader struct {
+	Key *datastore.Key `datastore:"__key__"`
+	Header
 }
 
-func newHeaderKey(id int64) *datastore.Key {
-	return datastore.IDKey(headerKind, id, nil)
+func newGHeader(id int64) *GHeader {
+	return &GHeader{Key: newGHeaderKey(id)}
 }
 
-func getHID(c *gin.Context) (int64, error) {
-	return strconv.ParseInt(c.Param("hid"), 10, 64)
+func newGHeaderKey(id int64) *datastore.Key {
+	return datastore.IDKey(gheaderKind, id, rootKey(id))
+}
+
+func (gh *GHeader) Load(ps []datastore.Property) error {
+	return datastore.LoadStruct(gh, ps)
+}
+
+func (gh *GHeader) Save() ([]datastore.Property, error) {
+	t := time.Now()
+	if gh.CreatedAt.IsZero() {
+		gh.CreatedAt = t
+	}
+	gh.UpdatedAt = t
+	return datastore.SaveStruct(gh)
+}
+
+func (gh *GHeader) LoadKey(k *datastore.Key) error {
+	gh.Key = k
+	return nil
+}
+
+func (gh GHeader) MarshalJSON() ([]byte, error) {
+	type JGHeader GHeader
+
+	return json.Marshal(struct {
+		JGHeader
+		ID           int64   `json:"id"`
+		Creator      *User   `json:"creator"`
+		Users        []*User `json:"users"`
+		LastUpdated  string  `json:"lastUpdated"`
+		Public       bool    `json:"public"`
+		CreatorEmail omit    `json:"creatorEmail,omitempty"`
+		CreatorKey   omit    `json:"creatorKey,omitempty"`
+		CreatorName  omit    `json:"creatorName,omitempty"`
+		UserEmails   omit    `json:"userEmails,omitempty"`
+		UserKeys     omit    `json:"userKeys,omitempty"`
+		UserNames    omit    `json:"userNames,omitempty"`
+	}{
+		JGHeader:    JGHeader(gh),
+		ID:          gh.Key.ID,
+		Creator:     toUser(gh.CreatorKey, gh.CreatorName, gh.CreatorEmail),
+		Users:       toUsers(gh.UserKeys, gh.UserNames, gh.UserEmails),
+		LastUpdated: sn.LastUpdated(gh.UpdatedAt),
+		Public:      gh.Password == "",
+	})
 }

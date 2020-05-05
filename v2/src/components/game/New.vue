@@ -20,7 +20,7 @@
                   <v-text-field
                     name="title"
                     label="Title"
-                    v-model="game.header.title"
+                    v-model="game.title"
                     id="title"
                   >
                   </v-text-field>
@@ -129,7 +129,7 @@
           header: { title: '', id: 0, turn: 0, phase: 0, colorMaps: [], options: {} },
           state: { glog: [], jewels: {} }
         },
-        path: '/game/new',
+        path: '/invitation/new',
         nav: false,
         npItems: [
           { text: '2', value: 2 },
@@ -185,23 +185,30 @@
       },
     },
     methods: {
+      updateInvitation (data) {
+        console.log(`data: ${JSON.stringify(data)}`)
+        var self = this
+
+        var msg = _.get(data, 'data.message', false)
+        if (msg) {
+          self.snackbar.message = msg
+          self.snackbar.open = true
+        }
+        var header = _.get(data, 'data.header', false)
+        if (header) {
+          self.game.header = header
+        }
+        var state = _.get(data, 'data.state', false)
+        if (header) {
+          self.game.state = state
+        }
+      },
       fetchData () {
         var self = this
         axios.get(self.path)
           .then(function (response) {
-            var msg = _.get(response, 'data.msg', false)
-            if (msg) {
-              self.snackbar.message = msg
-              self.snackbar.open = true
-            }
-            var header = _.get(response, 'data.header', false)
-            if (header) {
-              self.game.header = header
-            }
-            var state = _.get(response, 'data.state', false)
-            if (header) {
-              self.game.state = state
-            }
+            console.log(`response: ${JSON.stringify(response)}`)
+            self.updateInvitation(response)
             self.loading = false
           })
           .catch(function () {
@@ -217,8 +224,8 @@
         axios.put(self.path, self.game)
           .then(function (response) {
             console.log(`response: ${JSON.stringify(response)}`)
+            self.updateInvitation(response)
             self.loading = false
-            self.$router.push({ name: 'index', params: { status: 'recruiting' }})
           })
           .catch(function () {
             self.loading = false

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
 )
 
@@ -92,18 +92,18 @@ func (g *Game) validatePlayCard(c *gin.Context) error {
 // 	return restful.HTML("%s played %s card.", g.NameByPID(e.PlayerID), e.Type)
 // }
 
-func (g *Game) isLampArea(a *Area) (b bool) {
+func (g *Game) isLampArea(a *Area) bool {
 	if g.SelectedThiefArea() != nil {
-		b = g.lampAreas().include(a)
+		return hasArea(g.lampAreas(), a)
 	}
-	return
+	return false
 }
 
-func (g *Game) lampAreas() areas {
+func (g *Game) lampAreas() []*Area {
 	if g.ClickAreas != nil {
 		return g.ClickAreas
 	}
-	as := make(areas, 0)
+	as := make([]*Area, 0)
 	a1 := g.SelectedThiefArea()
 	// Move Left
 	var a2 *Area
@@ -160,18 +160,18 @@ func (g *Game) lampAreas() areas {
 	return as
 }
 
-func (g *Game) isCamelArea(a *Area) (b bool) {
+func (g *Game) isCamelArea(a *Area) bool {
 	if g.SelectedThiefArea() != nil {
-		b = g.camelAreas().include(a)
+		return hasArea(g.camelAreas(), a)
 	}
-	return
+	return false
 }
 
-func (g *Game) camelAreas() areas {
+func (g *Game) camelAreas() []*Area {
 	if g.ClickAreas != nil {
 		return g.ClickAreas
 	}
-	as := make(areas, 0)
+	as := make([]*Area, 0)
 	a := g.SelectedThiefArea()
 
 	// Move Three Left?
@@ -367,19 +367,19 @@ func canMoveTo(as ...*Area) bool {
 	return true
 }
 
-func (g *Game) isSwordArea(a *Area) (b bool) {
+func (g *Game) isSwordArea(a *Area) bool {
 	if g.SelectedThiefArea() != nil {
-		b = g.swordAreas().include(a)
+		return hasArea(g.swordAreas(), a)
 	}
-	return
+	return false
 }
 
-func (g *Game) swordAreas() areas {
+func (g *Game) swordAreas() []*Area {
 	cp := g.CurrentPlayer()
 	if g.ClickAreas != nil {
 		return g.ClickAreas
 	}
-	as := make(areas, 0)
+	as := make([]*Area, 0)
 	a := g.SelectedThiefArea()
 
 	// Move Left
@@ -463,18 +463,18 @@ func (p *Player) anotherThiefIn(a *Area) bool {
 	return a.hasThief() && a.Thief != p.ID
 }
 
-func (g *Game) isCarpetArea(a *Area) (b bool) {
+func (g *Game) isCarpetArea(a *Area) bool {
 	if g.SelectedThiefArea() != nil {
-		b = g.carpetAreas().include(a)
+		return hasArea(g.carpetAreas(), a)
 	}
-	return
+	return false
 }
 
-func (g *Game) carpetAreas() areas {
+func (g *Game) carpetAreas() []*Area {
 	if g.ClickAreas != nil {
 		return g.ClickAreas
 	}
-	as := make(areas, 0)
+	as := make([]*Area, 0)
 	a1 := g.SelectedThiefArea()
 
 	// Move Left
@@ -553,18 +553,18 @@ MoveDown:
 	return as
 }
 
-func (g *Game) isTurban0Area(a *Area) (b bool) {
+func (g *Game) isTurban0Area(a *Area) bool {
 	if g.SelectedThiefArea() != nil {
-		b = g.turban0Areas().include(a)
+		return hasArea(g.turban0Areas(), a)
 	}
-	return
+	return false
 }
 
-func (g *Game) turban0Areas() areas {
+func (g *Game) turban0Areas() []*Area {
 	if g.ClickAreas != nil {
 		return g.ClickAreas
 	}
-	as := make(areas, 0)
+	as := make([]*Area, 0)
 	a := g.SelectedThiefArea()
 
 	// Move Left
@@ -643,18 +643,18 @@ func (g *Game) turban0Areas() areas {
 	return as
 }
 
-func (g *Game) isTurban1Area(a *Area) (b bool) {
+func (g *Game) isTurban1Area(a *Area) bool {
 	if g.SelectedThiefArea() != nil {
-		b = g.turban1Areas().include(a)
+		return hasArea(g.turban1Areas(), a)
 	}
-	return
+	return false
 }
 
-func (g *Game) turban1Areas() areas {
+func (g *Game) turban1Areas() []*Area {
 	if g.ClickAreas != nil {
 		return g.ClickAreas
 	}
-	as := make(areas, 0)
+	as := make([]*Area, 0)
 	a := g.SelectedThiefArea()
 
 	// Move Left
@@ -681,13 +681,13 @@ func (g *Game) turban1Areas() areas {
 	return as
 }
 
-func (g *Game) isCoinsArea(a *Area) (b bool) {
+func (g *Game) isCoinsArea(a *Area) bool {
 	if g.SelectedThiefArea() != nil {
-		b = g.coinsAreas().include(a)
+		return hasArea(g.coinsAreas(), a)
 	}
-	return
+	return false
 }
 
-func (g *Game) coinsAreas() areas {
+func (g *Game) coinsAreas() []*Area {
 	return g.turban1Areas()
 }

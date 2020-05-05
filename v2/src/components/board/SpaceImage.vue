@@ -1,6 +1,5 @@
 <template>
   <div
-    :id='id'
     class='board-space-image'
     :class='kind'
   >
@@ -12,10 +11,6 @@
     name: 'sn-space-image',
     props: ['value'],
     computed: {
-      id: function () {
-        var self = this
-        return `card-${self.value.id}`
-      },
       kind: function () {
         var self = this
         return self.value ? self.value.kind : 'none'

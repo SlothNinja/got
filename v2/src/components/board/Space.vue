@@ -27,7 +27,6 @@
             ></sn-space-image>
             <sn-thief-image
               v-if='showThief'
-              :id='thiefID'
               :value='thiefColor'
             >
             </sn-thief-image>
@@ -77,15 +76,11 @@
       },
       showThief: function () {
         var self = this
-        return self.value.thief.pid != 0
-      },
-      thiefID: function () {
-        var self = this
-        return `thief-${self.value.thief.pid}-${self.value.thief.id}`
+        return self.value.thief != 0
       },
       thiefColor: function () {
         var self = this
-        return self.colorByPID(self.value.thief.pid)
+        return self.colorByPID(self.value.thief)
       }
     }
   }

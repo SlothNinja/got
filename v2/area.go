@@ -1,36 +1,46 @@
 package main
 
-import "strconv"
+import (
+	"fmt"
+)
 
-type areas []*Area
-type grid []areas
+type Grid [][]*Area
+
+func (g Grid) Each(f func(*Area)) {
+	for row := range g {
+		for _, a := range g[row] {
+			f(a)
+		}
+	}
+}
+
+type aRow int
 
 const (
-	rowA int = iota
+	noRow aRow = iota
+	rowA
 	rowB
 	rowC
 	rowD
 	rowE
 	rowF
 	rowG
-	noRow int = -1
 )
 
-var rowIDStrings = map[int]string{noRow: "None", rowA: "A", rowB: "B", rowC: "C",
-	rowD: "D", rowE: "E", rowF: "F", rowG: "G"}
+var rowIDStrings = [8]string{"None", "A", "B", "C", "D", "E", "F", "G"}
 
-// RowString outputs a row label.
-func (a *Area) RowString() string {
-	return rowIDStrings[a.Row]
+func (r aRow) String() string {
+	if r >= rowA && r <= rowG {
+		return rowIDStrings[r]
+	}
+	return "None"
 }
 
-// RowIDString outputs an row id.
-func (a *Area) RowIDString() string {
-	return strconv.Itoa(a.Row)
-}
+type aCol int
 
 const (
-	col1 int = iota
+	noCol aCol = iota
+	col1
 	col2
 	col3
 	col4
@@ -38,56 +48,57 @@ const (
 	col6
 	col7
 	col8
-	noCol int = -1
 )
 
-var columnIDStrings = map[int]string{noCol: "None", col1: "1", col2: "2", col3: "3", col4: "4",
-	col5: "5", col6: "6", col7: "7", col8: "8"}
-
-// ColString outputs a column label.
-func (a *Area) ColString() string {
-	return columnIDStrings[a.Column]
+func (c aCol) String() string {
+	if c >= col1 && c <= col8 {
+		return fmt.Sprintf("%d", c)
+	}
+	return "None"
 }
 
-// ColIDString outputs an column id.
-func (a *Area) ColIDString() string {
-	return strconv.Itoa(a.Column)
+type areaID struct {
+	Row    aRow `json:"row"`
+	Column aCol `json:"column"`
 }
 
 // Area of the grid.
 type Area struct {
-	Row    int
-	Column int
-	Thief  int
-	Card   *Card
+	areaID
+	Thief     int   `json:"thief"`
+	Card      *Card `json:"card"`
+	Clickable bool  `json:"clickable"`
 }
 
 // SelectedArea returns a previously selected area.
-func (g *Game) SelectedArea() (a *Area) {
-	if g.SelectedAreaF != nil {
-		a = g.Grid[g.SelectedAreaF.Row][g.SelectedAreaF.Column]
-	}
-	return
+func (g *Game) SelectedArea() *Area {
+	return g.getArea(g.SelectedAreaID)
 }
 
 // SelectedThiefArea returns the area corresponding to a previously selected thief.
-func (g *Game) SelectedThiefArea() (a *Area) {
-	if g.SelectedThiefAreaF != nil {
-		a = g.Grid[g.SelectedThiefAreaF.Row][g.SelectedThiefAreaF.Column]
-	}
-	return
+func (g *Game) SelectedThiefArea() *Area {
+	return g.getArea(g.SelectedThiefAreaID)
 }
 
-func newArea(row, col int, card *Card) *Area {
+func (g *Game) getArea(id areaID) *Area {
+	if id.Row < rowA || id.Row > g.lastRow() {
+		return nil
+	}
+	if id.Column < col1 || id.Column > col8 {
+		return nil
+	}
+	return g.Grid[id.Row-1][id.Column-1]
+}
+
+func newArea(id areaID, card *Card) *Area {
 	return &Area{
-		Row:    row,
-		Column: col,
+		areaID: id,
 		Thief:  noPID,
 		Card:   card,
 	}
 }
 
-func (g *Game) lastRow() int {
+func (g *Game) lastRow() aRow {
 	row := rowG
 	if g.NumPlayers == 2 {
 		row = rowF
@@ -97,11 +108,11 @@ func (g *Game) lastRow() int {
 
 func (g *Game) createGrid() {
 	deck := newDeck()
-	g.Grid = make(grid, g.lastRow()+1)
-	for row := 0; row < g.lastRow()+1; row++ {
-		g.Grid[row] = make(areas, 8)
-		for col := 0; col < 8; col++ {
-			g.Grid[row][col] = newArea(row, col, deck.draw())
+	g.Grid = make(Grid, g.lastRow())
+	for row := rowA; row <= g.lastRow(); row++ {
+		g.Grid[row-1] = make([]*Area, 8)
+		for col := col1; col <= col8; col++ {
+			g.Grid[row-1][col-1] = newArea(areaID{row, col}, deck.draw())
 		}
 	}
 }
@@ -114,7 +125,7 @@ func (a *Area) hasCard() bool {
 	return a.Card != nil
 }
 
-func (as areas) include(a2 *Area) bool {
+func hasArea(as []*Area, a2 *Area) bool {
 	for _, a1 := range as {
 		if a1.Row == a2.Row && a1.Column == a2.Column {
 			return true

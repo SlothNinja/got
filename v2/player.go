@@ -1,29 +1,29 @@
 package main
 
 import (
-	"encoding/gob"
 	"html/template"
 	"sort"
 
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/schema"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
 )
 
-func init() {
-	gob.RegisterName("GOTPlayer", newPlayer())
-}
-
 // Player represents one of the players of the game.
 type Player struct {
-	sn.Player
-	Log         GameLog
-	Hand        Cards
-	DrawPile    Cards
-	DiscardPile Cards
+	ID              int        `json:"id"`
+	PerformedAction bool       `json:"performedAction"`
+	Score           int        `json:"score"`
+	Passed          bool       `json:"passed"`
+	Colors          []sn.Color `json:"colors"`
+	User            *User      `json:"user"`
+	Log             GameLog    `json:"log"`
+	Hand            Cards      `json:"hand"`
+	DrawPile        Cards      `json:"drawPile"`
+	DiscardPile     Cards      `json:"discardPile"`
 }
 
 // Players is a slice of players of the game.
@@ -52,12 +52,23 @@ func (bs ByScore) Less(i, j int) bool {
 	return bs.Players[i].compareByScore(bs.Players[j]) == sn.LessThan
 }
 
+func (p *Player) CompareByScore(p2 *Player) sn.Comparison {
+	switch {
+	case p.Score < p2.Score:
+		return sn.LessThan
+	case p.Score > p2.Score:
+		return sn.GreaterThan
+	default:
+		return sn.EqualTo
+	}
+}
+
 func (p *Player) compareByScore(p2 *Player) sn.Comparison {
-	p2p := p2.Player
-	byScore := p.CompareByScore(&p2p)
+	byScore := p.CompareByScore(p2)
 	if byScore != sn.EqualTo {
 		return byScore
 	}
+
 	byLamps := p.compareByLamps(p2)
 	if byLamps != sn.EqualTo {
 		return byLamps
@@ -190,6 +201,7 @@ func (r Reverse) Less(i, j int) bool { return r.Interface.Less(j, i) }
 
 func newPlayer() *Player {
 	p := &Player{
+		Colors:      defaultColors(),
 		Hand:        newStartHand(),
 		DrawPile:    make(Cards, 0),
 		DiscardPile: make(Cards, 0),
@@ -198,12 +210,12 @@ func newPlayer() *Player {
 }
 
 func (g *Game) addNewPlayer(i int) {
+	log.Debugf("g.Header: %#v", g.Header)
+	log.Debugf("i: %d", i)
 	p := newPlayer()
 	g.Players = append(g.Players, p)
 	p.ID = len(g.Players)
-	p.User.Key = g.UserKeys[i]
-	p.User.Name = g.UserNames[i]
-	p.User.Email = g.UserEmails[i]
+	p.User = toUser(g.UserKeys[i], g.UserNames[i], g.UserEmails[i])
 }
 
 // func createPlayer(g *Game, uid int64) *Player {
@@ -228,49 +240,69 @@ func (p *Player) clearActions() {
 	p.Log = make(GameLog, 0)
 }
 
-// CanClick indicates whether a particular player can select an area.
-func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) bool {
+func (g *Game) updateClickablesFor(c *gin.Context, p *Player) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	canClick := g.CanClick(c, p)
+	g.Grid.Each(func(a *Area) { a.Clickable = canClick(a) })
+}
+
+// CanClick a function specialized by current game context to test whether a player can click on
+// a particular area in the grid.  The main benefit is the function provides a closure around area computions,
+// essentially caching the results.
+func (g *Game) CanClick(c *gin.Context, p *Player) func(*Area) bool {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	ff := func(a *Area) bool { return false }
 	cp := g.CurrentPlayer()
+
 	switch {
 	case g == nil:
-		return false
+		return ff
 	case cp == nil:
-		return false
-	case a == nil:
-		return false
+		return ff
 	case g.validatePlayerAction(c) != nil:
-		return false
+		return ff
 	case g.Phase == placeThieves:
-		return a.Thief == noPID
+		return func(a *Area) bool { return a.Thief == noPID }
 	case g.Phase == selectThief:
-		return a.Thief == cp.ID
+		return func(a *Area) bool { return a.Thief == cp.ID }
 	case g.Phase == moveThief:
 		switch {
 		case p == nil:
-			return false
+			return ff
 		case p.ID != cp.ID:
-			return false
+			return ff
 		case g.PlayedCard == nil:
-			return false
+			return ff
 		case g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp:
-			return g.isLampArea(a)
+			as := g.lampAreas()
+			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel:
-			return g.isCamelArea(a)
+			as := g.camelAreas()
+			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == sword:
-			return g.isSwordArea(a)
+			as := g.swordAreas()
+			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == carpet:
-			return g.isCarpetArea(a)
+			as := g.camelAreas()
+			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == turban && g.Stepped == 0:
-			return g.isTurban0Area(a)
+			as := g.turban0Areas()
+			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == turban && g.Stepped == 1:
-			return g.isTurban1Area(a)
+			as := g.turban1Areas()
+			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == coins:
-			return g.isCoinsArea(a)
+			as := g.coinsAreas()
+			return func(a *Area) bool { return hasArea(as, a) }
 		default:
-			return false
+			return ff
 		}
 	default:
-		return false
+		return ff
 	}
 }
 
@@ -419,7 +451,7 @@ func (g *Game) DisplayHandFor(c *gin.Context, p *Player) template.HTML {
 
 	s := restful.HTML("<div id='player-hand-%d'>", p.ID)
 	hm, faceDown := g.handMapFor(p)
-	if cu.Admin || p.User.ID() == cu.ID() || g.Phase == gameOver {
+	if cu.Admin || p.User.ID == cu.ID() || g.Phase == gameOver {
 		for t, count := range hm {
 			if count > 0 {
 				name := t.IDString()

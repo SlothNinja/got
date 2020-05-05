@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"time"
 
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 )
 
 // Entry stores information about a move in the game log.
@@ -30,8 +29,8 @@ func (g *Game) newEntry() (e *Entry) {
 	e.PlayerID = sn.NoPlayerID
 	e.OtherPlayerID = sn.NoPlayerID
 	e.TurnF = g.Turn
-	e.PhaseF = g.Phase
-	e.SubPhaseF = g.SubPhase
+	// e.PhaseF = g.Phase
+	// e.SubPhaseF = g.SubPhase
 	e.RoundF = g.Round
 	e.CreatedAtF = time.Now()
 	return
@@ -43,7 +42,7 @@ func (g *Game) newEntryFor(p *Player) (e *Entry) {
 	return
 }
 
-// PhaseName displays the turn and phase in an entry of the game log.
-func (e *Entry) PhaseName() string {
-	return fmt.Sprintf("Turn %d | Phase: %s", e.Turn(), phaseNames[e.Phase()])
-}
+// // PhaseName displays the turn and phase in an entry of the game log.
+// func (e *Entry) PhaseName() string {
+// 	return fmt.Sprintf("Turn %d | Phase: %s", e.Turn(), phaseNames[e.Phase()])
+// }

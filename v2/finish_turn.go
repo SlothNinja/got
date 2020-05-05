@@ -6,7 +6,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
 )
@@ -32,30 +32,25 @@ func (client Client) finish(c *gin.Context) {
 	// zero flags
 	g.SelectedPlayerID = 0
 	g.BumpedPlayerID = 0
-	g.SelectedAreaF = nil
+	g.SelectedAreaID = areaID{}
 	g.SelectedCardIndex = 0
 	g.Stepped = 0
 	g.PlayedCard = nil
 	g.JewelsPlayed = false
-	g.SelectedThiefAreaF = nil
+	g.SelectedThiefAreaID = areaID{}
 	g.ClickAreas = nil
 	g.Admin = ""
 
 	if err != nil {
-		log.Errorf(err.Error())
-		c.Redirect(http.StatusSeeOther, showPath(c.Param("hid")))
+		jerr(c, err)
 		return
 	}
 
 	err = client.saveWith(c, g, ks, es)
 	if err != nil {
-		log.Errorf(err.Error())
+		jerr(c, err)
 	}
-	c.Redirect(http.StatusSeeOther, showPath(c.Param("hid")))
-}
-
-func showPath(sid string) string {
-	return fmt.Sprintf("/game/show/%s", sid)
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
 func (g *Game) validateFinishTurn(c *gin.Context) (*user.Stats, error) {

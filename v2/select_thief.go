@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,7 +24,7 @@ func (g *Game) selectThief(c *gin.Context) error {
 		return err
 	}
 
-	g.SelectedThiefAreaF = g.SelectedArea()
+	g.SelectedThiefAreaID = g.SelectedArea().areaID
 	g.startMoveThief(c)
 	return nil
 }

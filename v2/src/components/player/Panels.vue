@@ -9,7 +9,7 @@
       slider-color="yellow"
     >
       <v-tab
-        v-for="player in game.state.players"
+        v-for="player in game.players"
         :key="player.id"
         :href="`#player-${player.id}`"
         ripple
@@ -17,7 +17,7 @@
         {{ player.user.name }}
       </v-tab>
       <v-tab-item
-        v-for="player in game.state.players"
+        v-for="player in game.players"
         :key="player.id"
         :value="`player-${player.id}`"
       >

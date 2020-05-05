@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
 )
 

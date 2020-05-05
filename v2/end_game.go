@@ -3,12 +3,11 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/send"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/mailjet/mailjet-apiv3-go"
 )
@@ -31,7 +30,7 @@ func toIDS(places []Players) [][]int64 {
 	sids := make([][]int64, len(places))
 	for i, players := range places {
 		for _, p := range players {
-			sids[i] = append(sids[i], p.User.Key.ID)
+			sids[i] = append(sids[i], p.User.ID)
 		}
 	}
 	return sids
@@ -74,7 +73,7 @@ func (g *Game) setWinners(rmap sn.ResultsMap) {
 		g.WinnerIDS = append(g.WinnerIDS, p.ID)
 	}
 
-	g.newAnnounceWinnersEntry()
+	// g.newAnnounceWinnersEntry()
 }
 
 type result struct {
@@ -153,25 +152,25 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Pla
 	return err
 }
 
-type announceWinnersEntry struct {
-	*Entry
-}
-
-func (g *Game) newAnnounceWinnersEntry() *announceWinnersEntry {
-	e := &announceWinnersEntry{
-		Entry: g.newEntry(),
-	}
-	g.Log = append(g.Log, e)
-	return e
-}
-
-func (e *announceWinnersEntry) HTML(g *Game) template.HTML {
-	names := make([]string, len(g.winners()))
-	for i, winner := range g.winners() {
-		names[i] = winner.User.Name
-	}
-	return restful.HTML("Congratulations: %s.", restful.ToSentence(names))
-}
+// type announceWinnersEntry struct {
+// 	*Entry
+// }
+//
+// func (g *Game) newAnnounceWinnersEntry() *announceWinnersEntry {
+// 	e := &announceWinnersEntry{
+// 		Entry: g.newEntry(),
+// 	}
+// 	g.Log = append(g.Log, e)
+// 	return e
+// }
+//
+// func (e *announceWinnersEntry) HTML(g *Game) template.HTML {
+// 	names := make([]string, len(g.winners()))
+// 	for i, winner := range g.winners() {
+// 		names[i] = winner.User.Name
+// 	}
+// 	return restful.HTML("Congratulations: %s.", restful.ToSentence(names))
+// }
 
 func (g *Game) winners() (ps Players) {
 	if l := len(g.WinnerIDS); l != 0 {

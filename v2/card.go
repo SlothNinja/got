@@ -1,9 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 )
 
 type cType int
@@ -108,10 +109,24 @@ func (t cType) IDString() string {
 	}
 }
 
+func (t cType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.IDString())
+}
+
+func (t *cType) UnmarshalJSON(bs []byte) error {
+	var s string
+	err := json.Unmarshal(bs, &s)
+	if err != nil {
+		return err
+	}
+	*t = toCType(s)
+	return nil
+}
+
 // Card is a playing card used to form grid, player's hand, and player's deck.
 type Card struct {
-	Type   cType
-	FaceUp bool
+	Type   cType `json:"kind"`
+	FaceUp bool  `json:"faceUp"`
 }
 
 func newCard(t cType, f bool) *Card {

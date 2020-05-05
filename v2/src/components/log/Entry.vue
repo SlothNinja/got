@@ -84,7 +84,7 @@
       player: function () {
         var self = this
         var pid = _.get(self.value, 'log[0].pid', 0)
-        return _.find(self.value.state.players, ['id', pid])
+        return _.find(self.value.players, ['id', pid])
       },
       updatedAt: function () {
         var self = this

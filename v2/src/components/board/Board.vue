@@ -18,7 +18,7 @@
         </v-row>
 
         <v-row
-          v-for='(row, rindex) in game.state.grid'
+          v-for='(row, rindex) in game.grid'
           :key='rindex'
         >
           <div class='row-text'>
@@ -68,7 +68,7 @@
     computed: {
       numCols: function () {
         var self = this
-        return _.get(self.game.state.grid, 0, []).length
+        return _.get(self.game.grid, 0, []).length
       }
     }
   }

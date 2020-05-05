@@ -174,14 +174,15 @@
         var self = this
         axios.get(`/games/${self.$route.params.status}`)
           .then(function (response) {
+            console.log(`response: ${JSON.stringify(response)}`)
             var msg = _.get(response, 'data.message', false)
             if (msg) {
               self.snackbar.message = msg
               self.snackbar.open = true
             }
-            var headers = _.get(response, 'data.headers', false)
-            if (headers) {
-              self.items = headers
+            var gheaders = _.get(response, 'data.gheaders', false)
+            if (gheaders) {
+              self.items = gheaders
             }
             self.loading = false
           })
@@ -195,15 +196,11 @@
         var self = this
         axios.put(`/game/${action}/${id}`)
           .then(function (response) {
-            // var msg = _.get(response, 'data.msg', false)
-            // if (msg) {
-            //   self.snackbar.message = msg
-            //   self.snackbar.open = true
-            // }
-            // var headers = _.get(response, 'data.headers', false)
-            // if (headers) {
-            //   self.items = header
-            // }
+            var msg = _.get(response, 'data.message', false)
+            if (msg) {
+              self.snackbar.message = msg
+              self.snackbar.open = true
+            }
             var header = _.get(response, 'data.header', false)
             if (header) {
               var index = _.findIndex(self.items, [ 'id', id ])

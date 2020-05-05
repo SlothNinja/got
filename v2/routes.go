@@ -2,7 +2,7 @@ package main
 
 import (
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
@@ -23,95 +23,82 @@ func NewClient(dsClient *datastore.Client, mcache *cache.Cache) Client {
 }
 
 func (client Client) addRoutes(engine *gin.Engine) *gin.Engine {
+	////////////////////////////////////////////
 	// User Current
-	engine.GET("/user/current", client.Current)
+	engine.GET(cuPath, client.Current)
 
-	// Game Group
-	g := engine.Group("/game")
+	////////////////////////////////////////////
+	// Invitation Group
+	inv := engine.Group(invitationPath)
 
 	// New
-	g.GET("/new", client.newAction)
+	inv.GET(newPath, client.newInvitation)
 
 	// Create
-	g.PUT("/new", client.create)
-
-	// Show
-	g.GET("/show/:hid",
-		client.fetch,
-		client.Game.GetMLog,
-		client.show,
-	)
-
-	// Undo
-	g.POST("/undo/:hid",
-		client.fetch,
-		client.undo,
-	)
-
-	// Finish
-	g.POST("/finish/:hid",
-		client.fetch,
-		client.finish,
-	)
+	inv.PUT(newPath, client.create)
 
 	// Drop
-	g.POST("/drop/:hid",
-		client.fetch,
-		client.drop,
-	)
+	inv.PUT(dropPath, client.drop)
 
 	// Accept
-	g.POST("/accept/:hid",
-		client.fetch,
-		client.accept,
-	)
+	inv.PUT(acceptPath, client.accept)
+
+	/////////////////////////////////////////////
+	// Invitations Group
+	invs := engine.Group(invitationsPath)
+
+	// Index
+	invs.GET("", client.invitationsIndex)
+
+	// Game Group
+	g := engine.Group(gamePath)
+
+	// Show
+	g.GET(showPath, client.show)
+
+	// Undo
+	g.PUT(undoPath, client.undo)
+
+	// Redo
+	g.PUT(redoPath, client.redo)
+
+	// Rest
+	g.PUT(resetPath, client.reset)
+
+	// Finish
+	g.POST(finishPath, client.finish)
 
 	// Update
-	g.PUT("/show/:hid",
-		client.fetch,
-		client.update,
-	)
+	g.PUT(updatePath, client.update)
+
+	// Update
+	g.PUT(placeThiefPath, client.placeThief)
 
 	// Add Message
-	g.PUT("/show/:hid/addmessage",
-		client.Game.GetMLog,
-		client.Game.AddMessage(""),
-	)
+	g.PUT(msgPath, client.Game.AddMessage(""))
 
 	// Games Group
-	gs := engine.Group("/games")
+	gs := engine.Group(gamesPath)
 
 	// Index
 	// gs.GET("/:status", client.index)
 
-	gs.GET("/:status/user/:uid", client.index)
+	gs.GET(indexPath, client.index)
 
 	// JSON Data for Index
-	gs.GET("/:status", client.jsonIndexAction)
+	gs.GET(gamesIndexPath, client.gamesIndex)
 
-	// JSON Data for Index
-	gs.POST("/:status/user/:uid/json",
-		client.jsonIndexAction,
-	)
+	// // JSON Data for Index
+	// gs.POST("/:status/user/:uid/json",
+	// 	client.jsonIndexAction,
+	// )
 
 	// Admin Group
-	admin := g.Group("/admin", user.RequireAdmin)
+	admin := g.Group(adminPath, user.RequireAdmin)
 
-	admin.GET("/:hid",
-		client.fetch,
-		client.Game.GetMLog,
-		client.show,
-	)
+	admin.GET(adminGetPath, client.show)
 
-	admin.POST("/:hid",
-		client.fetch,
-		client.update,
-	)
-
-	admin.PUT("/:hid",
-		client.fetch,
-		client.update,
-	)
+	admin.PUT(adminPutPath, client.update)
 
 	return engine
 }

@@ -1,8 +1,9 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 import Home from '@/components/home/Home'
-import New from '@/components/game/New'
-import Index from '@/components/game/Index'
+import New from '@/components/invitation/New'
+import Invitations from '@/components/invitation/Index'
+import Games from '@/components/game/Index'
 import Game from '@/components/game/Game'
 
 Vue.use(Router)
@@ -10,14 +11,19 @@ Vue.use(Router)
 export default new Router({
   routes: [
     {
-      path: '/game/new',
+      path: '/invitation/new',
       name: 'new',
       component: New
     },
     {
+      path: '/invitations',
+      name: 'invitations',
+      component: Invitations
+    },
+    {
       path: '/games/:status',
-      name: 'index',
-      component: Index
+      name: 'games',
+      component: Games
     },
     {
       path: '/game/:id',

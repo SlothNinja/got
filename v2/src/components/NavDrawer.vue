@@ -40,7 +40,7 @@
             <v-list-item-title>Create</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-        <v-list-item :to="{ name: 'index', params: {status: 'recruiting'} }">
+        <v-list-item :to="{ name: 'invitations' }">
           <v-list-item-icon>
             <v-icon>playlist_add</v-icon>
           </v-list-item-icon>
@@ -48,7 +48,7 @@
             <v-list-item-title>Join</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-        <v-list-item :to="{ name: 'index', params: {status: 'running' } }">
+        <v-list-item :to="{ name: 'games', params: {status: 'running' } }">
           <v-list-item-icon>
             <v-icon>playlist_play</v-icon>
           </v-list-item-icon>
@@ -79,7 +79,7 @@
     methods: {
       logout: function () {
         var self = this
-        self.delete_cookie('sngsession')
+        self.delete_cookie('sng-oauth')
         self.cu = null
         if (self.$route.name != 'home') {
           self.$router.push({ name: 'home'})

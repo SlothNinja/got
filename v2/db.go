@@ -3,18 +3,16 @@ package main
 import (
 	"fmt"
 
-	"github.com/SlothNinja/sn"
+	"cloud.google.com/go/datastore"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
 )
 
-const kind = "Game"
-
-// New creates a new Guild of Thieves game.
-func New(c *gin.Context, id int64) *Game {
+// newGame creates a new Guild of Thieves game.
+func newGame(id int64) *Game {
 	g := new(Game)
-	g.Header = newHeader(id)
-	g.State = new(State)
+	g.Key = datastore.IDKey(gameKind, id, rootKey(id))
 	g.Type = sn.GOT
 	return g
 }
@@ -28,8 +26,8 @@ func (g *Game) options() string {
 
 func (g *Game) UndoKey(c *gin.Context) string {
 	cu, err := user.FromSession(c)
-	if err != nil || cu == nil || g == nil || g.Header == nil {
+	if err != nil || cu == nil || g == nil || g.Key == nil {
 		return ""
 	}
-	return fmt.Sprintf("%s/uid-%d", g.Header.Key, cu.ID())
+	return fmt.Sprintf("%s/uid-%d", g.Key, cu.ID())
 }

@@ -24,7 +24,7 @@ func (g *Game) claimItem(c *gin.Context) {
 		g.drawCard(c)
 	case g.Stepped == 1:
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
-		g.SelectedThiefAreaF = g.SelectedAreaF
+		g.SelectedThiefAreaID = g.SelectedAreaID
 		g.ClickAreas = nil
 	default:
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
@@ -54,11 +54,11 @@ func (g *Game) claimItem(c *gin.Context) {
 func (g *Game) finalClaim(c *gin.Context) {
 	g.Phase = finalClaim
 	for _, row := range g.Grid {
-		for _, g.SelectedThiefAreaF = range row {
-			if p := g.PlayerByID(g.SelectedThiefAreaF.Thief); p != nil {
-				card := g.SelectedThiefAreaF.Card
-				g.SelectedThiefAreaF.Card = nil
-				g.SelectedThiefAreaF.Thief = noPID
+		for _, a := range row {
+			if p := g.PlayerByID(a.Thief); p != nil {
+				card := a.Card
+				a.Card = nil
+				a.Thief = noPID
 				p.DiscardPile = append(Cards{card}, p.DiscardPile...)
 			}
 		}

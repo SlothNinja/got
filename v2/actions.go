@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/log"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
 )
@@ -37,11 +38,10 @@ func (g *Game) validateCPorAdmin(c *gin.Context) error {
 		return nil
 	case cp == nil:
 		return sn.ErrPlayerNotFound
-	case cp.User.Key == nil:
+	case cp.User.ID == 0:
 		return sn.ErrNotCPorAdmin
-	case cp.User.ID() == 0:
-		return sn.ErrNotCPorAdmin
-	case cp.User.ID() != cu.ID():
+	case cp.User.ID != cu.ID():
+		log.Debugf("cp.User.ID: %d cu.ID: %d", cp.User.ID, cu.ID())
 		return sn.ErrNotCPorAdmin
 	default:
 		return nil

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -109,11 +109,11 @@ type secrets struct {
 }
 
 func getSecrets() (secrets, error) {
-	hashKey, err := base64.StdEncoding.DecodeString("gn4PpTcIyP6rs81+eUL42+UKU98moXz+9gy3indwkZJAlXEGmWmmre7i+bN9jMxGPDzKRAwFlikKqbNVU0ybtA==")
+	hashKey, err := base64.StdEncoding.DecodeString("v9UGh93EVzBPzfezwYCsZzfuL1LzaP8KVD4fAidyL1UmnsMqL5cnOQanWa7nE/tb3eBmUyv4ci66K+rnDs6CGA==")
 	if err != nil {
 		return secrets{}, err
 	}
-	blockKey, err := base64.StdEncoding.DecodeString("KG+6A+KYwsKDcDfayXOprhDxQMMKN3Hty1GbOW2Dsa4=")
+	blockKey, err := base64.StdEncoding.DecodeString("DT0/WyGLqwBYuo/l82Gq1DCxq/sVhVrTuzMFRJxPDQU=")
 	if err != nil {
 		return secrets{}, err
 	}

@@ -6,7 +6,7 @@
           v-on="on"
           icon
           :disabled="!canReset"
-                @click.native="$emit('action', { action: 'reset' })"
+          @click.native="$emit('action', { action: 'reset', data: { undo: value.undo }})"
         >
           <v-icon>clear</v-icon>
         </v-btn>
@@ -16,10 +16,10 @@
     <v-tooltip bottom color='info'>
       <template v-slot:activator="{ on }">
       <v-btn
-          v-on='on'
+        v-on='on'
         icon
         :disabled='!canUndo'
-        @click="$emit('action', { action: 'undo' })"
+        @click="$emit('action', { action: 'undo', data: { undo: value.undo }})"
       >
         <v-icon>undo</v-icon>
       </v-btn>
@@ -32,7 +32,7 @@
           v-on='on'
         icon
         :disabled='!canRedo'
-        @click="$emit('action', { action: 'redo' })"
+        @click="$emit('action', { action: 'redo', data: { undo: value.undo }})"
       >
         <v-icon>redo</v-icon>
       </v-btn>
@@ -81,13 +81,17 @@
     mixins: [ Player, CurrentUser ],
     props: [ 'value' ],
     computed: {
+      undoValue: function () {
+        var self = this
+        return self.value.undo.current - 1
+      },
       canUndo: function () {
         var self = this
-        return (self.isCPorAdmin) && (self.value.undoStack.current > self.value.undoStack.committed)
+        return (self.isCPorAdmin) && (self.value.undo.current > self.value.undo.committed)
       },
       canRedo: function () {
         var self = this
-        return (self.isCPorAdmin) && (self.value.undoStack.current < self.value.undoStack.updated)
+        return (self.isCPorAdmin) && (self.value.undo.current < self.value.undo.updated)
       },
       canReset: function () {
         var self = this

@@ -16,7 +16,7 @@
         {{cu.name}}
       </div>
       <div v-else>
-        <v-btn href='http://lwww.slothninja.com:8083/user/login' color='info'>Login</v-btn>
+              <v-btn :href='loginPath' color='info'>Login</v-btn>
       </div>
     </div>
 
@@ -54,6 +54,11 @@
     components: {
       'sn-user-btn': UserButton
     },
-    props: [ 'value' ]
+    props: [ 'value' ],
+    computed: {
+      loginPath: function () {
+        return `http://lwww.slothninja.com:8083/user/login/?redirect=${window.btoa(window.location.href)}`
+      }
+    }
   }
 </script>

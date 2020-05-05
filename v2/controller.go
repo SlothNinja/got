@@ -4,25 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
+	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/Pallinder/go-randomdata"
-	"github.com/SlothNinja/codec"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/restful"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
-)
-
-const (
-	gameKey        = "Game"
-	jsonKey        = "JSON"
-	statusKey      = "Status"
-	homePath       = "/"
-	recruitingPath = "/games/recruiting"
-	newPath        = "/game/new"
 )
 
 func gameFrom(c *gin.Context) (g *Game) {
@@ -44,26 +32,22 @@ func withJSON(c *gin.Context, g *Game) {
 }
 
 func (client Client) show(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
-	// g := gameFrom(c)
-	// cu := user.CurrentFrom(c)
-	// c.HTML(http.StatusOK, "/show", gin.H{
-	// 	"Context":    c,
-	// 	"VersionID":  sn.VersionID(),
-	// 	"CUser":      cu,
-	// 	"Game":       g,
-	// 	"IsAdmin":    user.IsAdmin(c),
-	// 	"Admin":      game.AdminFrom(c),
-	// 	"MessageLog": mlog.From(c),
-	// 	"ColorMap":   color.MapFrom(c),
-	// })
+	g, err := client.getGame(c)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	g.updateClickablesFor(c, g.CurrentPlayer())
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
 func (g *Game) update(c *gin.Context) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	// a := c.PostForm("action")
 	// log.Debugf("action: %#v", a)
@@ -85,24 +69,65 @@ func (g *Game) update(c *gin.Context) error {
 }
 
 func (client Client) undo(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
-	// g := gameFrom(c)
-	// if g == nil {
-	// 	log.Errorf("game not found")
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"Error": "game not found"})
-	// 	return
-	// }
+	client.undoOperations(c, (*sn.Stack).Undo)
+}
 
-	// mkey := g.UndoKey(c)
-	// client.Cache.Delete(mkey)
-	// c.Redirect(http.StatusSeeOther, showPath(c.Param("hid")))
+func (client Client) redo(c *gin.Context) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	client.undoOperations(c, (*sn.Stack).Redo)
+}
+
+func (client Client) reset(c *gin.Context) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	client.undoOperations(c, (*sn.Stack).Reset)
+}
+
+func (client Client) undoOperations(c *gin.Context, action func(*sn.Stack) bool) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	undo, err := getStack(c)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	id, err := getID(c)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	action(&undo)
+	g := newGame(0)
+	k := newHistoryKey(id, undo.Current)
+
+	err = client.DS.Get(c, k, g)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	if undo.Committed != g.Undo.Committed {
+		jerr(c, fmt.Errorf("invalid game state"))
+		return
+	}
+
+	g.Undo = undo
+	g.updateClickablesFor(c, g.CurrentPlayer())
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
 func (client Client) update(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	// g := gameFrom(c)
 	// if g == nil {
@@ -176,27 +201,22 @@ func (client Client) update(c *gin.Context) {
 }
 
 func (client Client) save(c *gin.Context, g *Game) error {
-	// oldG := New(c, g.ID())
-	// err := client.DS.Get(c, oldG.Header.Key, oldG.Header)
-	// if err != nil {
-	// 	return err
-	// }
+	oldG := newGame(g.ID())
+	err := client.DS.Get(c, oldG.Key, oldG)
+	if err != nil {
+		return err
+	}
 
-	// if oldG.UpdatedAt != g.UpdatedAt {
-	// 	return fmt.Errorf("game state changed unexpectantly -- try again")
-	// }
+	if oldG.UpdatedAt != g.UpdatedAt {
+		return fmt.Errorf("game state changed unexpectantly -- try again")
+	}
 
-	// err = g.encode(c)
-	// if err != nil {
-	// 	return err
-	// }
+	_, err = client.DS.Put(c, g.Key, g.Header)
+	if err != nil {
+		return err
+	}
 
-	// _, err = client.DS.Put(c, g.Key, g.Header)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// client.Cache.Delete(g.UndoKey(c))
+	client.Cache.Delete(g.UndoKey(c))
 	return nil
 }
 
@@ -244,26 +264,26 @@ func wrap(s *user.Stats, cs []*sn.Contest) ([]*datastore.Key, []interface{}) {
 	return ks, es
 }
 
-func (g *Game) encode(c *gin.Context) error {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	encoded, err := codec.Encode(g.State)
-	if err != nil {
-		return nil
-	}
-	g.SavedState = encoded
-
-	return nil
-}
+// func (g *Game) encode(c *gin.Context) error {
+// 	log.Debugf(msgEnter)
+// 	defer log.Debugf(msgExit)
+//
+// 	encoded, err := codec.Encode(g.State)
+// 	if err != nil {
+// 		return nil
+// 	}
+// 	g.SavedState = encoded
+//
+// 	return nil
+// }
 
 // func newGamer(c *gin.Context) game.Gamer {
 // 	return New(c, 0)
 // }
 
 func (client Client) index(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	// gs := game.GamersFrom(c)
 	// switch status := game.StatusFrom(c); status {
@@ -287,9 +307,9 @@ func (client Client) index(c *gin.Context) {
 	// }
 }
 
-func (client Client) newAction(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client Client) newInvitation(c *gin.Context) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	cu, err := user.FromSession(c)
 	if err != nil || cu == nil {
@@ -297,14 +317,9 @@ func (client Client) newAction(c *gin.Context) {
 		return
 	}
 
-	g := New(c, 0)
+	inv := defaultInvitation()
 
-	// Default Values
-	g.Title = fmt.Sprintf("%s's %s", cu.Name, randomdata.SillyName())
-	g.NumPlayers = 2
-	g.TwoThiefVariant = false
-
-	c.JSON(http.StatusOK, gin.H{"header": g.Header})
+	c.JSON(http.StatusOK, gin.H{"invitation": inv})
 }
 
 // func (s server) newInvitation() gin.HandlerFunc {
@@ -330,8 +345,8 @@ func (client Client) newAction(c *gin.Context) {
 // }
 
 func (client Client) create(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	cu, err := user.FromSession(c)
 	if err != nil {
@@ -339,30 +354,24 @@ func (client Client) create(c *gin.Context) {
 		return
 	}
 
-	g := New(c, 0)
-	err = g.fromForm(c, cu)
+	inv := newInvitation(0)
+	err = inv.fromForm(c, cu)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	err = g.encode(c)
+	ks, err := client.DS.AllocateIDs(c, []*datastore.Key{rootKey(0)})
 	if err != nil {
 		jerr(c, err)
 		return
 	}
-
-	ks, err := client.DS.AllocateIDs(c, []*datastore.Key{g.Header.Key})
-	if err != nil {
-		jerr(c, err)
-		return
-	}
-	g.Header.Key = ks[0]
+	inv.Key = newInvitationKey(ks[0].ID)
 
 	_, err = client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		m := sn.NewMLog(g.Header.Key.ID)
-		ks := []*datastore.Key{g.Header.Key, m.Key}
-		es := []interface{}{g.Header, m}
+		m := sn.NewMLog(inv.Key.ID)
+		ks := []*datastore.Key{inv.Key, m.Key}
+		es := []interface{}{inv, m}
 
 		_, err := tx.PutMulti(ks, es)
 		return err
@@ -372,13 +381,16 @@ func (client Client) create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("%s created game %q", cu.Name, g.Title)})
-	return
+	inv2 := defaultInvitation()
+	c.JSON(http.StatusOK, gin.H{
+		"invitation": inv2,
+		"message":    fmt.Sprintf("%s created game %q", cu.Name, inv.Title),
+	})
 }
 
-func (g *Game) fromForm(c *gin.Context, cu *user.User) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (inv *Invitation) fromForm(c *gin.Context, cu *user.User) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	obj := struct {
 		Title           string `form:"title"`
@@ -392,188 +404,350 @@ func (g *Game) fromForm(c *gin.Context, cu *user.User) error {
 		return err
 	}
 
-	g.Title = cu.Name + "'s Game"
+	log.Debugf("obj: %#v", obj)
+
+	inv.Title = cu.Name + "'s Game"
 	if obj.Title != "" {
-		g.Title = obj.Title
+		inv.Title = obj.Title
 	}
 
-	g.NumPlayers = 4
+	inv.NumPlayers = 4
 	if obj.NumPlayers >= 1 && obj.NumPlayers <= 5 {
-		g.NumPlayers = obj.NumPlayers
+		inv.NumPlayers = obj.NumPlayers
 	}
 
-	g.Password = obj.Password
-	g.AddCreator(cu)
-	g.TwoThiefVariant = obj.TwoThiefVariant
-	g.AddUser(cu)
-	g.Status = sn.Recruiting
+	inv.Password = obj.Password
+	inv.AddCreator(cu)
+	inv.TwoThiefVariant = obj.TwoThiefVariant
+	inv.AddUser(cu)
+	inv.Status = sn.Recruiting
 	return nil
 }
 
 func (client Client) accept(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
-	g := gameFrom(c)
-	if g == nil {
-		log.Errorf("game not found")
-		defer c.Redirect(http.StatusSeeOther, recruitingPath)
-		return
-	}
-
-	u := user.CurrentFrom(c)
-	start, err := g.Accept(c, u)
+	inv, err := client.getInvitation(c)
 	if err != nil {
-		log.Errorf(err.Error())
-		defer c.Redirect(http.StatusSeeOther, recruitingPath)
+		jerr(c, err)
 		return
 	}
 
-	if start {
-		err = g.Start(c)
+	cu, err := user.FromSession(c)
+	if err != nil || cu == nil {
+		jerr(c, sn.ErrUserNotFound)
+		return
+	}
+
+	pwd := c.Param("password")
+	start, err := inv.Accept(cu, pwd)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	if !start {
+		_, err = client.DS.Put(c, inv.Key, inv)
 		if err != nil {
-			log.Errorf(err.Error())
-			defer c.Redirect(http.StatusSeeOther, recruitingPath)
+			jerr(c, err)
 			return
 		}
-	}
-
-	err = client.save(c, g)
-	if err != nil {
-		log.Errorf(err.Error())
-		defer c.Redirect(http.StatusSeeOther, recruitingPath)
+		c.JSON(http.StatusOK, gin.H{
+			"invitation": inv,
+			"message":    fmt.Sprintf("%s joined game: %d", cu.Name, inv.Key.ID),
+		})
 		return
 	}
 
-	if start {
-		err = g.SendTurnNotificationsTo(c, g.CurrentPlayer())
-		if err != nil {
-			log.Errorf(err.Error())
-		}
+	g := newGame(inv.Key.ID)
+	g.Header = inv.Header
+	err = g.Start(c)
+	if err != nil {
+		jerr(c, err)
+		return
 	}
-	defer c.Redirect(http.StatusSeeOther, recruitingPath)
 
+	_, err = client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
+		err = tx.Delete(inv.Key)
+		if err != nil {
+			return err
+		}
+
+		g.StartedAt = time.Now()
+		_, err = tx.PutMulti(g.withHistory())
+		return err
+	})
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	cp := g.CurrentPlayer()
+	log.Debugf("cp: %#v", cp)
+	err = g.SendTurnNotificationsTo(c, cp)
+	if err != nil {
+		log.Warningf(err.Error())
+	}
+
+	inv.Header = g.Header
+	c.JSON(http.StatusOK, gin.H{
+		"invitation": inv,
+		"message": fmt.Sprintf(
+			`<div>Game: %d has started.</div>
+			<div></div>
+			<div><strong>%s</strong> is start player.</div>`,
+			inv.Key.ID, cp.User.Name),
+	})
+}
+
+func (g *Game) withHistory() ([]*datastore.Key, []interface{}) {
+	gh := newGHeader(g.ID())
+	gh.Header = g.Header
+
+	return []*datastore.Key{newHistoryKey(g.ID(), g.Undo.Current), g.Key, gh.Key}, []interface{}{g, g, gh}
+}
+
+func (g *Game) cache() ([]*datastore.Key, []interface{}) {
+	return []*datastore.Key{newHistoryKey(g.ID(), g.Undo.Current)}, []interface{}{g}
 }
 
 func (client Client) drop(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
-	g := gameFrom(c)
-	if g == nil {
-		log.Errorf("game not found")
-		c.Redirect(http.StatusSeeOther, recruitingPath)
+	inv, err := client.getInvitation(c)
+	if err != nil {
+		jerr(c, err)
 		return
 	}
 
-	u := user.CurrentFrom(c)
-	err := g.Drop(u)
-	if err != nil {
-		log.Errorf(err.Error())
-		restful.AddErrorf(c, err.Error())
-		c.Redirect(http.StatusSeeOther, recruitingPath)
-	}
-	err = client.save(c, g)
-
-	if err != nil {
-		log.Errorf(err.Error())
-		restful.AddErrorf(c, err.Error())
-		c.Redirect(http.StatusSeeOther, recruitingPath)
-	}
-	c.Redirect(http.StatusSeeOther, recruitingPath)
-}
-
-func (client Client) fetch(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-	// create Gamer
-	log.Debugf("hid: %v", c.Param("hid"))
-	id, err := strconv.ParseInt(c.Param("hid"), 10, 64)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+	cu, err := user.FromSession(c)
+	if err != nil || cu == nil {
+		jerr(c, sn.ErrUserNotFound)
 		return
 	}
 
-	log.Debugf("id: %v", id)
-	g := New(c, id)
-
-	switch action := c.PostForm("action"); {
-	case action == "reset":
-		// pull from cache/datastore
-		// same as undo
-		fallthrough
-	case action == "undo":
-		// pull from cache/datastore
-		err = client.dsGet(c, g)
-		if err != nil {
-			c.Redirect(http.StatusSeeOther, homePath)
-			return
-		}
-	default:
-		if user.CurrentFrom(c) != nil {
-			// pull from cache and return if successful; otherwise pull from datastore
-			err = client.mcGet(c, g)
-			if err == nil {
-				return
-			}
-		}
-
-		err = client.dsGet(c, g)
-		if err != nil {
-			c.Redirect(http.StatusSeeOther, homePath)
-			return
-		}
-	}
-}
-
-// pull temporary game state from cache.  Note may be different from value stored in datastore.
-func (client Client) mcGet(c *gin.Context, g *Game) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-
-	mkey := g.UndoKey(c)
-	item, found := client.Cache.Get(mkey)
-	if !found {
-		return fmt.Errorf("not found")
-	}
-
-	g2, ok := item.(*Game)
-	if !ok {
-		return fmt.Errorf("item in cache is not a *Game")
-	}
-
-	g = g2
-	return nil
-}
-
-// pull game state from cache/datastore.  returned cache should be same as datastore.
-func (client Client) dsGet(c *gin.Context, g *Game) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-
-	err := client.DS.Get(c, g.Header.Key, g.Header)
-	switch {
-	case err != nil:
-		restful.AddErrorf(c, err.Error())
-		return err
-	case g == nil:
-		err = fmt.Errorf("Unable to get game for id: %v", g.ID)
-		restful.AddErrorf(c, err.Error())
-		return err
-	}
-
-	state := new(State)
-	err = codec.Decode(&state, g.SavedState)
+	err = inv.Drop(cu)
 	if err != nil {
-		restful.AddErrorf(c, err.Error())
-		return err
+		jerr(c, err)
+		return
 	}
 
-	g.State = state
-	return nil
+	if len(inv.UserKeys) == 0 {
+		inv.Status = sn.Aborted
+	}
+
+	_, err = client.DS.Put(c, inv.Key, inv)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"invitation": inv,
+		"message":    fmt.Sprintf("%s dropped from game invitation: %d", cu.Name, inv.Key.ID),
+	})
 }
 
-func (client Client) jsonIndexAction(c *gin.Context) {
+// func (client Client) fetch(c *gin.Context) {
+// 	log.Debugf(msgEnter)
+// 	defer log.Debugf(msgExit)
+// 	// create Gamer
+// 	log.Debugf("hid: %v", c.Param("hid"))
+// 	id, err := strconv.ParseInt(c.Param("hid"), 10, 64)
+// 	if err != nil {
+// 		c.AbortWithError(http.StatusInternalServerError, err)
+// 		return
+// 	}
+//
+// 	log.Debugf("id: %v", id)
+// 	g := New(id)
+//
+// 	switch action := c.PostForm("action"); {
+// 	case action == "reset":
+// 		// pull from cache/datastore
+// 		// same as undo
+// 		fallthrough
+// 	case action == "undo":
+// 		// pull from cache/datastore
+// 		err = client.dsGet(c, g)
+// 		if err != nil {
+// 			c.Redirect(http.StatusSeeOther, homePath)
+// 			return
+// 		}
+// 	default:
+// 		if user.CurrentFrom(c) != nil {
+// 			// pull from cache and return if successful; otherwise pull from datastore
+// 			err = client.mcGet(c, g)
+// 			if err == nil {
+// 				return
+// 			}
+// 		}
+//
+// 		err = client.dsGet(c, g)
+// 		if err != nil {
+// 			c.Redirect(http.StatusSeeOther, homePath)
+// 			return
+// 		}
+// 	}
+// }
+
+// func (client Client) getHeader(c *gin.Context) (*Header, error) {
+// 	log.Debugf(msgEnter)
+// 	defer log.Debugf(msgExit)
+//
+// 	id, err := strconv.ParseInt(c.Param(idParam), 10, 64)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	h := newHeader(id)
+// 	err = client.DS.Get(c, h.Key, h)
+// 	return h, err
+// }
+
+func (client Client) getInvitation(c *gin.Context) (*Invitation, error) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	id, err := getID(c)
+	if err != nil {
+		return nil, err
+	}
+
+	inv := newInvitation(id)
+	err = client.DS.Get(c, inv.Key, inv)
+	return inv, err
+}
+
+func (client Client) getGame(c *gin.Context) (*Game, error) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	id, err := getID(c)
+	if err != nil {
+		return nil, err
+	}
+
+	g := newGame(id)
+	err = client.DS.Get(c, g.Key, g)
+	return g, err
+}
+
+func (client Client) getHistory(c *gin.Context, inc int64) (*Game, error) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	id, err := getID(c)
+	if err != nil {
+		return nil, err
+	}
+
+	undo, err := getStack(c)
+	if err != nil {
+		return nil, err
+	}
+
+	undo.Current = undo.Current + inc
+	k := newHistoryKey(id, undo.Current)
+
+	g := newGame(0)
+	err = client.DS.Get(c, k, g)
+	if err != nil {
+		return nil, err
+	}
+	g.Undo = undo
+	return g, nil
+}
+
+func getStack(c *gin.Context) (sn.Stack, error) {
+	obj := struct {
+		sn.Stack `json:"undo"`
+	}{}
+	err := c.Bind(&obj)
+	if err != nil {
+		return sn.Stack{}, err
+	}
+	return obj.Stack, nil
+}
+
+// // pull temporary game state from cache.  Note may be different from value stored in datastore.
+// func (client Client) mcGet(c *gin.Context, g *Game) error {
+// 	log.Debugf(msgEnter)
+// 	defer log.Debugf(msgExit)
+//
+// 	mkey := g.UndoKey(c)
+// 	item, found := client.Cache.Get(mkey)
+// 	if !found {
+// 		return fmt.Errorf("not found")
+// 	}
+//
+// 	g2, ok := item.(*Game)
+// 	if !ok {
+// 		return fmt.Errorf("item in cache is not a *Game")
+// 	}
+//
+// 	g = g2
+// 	return nil
+// }
+
+// // pull game state from cache/datastore.  returned cache should be same as datastore.
+// func (client Client) dsGet(c *gin.Context, g *Game) error {
+// 	log.Debugf(msgEnter)
+// 	defer log.Debugf(msgExit)
+//
+// 	err := client.DS.Get(c, g.Header.Key, g.Header)
+// 	switch {
+// 	case err != nil:
+// 		restful.AddErrorf(c, err.Error())
+// 		return err
+// 	case g == nil:
+// 		err = fmt.Errorf("Unable to get game for id: %v", g.ID)
+// 		restful.AddErrorf(c, err.Error())
+// 		return err
+// 	}
+//
+// 	state := new(State)
+// 	err = codec.Decode(&state, g.SavedState)
+// 	if err != nil {
+// 		restful.AddErrorf(c, err.Error())
+// 		return err
+// 	}
+//
+// 	g.State = state
+// 	return nil
+// }
+
+func (client Client) invitationsIndex(c *gin.Context) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	cu, err := user.FromSession(c)
+	if err != nil {
+		jerr(c, err)
+	}
+
+	if cu == nil {
+		jerr(c, sn.ErrUserNotFound)
+		return
+	}
+
+	q := datastore.
+		NewQuery(invitationKind).
+		Filter("Status=", int(sn.Recruiting)).
+		Order("-UpdatedAt")
+
+	var es []*Invitation
+	_, err = client.DS.GetAll(c, q, &es)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"invitations": es, "cu": cu})
+}
+
+func (client Client) gamesIndex(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -589,23 +763,23 @@ func (client Client) jsonIndexAction(c *gin.Context) {
 
 	status := sn.ToStatus[c.Param("status")]
 	q := datastore.
-		NewQuery("Header").
+		NewQuery(gheaderKind).
 		Filter("Status=", int(status)).
 		Order("-UpdatedAt")
 
-	var es []*Header
+	var es []*GHeader
 	_, err = client.DS.GetAll(c, q, &es)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"headers": es, "cu": cu})
+	c.JSON(http.StatusOK, gin.H{"gheaders": es, "cu": cu})
 }
 
 func (client Client) Current(c *gin.Context) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	u, err := user.FromSession(c)
 	if err != nil {
@@ -613,7 +787,7 @@ func (client Client) Current(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"cu": u})
+	c.JSON(http.StatusOK, gin.H{"cu": toUser(u.Key, u.Name, u.Email)})
 }
 
 // func (g *Game) updateHeader() {

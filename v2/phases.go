@@ -1,9 +1,11 @@
 package main
 
-import "github.com/SlothNinja/sn"
+import "encoding/json"
+
+type Phase int
 
 const (
-	noPhase sn.Phase = iota
+	noPhase Phase = iota
 	setup
 	startGame
 	placeThieves
@@ -19,7 +21,7 @@ const (
 	awaitPlayerInput
 )
 
-var phaseNames = sn.PhaseNameMap{
+var phaseNames = map[Phase]string{
 	noPhase:          "None",
 	setup:            "Setup",
 	startGame:        "Start Game",
@@ -36,12 +38,47 @@ var phaseNames = sn.PhaseNameMap{
 	awaitPlayerInput: "Await Player Input",
 }
 
-// PhaseNames returns all phase names used by the game.
-func (g *Game) PhaseNames() sn.PhaseNameMap {
-	return phaseNames
+var toPhase = map[string]Phase{
+	"None":               noPhase,
+	"Setup":              setup,
+	"Start Game":         startGame,
+	"Place Thieves":      placeThieves,
+	"Play Card":          playCard,
+	"Select Thief":       selectThief,
+	"Move Thief":         moveThief,
+	"Claim Magical Item": claimItem,
+	"Draw Card":          drawCard,
+	"Final Claim":        finalClaim,
+	"Announce Winners":   announceWinners,
+	"Game Over":          gameOver,
+	"End Of Game":        endGame,
+	"Await Player Input": awaitPlayerInput,
 }
 
-// PhaseName returns the name of the current phase of the game.
-func (g *Game) PhaseName() string {
-	return phaseNames[g.Phase]
+func (p Phase) String() string {
+	return phaseNames[p]
 }
+
+func (p Phase) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.String())
+}
+
+func (p *Phase) UnmarshalJSON(bs []byte) error {
+	var s string
+	err := json.Unmarshal(bs, &s)
+	if err != nil {
+		return err
+	}
+	*p = toPhase[s]
+	return nil
+}
+
+// // PhaseNames returns all phase names used by the game.
+// func (g *Game) PhaseNames() sn.PhaseNameMap {
+// 	return phaseNames
+// }
+//
+// // PhaseName returns the name of the current phase of the game.
+// func (g *Game) PhaseName() string {
+// 	return phaseNames[g.Phase]
+// }

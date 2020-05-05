@@ -31,7 +31,6 @@ new Vue({
       var self = this
       axios.get('/user/current')
         .then(function (response) {
-          console.log(`cu: ${JSON.stringify(response)}`)
           var cu = _.get(response, 'data.cu', false)
           if (cu) {
             self.cu = cu

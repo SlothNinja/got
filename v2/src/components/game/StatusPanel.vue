@@ -5,14 +5,14 @@
 
       <v-row>
         <v-col>
-          <span class='font-weight-black mr-1'>Title:</span>{{game.header.title}}
+          <span class='font-weight-black mr-1'>Title:</span>{{game.title}}
         </v-col>
       </v-row>
       <v-divider class='my-1'></v-divider>
       <v-row no-gutters justify='space-between'>
         <v-col cols='6'>
           <div><span class='font-weight-black'>ID:</span> {{game.id}}</div>
-          <div><span class='font-weight-black'>Turn:</span> {{game.header.turn}}</div>
+          <div><span class='font-weight-black'>Turn:</span> {{game.turn}}</div>
         </v-col>
         <v-col cols='4'>
             <div class='text-center font-weight-black'>Jewels</div>
@@ -23,9 +23,9 @@
             >
               <v-tooltip bottom>
                 <template v-slot:activator="{ on }">
-                  <space-image v-on="on" :value='game.state.jewels'></space-image>
+                  <space-image v-on="on" :value='game.jewels'></space-image>
                 </template>
-                <span>{{tooltip(game.state.jewels)}}</span>
+                <span>{{tooltip(game.jewels)}}</span>
               </v-tooltip>
             </v-card>
         </v-col>
