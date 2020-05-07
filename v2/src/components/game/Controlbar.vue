@@ -46,7 +46,7 @@
         v-on='on'
         icon
         :disabled='!canFinish'
-        @click="$emit('action', { action : 'finish' })"
+              @click="$emit('action', { action : finishAction, data: { undo: value.undo }})"
       >
         <v-icon>done</v-icon>
       </v-btn>
@@ -100,6 +100,13 @@
       canFinish: function () {
         var self = this
         return self.isCPorAdmin ? (_.get(self.cp, 'performedAction', true)) : false
+      },
+      finishAction: function () {
+        var self = this
+        if (self.game.phase == 'Place Thieves') {
+          return 'ptfinish'
+        }
+        return 'mtfinish'
       },
       game: {
         get: function () {

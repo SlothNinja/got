@@ -4,16 +4,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) drawCard(c *gin.Context) {
-	g.Phase = drawCard
-	cp := g.CurrentPlayer()
+func (h *History) drawCard(c *gin.Context) {
+	h.Phase = drawCard
+	cp := h.CurrentPlayer()
 
-	if g.Turn != 1 {
+	if h.Turn != 1 {
 		cp.draw()
 		// card, shuffle := cp.draw()
 		// e := g.newDrawCardEntryFor(cp, card, shuffle)
 		// restful.AddNoticef(c, string(e.HTML(g)))
-		if g.PlayedCard.Type == coins {
+		if h.PlayedCard.Type == coins {
 			cp.draw()
 			// card, shuffle := cp.draw()
 			// e := g.newDrawCardEntryFor(cp, card, shuffle)
@@ -29,7 +29,7 @@ func (g *Game) drawCard(c *gin.Context) {
 // 	Shuffle bool
 // }
 //
-// func (g *Game) newDrawCardEntryFor(p *Player, c *Card, shuffle bool) *drawCardEntry {
+// func (g *History) newDrawCardEntryFor(p *Player, c *Card, shuffle bool) *drawCardEntry {
 // 	e := &drawCardEntry{
 // 		Entry:   g.newEntryFor(p),
 // 		Card:    *c,
@@ -40,7 +40,7 @@ func (g *Game) drawCard(c *gin.Context) {
 // 	return e
 // }
 //
-// func (e *drawCardEntry) HTML(g *Game) (t template.HTML) {
+// func (e *drawCardEntry) HTML(g *History) (t template.HTML) {
 // 	n := g.NameByPID(e.PlayerID)
 // 	if e.Shuffle {
 // 		t = restful.HTML("%s shuffled discard pile and drew card from newly formed draw pile.", n)

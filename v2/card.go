@@ -7,10 +7,10 @@ import (
 	"github.com/SlothNinja/sn/v2"
 )
 
-type cType int
+type cKind int
 
 const (
-	noType cType = iota
+	noType cKind = iota
 	lamp
 	camel
 	sword
@@ -23,8 +23,8 @@ const (
 	sLamp
 )
 
-func (g *Game) cardTypes() []cType {
-	return []cType{
+func cardTypes() []cKind {
+	return []cKind{
 		lamp,
 		camel,
 		sword,
@@ -38,7 +38,7 @@ func (g *Game) cardTypes() []cType {
 	}
 }
 
-var ctypeStrings = map[cType]string{
+var ctypeStrings = map[cKind]string{
 	noType: "None",
 	lamp:   "Lamp",
 	camel:  "Camel",
@@ -52,7 +52,7 @@ var ctypeStrings = map[cType]string{
 	sLamp:  "Lamp",
 }
 
-var stringsCType = map[string]cType{
+var stringsCType = map[string]cKind{
 	"none":        noType,
 	"lamp":        lamp,
 	"camel":       camel,
@@ -66,7 +66,7 @@ var stringsCType = map[string]cType{
 	"start-lamp":  sLamp,
 }
 
-func toCType(s string) (t cType) {
+func toCType(s string) (t cKind) {
 	s = strings.ToLower(s)
 
 	var ok bool
@@ -76,7 +76,7 @@ func toCType(s string) (t cType) {
 	return
 }
 
-var ctypeValues = map[cType]int{
+var ctypeValues = map[cKind]int{
 	noType: 0,
 	lamp:   1,
 	camel:  4,
@@ -90,15 +90,15 @@ var ctypeValues = map[cType]int{
 	sLamp:  0,
 }
 
-func (t cType) String() string {
+func (t cKind) String() string {
 	return ctypeStrings[t]
 }
 
-func (t cType) LString() string {
+func (t cKind) LString() string {
 	return strings.ToLower(t.String())
 }
 
-func (t cType) IDString() string {
+func (t cKind) IDString() string {
 	switch t {
 	case sCamel:
 		return "start-camel"
@@ -109,11 +109,11 @@ func (t cType) IDString() string {
 	}
 }
 
-func (t cType) MarshalJSON() ([]byte, error) {
+func (t cKind) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.IDString())
 }
 
-func (t *cType) UnmarshalJSON(bs []byte) error {
+func (t *cKind) UnmarshalJSON(bs []byte) error {
 	var s string
 	err := json.Unmarshal(bs, &s)
 	if err != nil {
@@ -125,11 +125,11 @@ func (t *cType) UnmarshalJSON(bs []byte) error {
 
 // Card is a playing card used to form grid, player's hand, and player's deck.
 type Card struct {
-	Type   cType `json:"kind"`
+	Type   cKind `json:"kind"`
 	FaceUp bool  `json:"faceUp"`
 }
 
-func newCard(t cType, f bool) *Card {
+func newCard(t cKind, f bool) *Card {
 	return &Card{
 		Type:   t,
 		FaceUp: f,
@@ -142,7 +142,7 @@ type Cards []*Card
 func newDeck() Cards {
 	deck := make(Cards, 64)
 	for j := 0; j < 8; j++ {
-		for i, typ := range []cType{lamp, camel, sword, carpet, coins, turban, jewels, guard} {
+		for i, typ := range []cKind{lamp, camel, sword, carpet, coins, turban, jewels, guard} {
 			deck[i+j*8] = &Card{Type: typ}
 		}
 	}
@@ -157,6 +157,26 @@ func (cs *Cards) playCardAt(i int) *Card {
 	card := (*cs)[i]
 	*cs = cs.removeAt(i)
 	return card
+}
+
+func (cs *Cards) indexFor(c *Card) (int, bool) {
+	if cs == nil {
+		return -1, false
+	}
+
+	for i := range *cs {
+		if (*cs)[i].Type == c.Type {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+func (cs *Cards) play(c *Card) {
+	i, found := cs.indexFor(c)
+	if found {
+		*cs = cs.removeAt(i)
+	}
 }
 
 func (cs *Cards) draw() *Card {
@@ -192,7 +212,7 @@ func newStartHand() Cards {
 	return Cards{newCard(sLamp, true), newCard(sLamp, true), newCard(sCamel, true)}
 }
 
-var toolTipStrings = map[cType]string{
+var toolTipStrings = map[cKind]string{
 	noType: "None",
 	lamp:   "Move in a straight line until coming to the edge of the grid, an empty space, or another Thief.",
 	camel:  "Move exactly 3 spaces in any direction. The spaces do not have to be in a straight line, but you cannot move over the same space twice.",
@@ -211,16 +231,17 @@ func (c Card) ToolTip() string {
 	return c.Type.toolTip()
 }
 
-func (t cType) toolTip() string {
+func (t cKind) toolTip() string {
 	return toolTipStrings[t]
 }
 
 // SelectedCard provides a previously selected card.
-func (g *Game) SelectedCard() (c *Card) {
-	if cp := g.CurrentPlayer(); g.SelectedCardIndex >= 0 && g.SelectedCardIndex < len(cp.Hand) {
-		c = cp.Hand[g.SelectedCardIndex]
+func (h *History) SelectedCard() *Card {
+	cp := h.CurrentPlayer()
+	if h.SelectedCardIndex >= 0 && h.SelectedCardIndex < len(cp.Hand) {
+		return cp.Hand[h.SelectedCardIndex]
 	}
-	return
+	return nil
 }
 
 // Value provides the point value of a card.

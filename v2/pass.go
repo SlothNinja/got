@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) pass(c *gin.Context) error {
+func (g *History) pass(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -26,7 +26,7 @@ func (g *Game) pass(c *gin.Context) error {
 	return nil
 }
 
-func (g *Game) validatePass(c *gin.Context) error {
+func (g *History) validatePass(c *gin.Context) error {
 	err := g.validatePlayerAction(c)
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (g *Game) validatePass(c *gin.Context) error {
 // 	*Entry
 // }
 //
-// func (g *Game) newPassEntryFor(p *Player) (e *passEntry) {
+// func (g *History) newPassEntryFor(p *Player) (e *passEntry) {
 // 	e = &passEntry{
 // 		Entry: g.newEntryFor(p),
 // 	}
@@ -47,6 +47,6 @@ func (g *Game) validatePass(c *gin.Context) error {
 // 	return
 // }
 //
-// func (e *passEntry) HTML(g *Game) template.HTML {
+// func (e *passEntry) HTML(g *History) template.HTML {
 // 	return restful.HTML("%s passed.", g.NameByPID(e.PlayerID))
 // }

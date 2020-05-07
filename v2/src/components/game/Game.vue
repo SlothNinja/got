@@ -49,7 +49,7 @@
       <sn-game-log
         @message='sbMessage = $event; sbOpen = true'
         v-if='history'
-        :stack='value.undo'
+        :stack='undo'
       >
       </sn-game-log>
     </sn-rdrawer>
@@ -135,7 +135,7 @@
           :player='selectedPlayer'
           :game='game'
           v-model='cardbar'
-          @selected-card='selectedCard($event)'
+          @selected-card='selected($event)'
         >
         </sn-card-bar>
 
@@ -262,13 +262,14 @@
       },
       selected: function (data) {
         var self = this
+        console.log(`selected data: ${JSON.stringify(data)}`)
         switch (self.game.phase) {
           case phasePlaceThieves:
             self.action({
               action: 'place-thief',
               data: {
-                row: data.row,
-                column: data.column
+                areaID: data.areaID,
+                undo: self.game.undo
               }
             })
             break
@@ -277,7 +278,8 @@
             self.action({
               action: 'play-card',
               data: {
-                kind: data
+                kind: data,
+                undo: self.game.undo
               }
             })
             break
@@ -285,8 +287,8 @@
             self.action({
               action: 'select-thief',
               data: {
-                row: data.row,
-                column: data.column
+                areaID: data.areaID,
+                undo: self.game.undo
               }
             })
             break
@@ -294,33 +296,22 @@
             self.action({
               action: 'move-thief',
               data: {
-                row: data.row,
-                column: data.column
+                areaID: data.areaID,
+                undo: self.game.undo
               }
             })
             break
         }
       },
-      selectedCard: function (data) {
-        var self = this
-        self.cardbar = false
-        self.action({
-          action: 'play-card',
-          data: {
-            kind: data
-          }
-        })
-      },
       action: function (data) {
         var self = this
+        console.log(`action data: ${JSON.stringify(data)}`)
         var action = data.action
         if (action == 'refresh') {
           self.fetchData()
           return
         }
-        console.log(`data: ${JSON.stringify(data.data)}`)
         self.tab = `player-${self.pidByUID(self.cu.id)}`
-        console.log(`data: ${JSON.stringify(data.data)}`)
         axios.put(`${self.path}/${action}/${self.$route.params.id}`, data.data)
           .then(function (response) {
             self.loading = false

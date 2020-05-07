@@ -32,7 +32,7 @@
             </sn-thief-image>
           </div>
         </template>
-        <span>{{tooltip(value.card.kind)}}</span>
+        <span>{{tooltip(kind)}}</span>
       </v-tooltip>
     </v-card-text>
   </v-card>
@@ -44,6 +44,8 @@
   import Player from '@/components/mixins/Player'
   import Thief from '@/components/thief/Image'
   import Color from '@/components/mixins/Color'
+
+  const _ = require('lodash')
 
   export default {
     mixins: [ Tooltip, Player, Color ],
@@ -72,7 +74,7 @@
       },
       showCard: function () {
         var self = this
-        return self.value.card.kind != 'none'
+        return self.kind != 'none'
       },
       showThief: function () {
         var self = this
@@ -81,6 +83,10 @@
       thiefColor: function () {
         var self = this
         return self.colorByPID(self.value.thief)
+      },
+      kind: function () {
+        var self = this
+        return _.get(self, 'value.card.kind', 'none')
       }
     }
   }

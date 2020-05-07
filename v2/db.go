@@ -12,9 +12,13 @@ import (
 // newGame creates a new Guild of Thieves game.
 func newGame(id int64) *Game {
 	g := new(Game)
-	g.Key = datastore.IDKey(gameKind, id, rootKey(id))
+	g.Key = newGameKey(id)
 	g.Type = sn.GOT
 	return g
+}
+
+func newGameKey(id int64) *datastore.Key {
+	return datastore.IDKey(gameKind, id, rootKey(id))
 }
 
 func (g *Game) options() string {

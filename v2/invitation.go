@@ -18,6 +18,13 @@ type Invitation struct {
 	Header
 }
 
+func (inv *Invitation) ID() int64 {
+	if inv == nil || inv.Key == nil {
+		return 0
+	}
+	return inv.Key.ID
+}
+
 func newInvitation(id int64) *Invitation {
 	return &Invitation{Key: newInvitationKey(id)}
 }
@@ -78,7 +85,7 @@ func (inv Invitation) MarshalJSON() ([]byte, error) {
 		UserNames    omit    `json:"userNames,omitempty"`
 	}{
 		JInvitation: JInvitation(inv),
-		ID:          inv.Key.ID,
+		ID:          inv.ID(),
 		Creator:     toUser(inv.CreatorKey, inv.CreatorName, inv.CreatorEmail),
 		Users:       toUsers(inv.UserKeys, inv.UserNames, inv.UserEmails),
 		LastUpdated: sn.LastUpdated(inv.UpdatedAt),

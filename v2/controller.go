@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -13,23 +15,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func gameFrom(c *gin.Context) (g *Game) {
-	g, _ = c.Value(gameKey).(*Game)
-	return
-}
-
-func withGame(c *gin.Context, g *Game) {
-	c.Set(gameKey, g)
-}
-
-func jsonFrom(c *gin.Context) (g *Game) {
-	g, _ = c.Value(jsonKey).(*Game)
-	return
-}
-
-func withJSON(c *gin.Context, g *Game) {
-	c.Set(jsonKey, g)
-}
+// func gameFrom(c *gin.Context) (g *Game) {
+// 	g, _ = c.Value(gameKey).(*Game)
+// 	return
+// }
+//
+// func withGame(c *gin.Context, g *Game) {
+// 	c.Set(gameKey, g)
+// }
+//
+// func jsonFrom(c *gin.Context) (g *Game) {
+// 	g, _ = c.Value(jsonKey).(*Game)
+// 	return
+// }
+//
+// func withJSON(c *gin.Context, g *Game) {
+// 	c.Set(jsonKey, g)
+// }
 
 func (client Client) show(c *gin.Context) {
 	log.Debugf(msgEnter)
@@ -41,8 +43,11 @@ func (client Client) show(c *gin.Context) {
 		return
 	}
 
-	g.updateClickablesFor(c, g.CurrentPlayer())
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	var h *History
+	h = (*History)(g)
+
+	h.updateClickablesFor(c, h.CurrentPlayer())
+	c.JSON(http.StatusOK, gin.H{"game": h})
 }
 
 func (g *Game) update(c *gin.Context) error {
@@ -106,23 +111,24 @@ func (client Client) undoOperations(c *gin.Context, action func(*sn.Stack) bool)
 	}
 
 	action(&undo)
-	g := newGame(0)
-	k := newHistoryKey(id, undo.Current)
-
-	err = client.DS.Get(c, k, g)
+	h := newHistory(id, undo.Current)
+	err = client.DS.Get(c, h.Key, h)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	if undo.Committed != g.Undo.Committed {
+	log.Debugf("h.Undo: %#v", h.Undo)
+
+	log.Debugf("undo.Committed: %v h.Undo.Committed: %v", undo.Committed, h.Undo.Committed)
+	if undo.Committed != h.Undo.Committed {
 		jerr(c, fmt.Errorf("invalid game state"))
 		return
 	}
 
-	g.Undo = undo
-	g.updateClickablesFor(c, g.CurrentPlayer())
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	h.Undo = undo
+	h.updateClickablesFor(c, h.CurrentPlayer())
+	c.JSON(http.StatusOK, gin.H{"game": h})
 }
 
 func (client Client) update(c *gin.Context) {
@@ -199,87 +205,6 @@ func (client Client) update(c *gin.Context) {
 	// 	c.HTML(http.StatusOK, template, d)
 	// }
 }
-
-func (client Client) save(c *gin.Context, g *Game) error {
-	oldG := newGame(g.ID())
-	err := client.DS.Get(c, oldG.Key, oldG)
-	if err != nil {
-		return err
-	}
-
-	if oldG.UpdatedAt != g.UpdatedAt {
-		return fmt.Errorf("game state changed unexpectantly -- try again")
-	}
-
-	_, err = client.DS.Put(c, g.Key, g.Header)
-	if err != nil {
-		return err
-	}
-
-	client.Cache.Delete(g.UndoKey(c))
-	return nil
-}
-
-func (client Client) saveWith(c *gin.Context, g *Game, ks []*datastore.Key, es []interface{}) error {
-	// _, err := client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-	// 	oldG := New(c, g.ID())
-	// 	err := tx.Get(oldG.Header.Key, oldG.Header)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	if oldG.UpdatedAt != g.UpdatedAt {
-	// 		return fmt.Errorf("game state changed unexpectantly -- try again")
-	// 	}
-
-	// 	err = g.encode(c)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	ks = append(ks, g.Key)
-	// 	es = append(es, g.Header)
-
-	// 	_, err = tx.PutMulti(ks, es)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	client.Cache.Delete(g.UndoKey(c))
-	// 	return nil
-	// })
-	return nil
-}
-
-func wrap(s *user.Stats, cs []*sn.Contest) ([]*datastore.Key, []interface{}) {
-	l := len(cs) + 1
-	es := make([]interface{}, l)
-	ks := make([]*datastore.Key, l)
-	es[0] = s
-	ks[0] = s.Key
-	for i, c := range cs {
-		es[i+1] = c
-		ks[i+1] = c.Key
-	}
-	return ks, es
-}
-
-// func (g *Game) encode(c *gin.Context) error {
-// 	log.Debugf(msgEnter)
-// 	defer log.Debugf(msgExit)
-//
-// 	encoded, err := codec.Encode(g.State)
-// 	if err != nil {
-// 		return nil
-// 	}
-// 	g.SavedState = encoded
-//
-// 	return nil
-// }
-
-// func newGamer(c *gin.Context) game.Gamer {
-// 	return New(c, 0)
-// }
 
 func (client Client) index(c *gin.Context) {
 	log.Debugf(msgEnter)
@@ -460,9 +385,9 @@ func (client Client) accept(c *gin.Context) {
 		return
 	}
 
-	g := newGame(inv.Key.ID)
-	g.Header = inv.Header
-	err = g.Start(c)
+	h := newHistory(inv.Key.ID, 0)
+	h.Header = inv.Header
+	err = h.Start(c)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -474,8 +399,8 @@ func (client Client) accept(c *gin.Context) {
 			return err
 		}
 
-		g.StartedAt = time.Now()
-		_, err = tx.PutMulti(g.withHistory())
+		h.StartedAt = time.Now()
+		_, err = tx.PutMulti(h.save())
 		return err
 	})
 	if err != nil {
@@ -483,33 +408,34 @@ func (client Client) accept(c *gin.Context) {
 		return
 	}
 
-	cp := g.CurrentPlayer()
-	log.Debugf("cp: %#v", cp)
-	err = g.SendTurnNotificationsTo(c, cp)
+	cp := h.CurrentPlayer()
+	err = h.SendTurnNotificationsTo(c, cp)
 	if err != nil {
 		log.Warningf(err.Error())
 	}
 
-	inv.Header = g.Header
+	inv.Header = h.Header
 	c.JSON(http.StatusOK, gin.H{
 		"invitation": inv,
 		"message": fmt.Sprintf(
 			`<div>Game: %d has started.</div>
 			<div></div>
 			<div><strong>%s</strong> is start player.</div>`,
-			inv.Key.ID, cp.User.Name),
+			inv.ID(), cp.User.Name),
 	})
 }
 
-func (g *Game) withHistory() ([]*datastore.Key, []interface{}) {
-	gh := newGHeader(g.ID())
-	gh.Header = g.Header
-
-	return []*datastore.Key{newHistoryKey(g.ID(), g.Undo.Current), g.Key, gh.Key}, []interface{}{g, g, gh}
+func (h *History) cache() (*datastore.Key, interface{}) {
+	return newHistoryKey(h.ID(), h.Undo.Current), h
 }
 
-func (g *Game) cache() ([]*datastore.Key, []interface{}) {
-	return []*datastore.Key{newHistoryKey(g.ID(), g.Undo.Current)}, []interface{}{g}
+func (h *History) save() ([]*datastore.Key, []interface{}) {
+	gh := newGHeader(h.ID())
+	gh.Header = h.Header
+
+	ks := []*datastore.Key{newGameKey(h.ID()), newHistoryKey(h.ID(), h.Undo.Current), gh.Key}
+	es := []interface{}{h, h, gh}
+	return ks, es
 }
 
 func (client Client) drop(c *gin.Context) {
@@ -634,41 +560,47 @@ func (client Client) getGame(c *gin.Context) (*Game, error) {
 	return g, err
 }
 
-func (client Client) getHistory(c *gin.Context, inc int64) (*Game, error) {
+func getStack(c *gin.Context) (sn.Stack, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	id, err := getID(c)
+	var emptyStack sn.Stack
+
+	bodyBytes, err := copyBody(c)
 	if err != nil {
-		return nil, err
+		return emptyStack, err
 	}
 
-	undo, err := getStack(c)
-	if err != nil {
-		return nil, err
-	}
-
-	undo.Current = undo.Current + inc
-	k := newHistoryKey(id, undo.Current)
-
-	g := newGame(0)
-	err = client.DS.Get(c, k, g)
-	if err != nil {
-		return nil, err
-	}
-	g.Undo = undo
-	return g, nil
-}
-
-func getStack(c *gin.Context) (sn.Stack, error) {
 	obj := struct {
 		sn.Stack `json:"undo"`
 	}{}
-	err := c.Bind(&obj)
+	err = c.ShouldBind(&obj)
+	log.Debugf("err: %v\nobj: %#v", err, obj)
 	if err != nil {
 		return sn.Stack{}, err
 	}
+
+	// Restore the io.ReadCloser to its original state
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	return obj.Stack, nil
+}
+
+// copyBody returns a copy of c.Request.Body and resets to permit further reading of c.Request.Body
+func copyBody(c *gin.Context) ([]byte, error) {
+	// Read the content
+	if c.Request.Body == nil {
+		return nil, fmt.Errorf("request missing body")
+	}
+
+	bodyBytes, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, err
+	}
+	cpBytes := make([]byte, len(bodyBytes))
+	copy(cpBytes, bodyBytes)
+
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	return cpBytes, nil
 }
 
 // // pull temporary game state from cache.  Note may be different from value stored in datastore.

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
@@ -14,7 +13,7 @@ func (client Client) placeThief(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g, err := client.getGame(c)
+	g, err := client.getHistory(c, 0)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -26,10 +25,9 @@ func (client Client) placeThief(c *gin.Context) {
 		return
 	}
 
-	_, err = client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		_, err := tx.PutMulti(g.cache())
-		return err
-	})
+	ks, es := g.cache()
+	log.Debugf("ks: %v", ks)
+	_, err = client.DS.Put(c, ks, es)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -38,7 +36,7 @@ func (client Client) placeThief(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *Game) placeThieves(c *gin.Context) error {
+func (g *History) placeThieves(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -46,7 +44,7 @@ func (g *Game) placeThieves(c *gin.Context) error {
 	return nil
 }
 
-func (g *Game) placeThief(c *gin.Context) error {
+func (g *History) placeThief(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -67,7 +65,10 @@ func (g *Game) placeThief(c *gin.Context) error {
 	return nil
 }
 
-func (g *Game) validatePlaceThief(c *gin.Context) (*Area, error) {
+func (g *History) validatePlaceThief(c *gin.Context) (*Area, error) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
 	err := g.validatePlayerAction(c)
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func (g *Game) validatePlaceThief(c *gin.Context) (*Area, error) {
 // 	Area Area
 // }
 //
-// func (g *Game) newPlaceThiefEntryFor(p *Player) (e *placeThiefEntry) {
+// func (g *History) newPlaceThiefEntryFor(p *Player) (e *placeThiefEntry) {
 // 	area := g.SelectedArea()
 // 	e = &placeThiefEntry{
 // 		Entry: g.newEntryFor(p),
@@ -106,7 +107,7 @@ func (g *Game) validatePlaceThief(c *gin.Context) (*Area, error) {
 // 	return
 // }
 //
-// func (e *placeThiefEntry) HTML(g *Game) template.HTML {
+// func (e *placeThiefEntry) HTML(g *History) template.HTML {
 // 	return restful.HTML("%s placed thief on %s at %s%s.",
 // 		g.NameByPID(e.PlayerID), e.Area.Card.Type, e.Area.RowString(), e.Area.ColString())
 // }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/gob"
+	"fmt"
+	"net/http"
 
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn/v2"
@@ -12,13 +14,43 @@ func init() {
 	gob.Register(new(moveThiefEntry))
 }
 
-func (g *Game) startMoveThief(c *gin.Context) {
+func (g *History) startMoveThief(c *gin.Context) {
 	g.Phase = moveThief
 	g.ClickAreas = nil
 }
 
-func (g *Game) moveThief(c *gin.Context) error {
-	err := g.validateMoveThief(c)
+func (client Client) moveThief(c *gin.Context) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	g, err := client.getHistory(c)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	err = g.moveThief(c)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	ks, es := g.cache()
+	log.Debugf("ks: %v", ks)
+	_, err = client.DS.Put(c, ks, es)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"game": g})
+}
+
+func (g *History) moveThief(c *gin.Context) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	sa, ta, err := g.validateMoveThief(c)
 	if err != nil {
 		return err
 	}
@@ -29,53 +61,62 @@ func (g *Game) moveThief(c *gin.Context) error {
 
 	switch {
 	case g.PlayedCard.Type == sword:
-		g.BumpedPlayerID = g.SelectedArea().Thief
-		bumpedTo := g.bumpedTo(g.SelectedThiefArea(), g.SelectedArea())
+		g.BumpedPlayerID = sa.Thief
+		bumpedTo := g.bumpedTo(ta, sa)
 		bumpedTo.Thief = g.BumpedPlayerID
-		g.BumpedPlayer().Score += bumpedTo.Card.Value() - g.SelectedArea().Card.Value()
+		g.BumpedPlayer().Score += bumpedTo.Card.Value() - sa.Card.Value()
+		g.claimItem(c)
 	case g.PlayedCard.Type == turban && g.Stepped == 0:
 		g.Stepped = 1
 	case g.PlayedCard.Type == turban && g.Stepped == 1:
 		g.Stepped = 2
+		g.claimItem(c)
+	default:
+		g.claimItem(c)
 	}
-	g.SelectedArea().Thief = cp.ID
-	cp.Score += g.SelectedArea().Card.Value()
-	g.claimItem(c)
+	sa.Thief = cp.ID
+	cp.Score += sa.Card.Value()
 	return nil
 }
 
-func (g *Game) validateMoveThief(c *gin.Context) error {
+func (g *History) validateMoveThief(c *gin.Context) (*Area, *Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	a := g.SelectedArea()
-	g.ClickAreas = nil
-	err := g.validatePlayerAction(c)
+	sa, err := g.getAreaFrom(c)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ta := g.SelectedThiefArea()
+	err = g.validatePlayerAction(c)
 	switch {
 	case err != nil:
-		return err
-	case a == nil:
-		return sn.NewVError("You must select a space which to move your thief.")
-	case g.SelectedThiefArea() != nil && g.SelectedThiefArea().Thief != g.CurrentPlayer().ID:
-		return sn.NewVError("You must first select one of your thieves.")
-	case (g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp) && !g.isLampArea(a):
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case (g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel) && !g.isCamelArea(a):
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == coins && !g.isCoinsArea(a):
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == sword && !g.isSwordArea(a):
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == carpet && !g.isCarpetArea(a):
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == turban && g.Stepped == 0 && !g.isTurban0Area(a):
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == turban && g.Stepped == 1 && !g.isTurban1Area(a):
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
+		return nil, nil, err
+	case sa == nil:
+		return nil, nil, fmt.Errorf("you must select a space to which to move your thief: %w", sn.ErrValidation)
+	case ta == nil:
+		return nil, nil, fmt.Errorf("thief not selected: %w", sn.ErrValidation)
+	case ta.Thief != g.CurrentPlayer().ID:
+		return nil, nil, fmt.Errorf("you must first select one of your thieves: %w", sn.ErrValidation)
+	case (g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp) && !hasArea(g.lampAreas(ta), sa):
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
+	case (g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel) && !hasArea(g.camelAreas(ta), sa):
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
+	case g.PlayedCard.Type == coins && !g.isCoinsArea(sa):
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
+	case g.PlayedCard.Type == sword && !g.isSwordArea(sa):
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
+	case g.PlayedCard.Type == carpet && !g.isCarpetArea(sa):
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
+	case g.PlayedCard.Type == turban && g.Stepped == 0 && !g.isTurban0Area(sa):
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
+	case g.PlayedCard.Type == turban && g.Stepped == 1 && !g.isTurban1Area(sa):
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
 	case g.PlayedCard.Type == guard:
-		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
+		return nil, nil, fmt.Errorf("you can't move the selected thief to area %s: %w", sa.areaID, sn.ErrValidation)
 	default:
-		return nil
+		return sa, ta, nil
 	}
 }
 
@@ -86,7 +127,7 @@ type moveThiefEntry struct {
 	To   Area
 }
 
-//func (g *Game) newMoveThiefEntryFor(p *Player) (e *moveThiefEntry) {
+//func (g *History) newMoveThiefEntryFor(p *Player) (e *moveThiefEntry) {
 //	e = &moveThiefEntry{
 //		Entry: g.newEntryFor(p),
 //		Card:  *(g.PlayedCard),
@@ -101,7 +142,7 @@ type moveThiefEntry struct {
 //	return
 //}
 //
-//func (e *moveThiefEntry) HTML(g *Game) (t template.HTML) {
+//func (e *moveThiefEntry) HTML(g *History) (t template.HTML) {
 //	from := e.From
 //	to := e.To
 //	n := g.NameByPID(e.PlayerID)
@@ -118,7 +159,7 @@ type moveThiefEntry struct {
 //	return
 //}
 
-func (g *Game) bumpedTo(from, to *Area) *Area {
+func (g *History) bumpedTo(from, to *Area) *Area {
 	switch {
 	case from.Row > to.Row:
 		return g.Grid[to.Row-1][from.Column]

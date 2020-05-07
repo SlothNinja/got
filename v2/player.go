@@ -6,7 +6,6 @@ import (
 
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
-	"github.com/SlothNinja/schema"
 	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
@@ -91,7 +90,7 @@ func (p *Player) compareByLamps(p2 *Player) sn.Comparison {
 }
 
 // CountFor provides the number of faceUp and faceDown cards a player has.
-func (cs Cards) CountFor(t cType) (faceUp, faceDown int) {
+func (cs Cards) CountFor(t cKind) (faceUp, faceDown int) {
 	for _, c := range cs {
 		switch {
 		case c.Type == t && c.FaceUp:
@@ -141,7 +140,7 @@ func (p *Player) compareByCards(p2 *Player) sn.Comparison {
 	return sn.EqualTo
 }
 
-func (client Client) determinePlaces(c *gin.Context, g *Game) (sn.Places, error) {
+func (client Client) determinePlaces(c *gin.Context, g *History) (sn.Places, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -209,13 +208,11 @@ func newPlayer() *Player {
 	return p
 }
 
-func (g *Game) addNewPlayer(i int) {
-	log.Debugf("g.Header: %#v", g.Header)
-	log.Debugf("i: %d", i)
+func (h *History) addNewPlayer(i int) {
 	p := newPlayer()
-	g.Players = append(g.Players, p)
-	p.ID = len(g.Players)
-	p.User = toUser(g.UserKeys[i], g.UserNames[i], g.UserEmails[i])
+	h.Players = append(h.Players, p)
+	p.ID = len(h.Players)
+	p.User = toUser(h.UserKeys[i], h.UserNames[i], h.UserEmails[i])
 }
 
 // func createPlayer(g *Game, uid int64) *Player {
@@ -228,8 +225,8 @@ func (p *Player) beginningOfTurnReset() {
 	p.clearActions()
 }
 
-func (g *Game) beginningOfPhaseReset() {
-	for _, p := range g.Players {
+func (h *History) beginningOfPhaseReset() {
+	for _, p := range h.Players {
 		p.clearActions()
 		p.Passed = false
 	}
@@ -240,18 +237,18 @@ func (p *Player) clearActions() {
 	p.Log = make(GameLog, 0)
 }
 
-func (g *Game) updateClickablesFor(c *gin.Context, p *Player) {
+func (h *History) updateClickablesFor(c *gin.Context, p *Player) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	canClick := g.CanClick(c, p)
-	g.Grid.Each(func(a *Area) { a.Clickable = canClick(a) })
+	canClick := h.CanClick(c, p)
+	h.Grid.Each(func(a *Area) { a.Clickable = canClick(a) })
 }
 
 // CanClick a function specialized by current game context to test whether a player can click on
 // a particular area in the grid.  The main benefit is the function provides a closure around area computions,
 // essentially caching the results.
-func (g *Game) CanClick(c *gin.Context, p *Player) func(*Area) bool {
+func (g *History) CanClick(c *gin.Context, p *Player) func(*Area) bool {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -270,6 +267,7 @@ func (g *Game) CanClick(c *gin.Context, p *Player) func(*Area) bool {
 	case g.Phase == selectThief:
 		return func(a *Area) bool { return a.Thief == cp.ID }
 	case g.Phase == moveThief:
+		ta := g.SelectedThiefArea()
 		switch {
 		case p == nil:
 			return ff
@@ -277,17 +275,19 @@ func (g *Game) CanClick(c *gin.Context, p *Player) func(*Area) bool {
 			return ff
 		case g.PlayedCard == nil:
 			return ff
+		case ta == nil:
+			return ff
 		case g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp:
-			as := g.lampAreas()
+			as := g.lampAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel:
-			as := g.camelAreas()
+			as := g.camelAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == sword:
 			as := g.swordAreas()
 			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == carpet:
-			as := g.camelAreas()
+			as := g.carpetAreas()
 			return func(a *Area) bool { return hasArea(as, a) }
 		case g.PlayedCard.Type == turban && g.Stepped == 0:
 			as := g.turban0Areas()
@@ -307,7 +307,7 @@ func (g *Game) CanClick(c *gin.Context, p *Player) func(*Area) bool {
 }
 
 // CanPlaceThief indicates whether a current player can place a thief.
-func (g *Game) CanPlaceThief(c *gin.Context) bool {
+func (g *History) CanPlaceThief(c *gin.Context) bool {
 	err := g.validatePlayerAction(c)
 	switch {
 	case err != nil:
@@ -320,7 +320,7 @@ func (g *Game) CanPlaceThief(c *gin.Context) bool {
 }
 
 // CanSelectCard indicates whether a current player can select a card to play.
-func (g *Game) CanSelectCard(c *gin.Context) bool {
+func (g *History) CanSelectCard(c *gin.Context) bool {
 	err := g.validatePlayerAction(c)
 	switch {
 	case err != nil:
@@ -333,7 +333,7 @@ func (g *Game) CanSelectCard(c *gin.Context) bool {
 }
 
 // CanSelectThief indicates whether current player can select a thief.
-func (g *Game) CanSelectThief(c *gin.Context) bool {
+func (g *History) CanSelectThief(c *gin.Context) bool {
 	err := g.validatePlayerAction(c)
 	switch {
 	case err != nil:
@@ -346,7 +346,7 @@ func (g *Game) CanSelectThief(c *gin.Context) bool {
 }
 
 // CanMoveThief indicates whether current player can move a thief.
-func (g *Game) CanMoveThief(c *gin.Context) bool {
+func (g *History) CanMoveThief(c *gin.Context) bool {
 	err := g.validatePlayerAction(c)
 	switch {
 	case err != nil:
@@ -360,9 +360,9 @@ func (g *Game) CanMoveThief(c *gin.Context) bool {
 	}
 }
 
-func (g *Game) endOfTurnUpdateFor(p *Player) {
-	if g.PlayedCard != nil {
-		g.Jewels = *(g.PlayedCard)
+func (h *History) endOfTurnUpdateFor(p *Player) {
+	if h.PlayedCard != nil {
+		h.Jewels = *(h.PlayedCard)
 	}
 
 	for _, card := range p.Hand {
@@ -370,38 +370,25 @@ func (g *Game) endOfTurnUpdateFor(p *Player) {
 	}
 }
 
-var playerValues = sslice{"Player.Passed", "Player.PerformedAction", "Player.Score"}
-
-// func (g *Game) adminPlayer(c *gin.Context) (string, sn.ActionType, error) {
-// 	log.Debugf(msgEnter)
-// 	defer log.Debugf(msgExit)
-//
-// 	if err := g.adminUpdatePlayer(c, playerValues); err != nil {
-// 		return "got/flash_notice", sn.None, err
+// func (g *History) adminUpdatePlayer(c *gin.Context, ss sslice) error {
+// 	if err := g.validateAdminAction(c); err != nil {
+// 		return err
 // 	}
 //
-// 	return "", sn.Save, nil
+// 	p := g.selectedPlayer()
+// 	values := make(map[string][]string)
+// 	for _, key := range ss {
+// 		if v := c.PostForm(key); v != "" {
+// 			values[key] = []string{v}
+// 		}
+// 	}
+//
+// 	return schema.Decode(p, values)
 // }
 
-func (g *Game) adminUpdatePlayer(c *gin.Context, ss sslice) error {
-	if err := g.validateAdminAction(c); err != nil {
-		return err
-	}
-
-	p := g.selectedPlayer()
-	values := make(map[string][]string)
-	for _, key := range ss {
-		if v := c.PostForm(key); v != "" {
-			values[key] = []string{v}
-		}
-	}
-
-	return schema.Decode(p, values)
-}
-
-func (g *Game) handMapFor(p *Player) (hm map[cType]int, count int) {
-	hm = make(map[cType]int)
-	for _, t := range g.cardTypes() {
+func (g *History) handMapFor(p *Player) (hm map[cKind]int, count int) {
+	hm = make(map[cKind]int)
+	for _, t := range cardTypes() {
 		faceUp, faceDown := p.Hand.CountFor(t)
 		if faceUp > 0 {
 			hm[t] = faceUp
@@ -412,7 +399,7 @@ func (g *Game) handMapFor(p *Player) (hm map[cType]int, count int) {
 }
 
 // PlayCardDisplayFor outputs html for displaying a player's cards.
-func (g *Game) PlayCardDisplayFor(p *Player) (s template.HTML) {
+func (g *History) PlayCardDisplayFor(p *Player) (s template.HTML) {
 	cardTypes := 0
 	hm, _ := g.handMapFor(p)
 	for t, count := range hm {
@@ -442,7 +429,7 @@ func (g *Game) PlayCardDisplayFor(p *Player) (s template.HTML) {
 }
 
 // DisplayHandFor outputs html for displaying a player's hand.
-func (g *Game) DisplayHandFor(c *gin.Context, p *Player) template.HTML {
+func (g *History) DisplayHandFor(c *gin.Context, p *Player) template.HTML {
 	cu, err := user.FromSession(c)
 	if err != nil {
 		log.Warningf(err.Error())
@@ -475,12 +462,12 @@ func (g *Game) DisplayHandFor(c *gin.Context, p *Player) template.HTML {
 }
 
 // IndexFor returns the index for the player and bool indicating whether player found.
-func (g *Game) IndexFor(p *Player) (int, bool) {
+func (h *History) IndexFor(p *Player) (int, bool) {
 	if p == nil {
 		return -1, false
 	}
 
-	for i, p2 := range g.Players {
+	for i, p2 := range h.Players {
 		if p2 != nil && p.ID == p2.ID {
 			return i, true
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-func (g *Game) SendTurnNotificationsTo(c *gin.Context, ps ...*Player) error {
+func (g *History) SendTurnNotificationsTo(c *gin.Context, ps ...*Player) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

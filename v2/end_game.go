@@ -12,7 +12,7 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-func (client Client) endGame(c *gin.Context, g *Game) (sn.Places, error) {
+func (client Client) endGame(c *gin.Context, g *History) (sn.Places, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -62,7 +62,7 @@ func toIDS(places []Players) [][]int64 {
 // 	return
 // }
 
-func (g *Game) setWinners(rmap sn.ResultsMap) {
+func (g *History) setWinners(rmap sn.ResultsMap) {
 	g.Phase = announceWinners
 	g.Status = sn.Completed
 
@@ -83,7 +83,7 @@ type result struct {
 
 type results []result
 
-func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Places, cs []*sn.Contest) error {
+func (client Client) sendEndGameNotifications(c *gin.Context, g *History, ps sn.Places, cs []*sn.Contest) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -172,12 +172,15 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Pla
 // 	return restful.HTML("Congratulations: %s.", restful.ToSentence(names))
 // }
 
-func (g *Game) winners() (ps Players) {
-	if l := len(g.WinnerIDS); l != 0 {
-		ps = make(Players, l)
-		for i, pid := range g.WinnerIDS {
-			ps[i] = g.PlayerByID(pid)
-		}
+func (g *History) winners() Players {
+	l := len(g.WinnerIDS)
+	if l == 0 {
+		return nil
+
 	}
-	return
+	ps := make(Players, l)
+	for i, pid := range g.WinnerIDS {
+		ps[i] = g.PlayerByID(pid)
+	}
+	return ps
 }

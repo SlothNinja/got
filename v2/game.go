@@ -3,7 +3,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -77,18 +76,18 @@ type State struct {
 // type Games []*Game
 
 // Start begins a Guild of Thieves game.
-func (g *Game) Start(c *gin.Context) error {
+func (g *History) Start(c *gin.Context) error {
 	g.Status = sn.Running
 	return g.setupPhase(c)
 }
 
-func (g *Game) addNewPlayers() {
+func (g *History) addNewPlayers() {
 	for i := range g.UserKeys {
 		g.addNewPlayer(i)
 	}
 }
 
-func (g *Game) setupPhase(c *gin.Context) error {
+func (g *History) setupPhase(c *gin.Context) error {
 	g.Turn = 0
 	g.Phase = setup
 	g.addNewPlayers()
@@ -107,7 +106,7 @@ func (g *Game) setupPhase(c *gin.Context) error {
 // 	*Entry
 // }
 //
-// func (g *Game) newSetupEntryFor(p *Player) (e *setupEntry) {
+// func (g *History) newSetupEntryFor(p *Player) (e *setupEntry) {
 // 	e = new(setupEntry)
 // 	e.Entry = g.newEntryFor(p)
 // 	p.Log = append(p.Log, e)
@@ -115,11 +114,11 @@ func (g *Game) setupPhase(c *gin.Context) error {
 // 	return
 // }
 //
-// func (e *setupEntry) HTML(g *Game) template.HTML {
+// func (e *setupEntry) HTML(g *History) template.HTML {
 // 	return restful.HTML("%s received 2 lamps and 1 camel.", g.NameByPID(e.PlayerID))
 // }
 
-func (g *Game) start(c *gin.Context) error {
+func (g *History) start(c *gin.Context) error {
 	g.Phase = startGame
 	// g.newStartEntry()
 	return g.placeThieves(c)
@@ -129,14 +128,14 @@ func (g *Game) start(c *gin.Context) error {
 // 	*Entry
 // }
 //
-// func (g *Game) newStartEntry() *startEntry {
+// func (g *History) newStartEntry() *startEntry {
 // 	e := new(startEntry)
 // 	e.Entry = g.newEntry()
 // 	g.Log = append(g.Log, e)
 // 	return e
 // }
 //
-// func (e *startEntry) HTML(g *Game) template.HTML {
+// func (e *startEntry) HTML(g *History) template.HTML {
 // 	names := make([]string, g.NumPlayers)
 // 	for i, p := range g.Players() {
 // 		names[i] = g.NameFor(p)
@@ -144,20 +143,20 @@ func (g *Game) start(c *gin.Context) error {
 // 	return restful.HTML("Good luck %s.  Have fun.", restful.ToSentence(names))
 // }
 
-func (g *Game) setCurrentPlayer(p *Player) {
-	g.CPIDS = nil
+func (h *History) setCurrentPlayer(p *Player) {
+	h.CPIDS = nil
 	if p != nil {
-		g.CPIDS = append(g.CPIDS, p.ID)
+		h.CPIDS = append(h.CPIDS, p.ID)
 	}
 }
 
 // PlayerByID returns the player having the provided player id.
-func (g *Game) PlayerByID(id int) *Player {
+func (h *History) PlayerByID(id int) *Player {
 	if id <= 0 {
 		return nil
 	}
 
-	for _, p := range g.Players {
+	for _, p := range h.Players {
 		if p != nil && p.ID == id {
 			return p
 		}
@@ -165,7 +164,7 @@ func (g *Game) PlayerByID(id int) *Player {
 	return nil
 }
 
-// //func (g *Game) PlayerBySID(sid string) (p *Player) {
+// //func (g *History) PlayerBySID(sid string) (p *Player) {
 // //	if per := g.Header.PlayerBySID(sid); per != nil {
 // //		p = per.(*Player)
 // //	}
@@ -173,7 +172,7 @@ func (g *Game) PlayerByID(id int) *Player {
 // //}
 
 // PlayerByUserID returns the player having the user id.
-func (g *Game) PlayerByUserID(id int64) *Player {
+func (g *History) PlayerByUserID(id int64) *Player {
 	if id <= 0 {
 		return nil
 	}
@@ -186,14 +185,14 @@ func (g *Game) PlayerByUserID(id int64) *Player {
 	return nil
 }
 
-//func (g *Game) PlayerByIndex(index int) (player *Player) {
+//func (g *History) PlayerByIndex(index int) (player *Player) {
 //	if p := g.PlayererByIndex(index); p != nil {
 //		player = p.(*Player)
 //	}
 //	return
 //}
 
-func (g *Game) undoTurn(c *gin.Context) error {
+func (g *History) undoTurn(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -206,13 +205,17 @@ func (g *Game) undoTurn(c *gin.Context) error {
 }
 
 // CurrentPlayer returns the player whose turn it is.
-func (g *Game) CurrentPlayer() *Player {
-	l := len(g.CPIDS)
+func (h *History) CurrentPlayer() *Player {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	log.Debugf("cpids: %v", h.CPIDS)
+	l := len(h.CPIDS)
 	if l != 1 {
 		return nil
 	}
-	pid := g.CPIDS[0]
-	for _, p := range g.Players {
+	pid := h.CPIDS[0]
+	for _, p := range h.Players {
 		if p.ID == pid {
 			return p
 		}
@@ -224,7 +227,7 @@ func (g *Game) CurrentPlayer() *Player {
 // based on package global const debug
 //const debug = true
 //
-//func (g *Game) debugf(format string, args ...interface{}) {
+//func (g *History) debugf(format string, args ...interface{}) {
 //	if debug {
 //		g.Debugf(format, args...)
 //	}
@@ -252,7 +255,7 @@ var headerValues = sslice{
 	"Header.Status",
 }
 
-// func (g *Game) adminHeader(c *gin.Context) (string, game.ActionType, error) {
+// func (g *History) adminHeader(c *gin.Context) (string, game.ActionType, error) {
 // 	log.Debugf(msgEnter)
 // 	defer log.Debugf(msgExit)
 //
@@ -263,7 +266,7 @@ var headerValues = sslice{
 // 	return "", game.Save, nil
 // }
 //
-// func (g *Game) adminUpdateHeader(c *gin.Context, ss sslice) error {
+// func (g *History) adminUpdateHeader(c *gin.Context, ss sslice) error {
 // 	if err := g.validateAdminAction(c); err != nil {
 // 		return err
 // 	}
@@ -294,23 +297,24 @@ var headerValues = sslice{
 // 	return reflect.Value{}
 // }
 
-func (g *Game) selectedPlayer() *Player {
+func (g *History) selectedPlayer() *Player {
 	return g.PlayerByID(g.SelectedPlayerID)
 }
 
 // BumpedPlayer identifies the player whose theif was bumped to another card due to a played sword.
-func (g *Game) BumpedPlayer() *Player {
+func (g *History) BumpedPlayer() *Player {
 	return g.PlayerByID(g.BumpedPlayerID)
 }
 
 func (g *Game) ID() int64 {
 	if g == nil || g.Key == nil {
-		return -1
+		return 0
 	}
+
 	return g.Key.ID
 }
 
-func (g *Game) randomTurnOrder() {
+func (g *History) randomTurnOrder() {
 	rand.Shuffle(len(g.Players), func(i, j int) { g.Players[i], g.Players[j] = g.Players[j], g.Players[i] })
 }
 
@@ -382,16 +386,12 @@ func (g Game) MarshalJSON() ([]byte, error) {
 		UserNames    omit    `json:"userNames,omitempty"`
 	}{
 		JGame:       JGame(g),
-		ID:          g.Key.ID,
+		ID:          g.ID(),
 		Creator:     toUser(g.CreatorKey, g.CreatorName, g.CreatorEmail),
 		Users:       toUsers(g.UserKeys, g.UserNames, g.UserEmails),
 		LastUpdated: sn.LastUpdated(g.UpdatedAt),
 		Public:      g.Password == "",
 	})
-}
-
-func newHistoryKey(id, at int64) *datastore.Key {
-	return datastore.NameKey(historyKind, fmt.Sprintf("%d-%d", id, at), rootKey(id))
 }
 
 func rootKey(id int64) *datastore.Key {

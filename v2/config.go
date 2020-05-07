@@ -22,11 +22,15 @@ const (
 	undoPath        = "/undo/:" + idParam
 	redoPath        = "/redo/:" + idParam
 	resetPath       = "/reset/:" + idParam
-	finishPath      = "/finish/:" + idParam
+	ptfinishPath    = "/ptfinish/:" + idParam
+	mtfinishPath    = "/mtfinish/:" + idParam
 	dropPath        = "/drop/:" + idParam
 	acceptPath      = "/accept/:" + idParam
 	updatePath      = showPath
 	placeThiefPath  = "place-thief/:" + idParam
+	selectThiefPath = "select-thief/:" + idParam
+	moveThiefPath   = "move-thief/:" + idParam
+	playCardPath    = "play-card/:" + idParam
 	msgPath         = showPath + "/addmessage"
 	gamePath        = "/game"
 	gamesPath       = gamePath + "s"

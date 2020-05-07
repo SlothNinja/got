@@ -8,26 +8,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) getAreaFrom(c *gin.Context) (*Area, error) {
+func (g *History) getAreaFrom(c *gin.Context) (*Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	var id areaID
+	obj := struct {
+		ID areaID `json:"areaID"`
+	}{}
 
-	err := c.Bind(&id)
+	err := c.ShouldBind(&obj)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debugf("id: %#v", id)
-	a := g.getArea(id)
+	a := g.getArea(obj.ID)
 	if a == nil {
 		return nil, fmt.Errorf("unable to find area: %#w", sn.ErrValidation)
 	}
 	return a, nil
 }
 
-// func (g *Game) selectArea(c *gin.Context) error {
+// func (g *History) selectArea(c *gin.Context) error {
 // 	log.Debugf(msgEnter)
 // 	defer log.Debugf(msgExit)
 //
@@ -64,7 +65,7 @@ func (g *Game) getAreaFrom(c *gin.Context) (*Area, error) {
 // 	}
 // }
 
-// func (g *Game) validateSelectArea(c *gin.Context) error {
+// func (g *History) validateSelectArea(c *gin.Context) error {
 //
 // 	err := g.validateCPorAdmin(c)
 // 	if err != nil {

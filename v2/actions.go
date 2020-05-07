@@ -9,15 +9,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) validatePlayerAction(c *gin.Context) error {
-	cp := g.CurrentPlayer()
-	err := g.validateCPorAdmin(c)
+func (h *History) validatePlayerAction(c *gin.Context) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	cp := h.CurrentPlayer()
+	err := h.validateCPorAdmin(c)
 
 	switch {
 	case err != nil:
 		return err
-	case cp == nil: // should never happen, if cp == nil => err != nil
-		return sn.ErrPlayerNotFound
 	case cp.PerformedAction:
 		return fmt.Errorf("current player already performed action: %w", sn.ErrValidation)
 	default:
@@ -25,8 +26,11 @@ func (g *Game) validatePlayerAction(c *gin.Context) error {
 	}
 }
 
-func (g *Game) validateCPorAdmin(c *gin.Context) error {
-	cp := g.CurrentPlayer()
+func (h *History) validateCPorAdmin(c *gin.Context) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	cp := h.CurrentPlayer()
 	cu, err := user.FromSession(c)
 
 	switch {
@@ -41,14 +45,14 @@ func (g *Game) validateCPorAdmin(c *gin.Context) error {
 	case cp.User.ID == 0:
 		return sn.ErrNotCPorAdmin
 	case cp.User.ID != cu.ID():
-		log.Debugf("cp.User.ID: %d cu.ID: %d", cp.User.ID, cu.ID())
+		log.Debugf("cp.User.ID: %v cu.ID: %v", cp.User.ID, cu.ID())
 		return sn.ErrNotCPorAdmin
 	default:
 		return nil
 	}
 }
 
-func (g *Game) validateAdminAction(c *gin.Context) error {
+func (h *History) validateAdminAction(c *gin.Context) error {
 	cu, err := user.FromSession(c)
 	switch {
 	case err != nil:

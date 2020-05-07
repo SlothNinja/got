@@ -62,6 +62,10 @@ type areaID struct {
 	Column aCol `json:"column"`
 }
 
+func (id areaID) String() string {
+	return fmt.Sprintf("%s-%s", id.Row, id.Column)
+}
+
 // Area of the grid.
 type Area struct {
 	areaID
@@ -71,23 +75,23 @@ type Area struct {
 }
 
 // SelectedArea returns a previously selected area.
-func (g *Game) SelectedArea() *Area {
-	return g.getArea(g.SelectedAreaID)
+func (h *History) SelectedArea() *Area {
+	return h.getArea(h.SelectedAreaID)
 }
 
 // SelectedThiefArea returns the area corresponding to a previously selected thief.
-func (g *Game) SelectedThiefArea() *Area {
-	return g.getArea(g.SelectedThiefAreaID)
+func (h *History) SelectedThiefArea() *Area {
+	return h.getArea(h.SelectedThiefAreaID)
 }
 
-func (g *Game) getArea(id areaID) *Area {
-	if id.Row < rowA || id.Row > g.lastRow() {
+func (h *History) getArea(id areaID) *Area {
+	if id.Row < rowA || id.Row > h.lastRow() {
 		return nil
 	}
 	if id.Column < col1 || id.Column > col8 {
 		return nil
 	}
-	return g.Grid[id.Row-1][id.Column-1]
+	return h.Grid[id.Row-1][id.Column-1]
 }
 
 func newArea(id areaID, card *Card) *Area {
@@ -98,21 +102,21 @@ func newArea(id areaID, card *Card) *Area {
 	}
 }
 
-func (g *Game) lastRow() aRow {
+func (h *History) lastRow() aRow {
 	row := rowG
-	if g.NumPlayers == 2 {
+	if h.NumPlayers == 2 {
 		row = rowF
 	}
 	return row
 }
 
-func (g *Game) createGrid() {
+func (h *History) createGrid() {
 	deck := newDeck()
-	g.Grid = make(Grid, g.lastRow())
-	for row := rowA; row <= g.lastRow(); row++ {
-		g.Grid[row-1] = make([]*Area, 8)
+	h.Grid = make(Grid, h.lastRow())
+	for row := rowA; row <= h.lastRow(); row++ {
+		h.Grid[row-1] = make([]*Area, 8)
 		for col := col1; col <= col8; col++ {
-			g.Grid[row-1][col-1] = newArea(areaID{row, col}, deck.draw())
+			h.Grid[row-1][col-1] = newArea(areaID{row, col}, deck.draw())
 		}
 	}
 }

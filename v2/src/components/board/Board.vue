@@ -30,7 +30,7 @@
             :key='`space-${cell.row}-${cell.column}`'
             :value='cell'
             :game='game'
-            @selected="$emit('selected', cell)"
+            @selected="$emit('selected', { areaID: { row: cell.row, column: cell.column }})"
           >
           </sn-board-space>
           <div class='row-text'>

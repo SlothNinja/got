@@ -49,7 +49,6 @@
                     
               >
                 <sn-card-with-count
-                  :id='cardID(kind)'
                   :kind='kind'
                   :count='count'
                 >
@@ -81,9 +80,6 @@
     },
     props: [ 'value', 'player', 'game' ],
     methods: {
-      cardID: function (kind) {
-        return `hand-${kind}`
-      },
       selected: function (kind) {
         var self = this
         if (self.canClick) {
@@ -103,7 +99,7 @@
       cards: function () {
         var self = this
         return _.countBy(self.player.hand, function (card) {
-          if (card.facing) {
+          if (card.faceUp) {
             return card.kind
           }
           return 'card-back'
@@ -111,8 +107,8 @@
       },
       canClick: function () {
         var self = this
-        const playCardPhase = 2
-        return (self.game.header.phase === playCardPhase) && (self.isPlayerFor(self.player, self.cu))
+        const playCardPhase = 'Play Card'
+        return (self.game.phase === playCardPhase) && (self.isPlayerFor(self.player, self.cu))
       },
       cardbar: {
         get: function () {
