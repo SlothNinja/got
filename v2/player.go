@@ -1,13 +1,10 @@
 package main
 
 import (
-	"html/template"
 	"sort"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn/v2"
-	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,11 +15,18 @@ type Player struct {
 	Score           int        `json:"score"`
 	Passed          bool       `json:"passed"`
 	Colors          []sn.Color `json:"colors"`
-	User            *User      `json:"user"`
-	Log             GameLog    `json:"log"`
+	User            *sn.User   `json:"user"`
 	Hand            Cards      `json:"hand"`
 	DrawPile        Cards      `json:"drawPile"`
 	DiscardPile     Cards      `json:"discardPile"`
+}
+
+func (g *Game) pids() []int {
+	pids := make([]int, len(g.Players))
+	for i := range g.Players {
+		pids[i] = g.Players[i].ID
+	}
+	return pids
 }
 
 // Players is a slice of players of the game.
@@ -93,9 +97,9 @@ func (p *Player) compareByLamps(p2 *Player) sn.Comparison {
 func (cs Cards) CountFor(t cKind) (faceUp, faceDown int) {
 	for _, c := range cs {
 		switch {
-		case c.Type == t && c.FaceUp:
+		case c.Kind == t && c.FaceUp:
 			faceUp++
-		case c.Type == t && !c.FaceUp:
+		case c.Kind == t && !c.FaceUp:
 			faceDown++
 		}
 	}
@@ -104,7 +108,7 @@ func (cs Cards) CountFor(t cKind) (faceUp, faceDown int) {
 
 func lampCount(cs ...*Card) (count int) {
 	for _, c := range cs {
-		if c.Type == lamp || c.Type == sLamp {
+		if c.Kind == lampCard || c.Kind == sLampCard {
 			count++
 		}
 	}
@@ -123,7 +127,7 @@ func (p *Player) compareByCamels(p2 *Player) sn.Comparison {
 
 func camelCount(cs ...*Card) (count int) {
 	for _, c := range cs {
-		if c.Type == camel || c.Type == sCamel {
+		if c.Kind == camelCard || c.Kind == sCamelCard {
 			count++
 		}
 	}
@@ -140,7 +144,7 @@ func (p *Player) compareByCards(p2 *Player) sn.Comparison {
 	return sn.EqualTo
 }
 
-func (client Client) determinePlaces(c *gin.Context, g *History) (sn.Places, error) {
+func (client Client) determinePlaces(c *gin.Context, g *Game) (sn.Places, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -198,22 +202,23 @@ func (r Reverse) Less(i, j int) bool { return r.Interface.Less(j, i) }
 // 	p.SetGame(gr)
 // }
 
-func newPlayer() *Player {
-	p := &Player{
-		Colors:      defaultColors(),
+func (g *Game) newPlayer(i int) *Player {
+	return &Player{
+		ID:          i + 1,
+		Colors:      defaultColors()[:g.NumPlayers],
 		Hand:        newStartHand(),
 		DrawPile:    make(Cards, 0),
 		DiscardPile: make(Cards, 0),
+		User:        sn.ToUser(g.UserKeys[i], g.UserNames[i], g.UserEmailHashes[i]),
 	}
-	return p
 }
 
-func (h *History) addNewPlayer(i int) {
-	p := newPlayer()
-	h.Players = append(h.Players, p)
-	p.ID = len(h.Players)
-	p.User = toUser(h.UserKeys[i], h.UserNames[i], h.UserEmails[i])
-}
+// func (g *Game) addNewPlayer(i int) {
+// 	p := newPlayer()
+// 	g.Players = append(g.Players, p)
+// 	p.ID = i + 1
+// 	p.User = sn.ToUser(g.UserKeys[i], g.UserNames[i], g.UserEmails[i])
+// }
 
 // func createPlayer(g *Game, uid int64) *Player {
 // 	p := newPlayer()
@@ -222,52 +227,36 @@ func (h *History) addNewPlayer(i int) {
 // }
 
 func (p *Player) beginningOfTurnReset() {
-	p.clearActions()
-}
-
-func (h *History) beginningOfPhaseReset() {
-	for _, p := range h.Players {
-		p.clearActions()
-		p.Passed = false
-	}
-}
-
-func (p *Player) clearActions() {
 	p.PerformedAction = false
-	p.Log = make(GameLog, 0)
 }
 
-func (h *History) updateClickablesFor(c *gin.Context, p *Player) {
+func (h *Game) updateClickablesFor(c *gin.Context, p *Player, ta *Area) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	canClick := h.CanClick(c, p)
+	canClick := h.CanClick(c, p, ta)
 	h.Grid.Each(func(a *Area) { a.Clickable = canClick(a) })
 }
 
 // CanClick a function specialized by current game context to test whether a player can click on
 // a particular area in the grid.  The main benefit is the function provides a closure around area computions,
 // essentially caching the results.
-func (g *History) CanClick(c *gin.Context, p *Player) func(*Area) bool {
+func (g *Game) CanClick(c *gin.Context, p *Player, ta *Area) func(*Area) bool {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
 	ff := func(a *Area) bool { return false }
-	cp := g.CurrentPlayer()
-
+	cp, err := g.validatePlayerAction(c)
 	switch {
 	case g == nil:
 		return ff
-	case cp == nil:
+	case err != nil:
 		return ff
-	case g.validatePlayerAction(c) != nil:
-		return ff
-	case g.Phase == placeThieves:
+	case g.Phase == placeThievesPhase:
 		return func(a *Area) bool { return a.Thief == noPID }
-	case g.Phase == selectThief:
+	case g.Phase == selectThiefPhase:
 		return func(a *Area) bool { return a.Thief == cp.ID }
-	case g.Phase == moveThief:
-		ta := g.SelectedThiefArea()
+	case g.Phase == moveThiefPhase:
 		switch {
 		case p == nil:
 			return ff
@@ -277,26 +266,26 @@ func (g *History) CanClick(c *gin.Context, p *Player) func(*Area) bool {
 			return ff
 		case ta == nil:
 			return ff
-		case g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp:
+		case g.PlayedCard.Kind == lampCard || g.PlayedCard.Kind == sLampCard:
 			as := g.lampAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel:
+		case g.PlayedCard.Kind == camelCard || g.PlayedCard.Kind == sCamelCard:
 			as := g.camelAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Type == sword:
-			as := g.swordAreas()
+		case g.PlayedCard.Kind == swordCard:
+			as := g.swordAreas(cp, ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Type == carpet:
+		case g.PlayedCard.Kind == carpetCard:
 			as := g.carpetAreas()
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Type == turban && g.Stepped == 0:
-			as := g.turban0Areas()
+		case g.PlayedCard.Kind == turbanCard && g.Stepped == 0:
+			as := g.turban0Areas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Type == turban && g.Stepped == 1:
-			as := g.turban1Areas()
+		case g.PlayedCard.Kind == turbanCard && g.Stepped == 1:
+			as := g.turban1Areas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Type == coins:
-			as := g.coinsAreas()
+		case g.PlayedCard.Kind == coinsCard:
+			as := g.coinsAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
 		default:
 			return ff
@@ -306,63 +295,9 @@ func (g *History) CanClick(c *gin.Context, p *Player) func(*Area) bool {
 	}
 }
 
-// CanPlaceThief indicates whether a current player can place a thief.
-func (g *History) CanPlaceThief(c *gin.Context) bool {
-	err := g.validatePlayerAction(c)
-	switch {
-	case err != nil:
-		return false
-	case g.Phase != placeThieves:
-		return false
-	default:
-		return true
-	}
-}
-
-// CanSelectCard indicates whether a current player can select a card to play.
-func (g *History) CanSelectCard(c *gin.Context) bool {
-	err := g.validatePlayerAction(c)
-	switch {
-	case err != nil:
-		return false
-	case g.Phase != playCard:
-		return false
-	default:
-		return true
-	}
-}
-
-// CanSelectThief indicates whether current player can select a thief.
-func (g *History) CanSelectThief(c *gin.Context) bool {
-	err := g.validatePlayerAction(c)
-	switch {
-	case err != nil:
-		return false
-	case g.Phase != selectThief:
-		return false
-	default:
-		return true
-	}
-}
-
-// CanMoveThief indicates whether current player can move a thief.
-func (g *History) CanMoveThief(c *gin.Context) bool {
-	err := g.validatePlayerAction(c)
-	switch {
-	case err != nil:
-		return false
-	case g.Phase != moveThief:
-		return false
-	case g.SelectedThiefArea() == nil:
-		return false
-	default:
-		return true
-	}
-}
-
-func (h *History) endOfTurnUpdateFor(p *Player) {
-	if h.PlayedCard != nil {
-		h.Jewels = *(h.PlayedCard)
+func (g *Game) endOfTurnUpdateFor(p *Player) {
+	if g.PlayedCard != nil {
+		g.Jewels = *(g.PlayedCard)
 	}
 
 	for _, card := range p.Hand {
@@ -370,105 +305,14 @@ func (h *History) endOfTurnUpdateFor(p *Player) {
 	}
 }
 
-// func (g *History) adminUpdatePlayer(c *gin.Context, ss sslice) error {
-// 	if err := g.validateAdminAction(c); err != nil {
-// 		return err
-// 	}
-//
-// 	p := g.selectedPlayer()
-// 	values := make(map[string][]string)
-// 	for _, key := range ss {
-// 		if v := c.PostForm(key); v != "" {
-// 			values[key] = []string{v}
-// 		}
-// 	}
-//
-// 	return schema.Decode(p, values)
-// }
-
-func (g *History) handMapFor(p *Player) (hm map[cKind]int, count int) {
-	hm = make(map[cKind]int)
-	for _, t := range cardTypes() {
-		faceUp, faceDown := p.Hand.CountFor(t)
-		if faceUp > 0 {
-			hm[t] = faceUp
-		}
-		count += faceDown
-	}
-	return
-}
-
-// PlayCardDisplayFor outputs html for displaying a player's cards.
-func (g *History) PlayCardDisplayFor(p *Player) (s template.HTML) {
-	cardTypes := 0
-	hm, _ := g.handMapFor(p)
-	for t, count := range hm {
-		if count > 0 {
-			cardTypes++
-			pos := "push-right"
-			if cardTypes%2 != 0 {
-				s += restful.HTML("<div class='row' style='height:160px'>")
-				pos = "pull-left"
-			}
-
-			name := t.IDString()
-			s += restful.HTML("<div class=%q>", pos)
-			s += restful.HTML("<div id='card-%s' data-tip=%q class='clickable card %s'></div>",
-				name, t.toolTip(), name)
-			s += restful.HTML("<div class='center'>%d</div></div>", count)
-
-			if cardTypes%2 == 0 {
-				s += restful.HTML("</div>")
-			}
-		}
-	}
-	if len(hm)%2 != 0 {
-		s += restful.HTML("</div>")
-	}
-	return
-}
-
-// DisplayHandFor outputs html for displaying a player's hand.
-func (g *History) DisplayHandFor(c *gin.Context, p *Player) template.HTML {
-	cu, err := user.FromSession(c)
-	if err != nil {
-		log.Warningf(err.Error())
-		return ""
-	}
-
-	s := restful.HTML("<div id='player-hand-%d'>", p.ID)
-	hm, faceDown := g.handMapFor(p)
-	if cu.Admin || p.User.ID == cu.ID() || g.Phase == gameOver {
-		for t, count := range hm {
-			if count > 0 {
-				name := t.IDString()
-				s += restful.HTML("<div class='pull-left'>")
-				s += restful.HTML("<div data-tip=%q class='card %s'></div>", t.toolTip(), name)
-				s += restful.HTML("<div class='center'>%d</div></div>", count)
-			}
-		}
-		if faceDown > 0 {
-			s += restful.HTML("<div class='pull-left'>")
-			s += restful.HTML("<div class='card card-back'></div>")
-			s += restful.HTML("<div class='center'>%d</div></div>", faceDown)
-		}
-	} else {
-		s += restful.HTML("<div class='pull-left'>")
-		s += restful.HTML("<div class='card card-back'></div>")
-		s += restful.HTML("<div class='center'>%d</div></div>", len(p.Hand))
-	}
-	s += restful.HTML("</div>")
-	return s
-}
-
 // IndexFor returns the index for the player and bool indicating whether player found.
-func (h *History) IndexFor(p *Player) (int, bool) {
+func (g *Game) indexFor(p *Player) (int, bool) {
 	if p == nil {
 		return -1, false
 	}
 
-	for i, p2 := range h.Players {
-		if p2 != nil && p.ID == p2.ID {
+	for i, p2 := range g.Players {
+		if p == p2 {
 			return i, true
 		}
 	}

@@ -9,57 +9,68 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *History) validatePlayerAction(c *gin.Context) error {
+func (g *Game) validatePlayerAction(c *gin.Context) (*Player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cp := h.CurrentPlayer()
-	err := h.validateCPorAdmin(c)
-
+	cp, err := g.validateCPorAdmin(c)
 	switch {
 	case err != nil:
-		return err
+		return nil, err
 	case cp.PerformedAction:
-		return fmt.Errorf("current player already performed action: %w", sn.ErrValidation)
+		return nil, fmt.Errorf("current player already performed action: %w", sn.ErrValidation)
 	default:
-		return nil
+		return cp, nil
 	}
 }
 
-func (h *History) validateCPorAdmin(c *gin.Context) error {
+func (g *Game) validateCPorAdmin(c *gin.Context) (*Player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cp := h.CurrentPlayer()
-	cu, err := user.FromSession(c)
+	cu, err := g.validateAdmin(c)
+	if err == nil {
+		return g.currentPlayer(), nil
+	}
+
+	return g.validateCurrentPlayer(c, cu)
+}
+
+func (g *Game) validateCurrentPlayer(c *gin.Context, cu *user.User) (*Player, error) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	log.Debugf("g.CPIDS: %#v", g.CPIDS)
+	cp := g.currentPlayer()
+	log.Debugf("cp.ID: %v", cp.ID)
 
 	switch {
-	case err != nil:
-		return err
 	case cu == nil:
-		return sn.ErrUserNotFound
-	case cu.Admin:
-		return nil
+		return nil, sn.ErrUserNotFound
 	case cp == nil:
-		return sn.ErrPlayerNotFound
-	case cp.User.ID == 0:
-		return sn.ErrNotCPorAdmin
-	case cp.User.ID != cu.ID():
-		log.Debugf("cp.User.ID: %v cu.ID: %v", cp.User.ID, cu.ID())
-		return sn.ErrNotCPorAdmin
+		return nil, sn.ErrPlayerNotFound
+	case cp.User.ID() != cu.ID():
+		log.Debugf("cp.User.ID(): %#v", cp.User.ID())
+		log.Debugf("cu: %#v", cu.ID())
+		return nil, sn.ErrNotCurrentPlayer
 	default:
-		return nil
+		return cp, nil
 	}
 }
 
-func (h *History) validateAdminAction(c *gin.Context) error {
+func (g *Game) validateAdmin(c *gin.Context) (*user.User, error) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
 	cu, err := user.FromSession(c)
 	switch {
 	case err != nil:
-		return err
+		return cu, err
+	case cu == nil:
+		return cu, sn.ErrUserNotFound
 	case !cu.Admin:
-		return sn.ErrNotAdmin
+		return cu, sn.ErrNotAdmin
 	default:
-		return nil
+		return cu, nil
 	}
 }

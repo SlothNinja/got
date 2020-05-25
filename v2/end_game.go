@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
@@ -12,11 +13,10 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-func (client Client) endGame(c *gin.Context, g *History) (sn.Places, error) {
+func (client Client) endGame(c *gin.Context, g *Game) (sn.Places, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g.Phase = endGame
 	ps, err := client.determinePlaces(c, g)
 	if err != nil {
 		return nil, err
@@ -26,15 +26,15 @@ func (client Client) endGame(c *gin.Context, g *History) (sn.Places, error) {
 	return ps, nil
 }
 
-func toIDS(places []Players) [][]int64 {
-	sids := make([][]int64, len(places))
-	for i, players := range places {
-		for _, p := range players {
-			sids[i] = append(sids[i], p.User.ID)
-		}
-	}
-	return sids
-}
+// func toIDS(places []Players) [][]int64 {
+// 	sids := make([][]int64, len(places))
+// 	for i, players := range places {
+// 		for _, p := range players {
+// 			sids[i] = append(sids[i], p.User.ID())
+// 		}
+// 	}
+// 	return sids
+// }
 
 // type endGameEntry struct {
 // 	*Entry
@@ -62,8 +62,7 @@ func toIDS(places []Players) [][]int64 {
 // 	return
 // }
 
-func (g *History) setWinners(rmap sn.ResultsMap) {
-	g.Phase = announceWinners
+func (g *Game) setWinners(rmap sn.ResultsMap) {
 	g.Status = sn.Completed
 
 	g.setCurrentPlayer(nil)
@@ -83,11 +82,10 @@ type result struct {
 
 type results []result
 
-func (client Client) sendEndGameNotifications(c *gin.Context, g *History, ps sn.Places, cs []*sn.Contest) error {
+func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Places, cs []*sn.Contest) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g.Phase = gameOver
 	g.Status = sn.Completed
 	rs := make(results, g.NumPlayers)
 
@@ -118,10 +116,33 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *History, ps sn.
 		names = append(names, p.User.Name)
 	}
 
-	ts := restful.TemplatesFrom(c)
+	//	ts := restful.TemplatesFrom(c)
 	buf := new(bytes.Buffer)
-	tmpl := ts["got/end_game_notification"]
-	err := tmpl.Execute(buf, gin.H{
+	//	tmpl := ts["got/end_game_notification"]
+	tmpl := template.New("end_game_notification")
+	tmpl, err := tmpl.Parse(`
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+        <head>
+                <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+        </head>
+        <body bgcolor="#ffffff" text="#000000">
+                {{range $i, $r := $.Results}}
+                <div style="height:3em">
+                        <div style="height:3em;float:left;padding-right:1em">{{$r.Place}}.</div>
+                        <div style="height:1em">{{$r.Name}} scored {{$r.Score}} points.</div>
+                        <div style="height:1em">Glicko {{$r.Inc}} (-> {{$r.GLO}})</div>
+                </div>
+                {{end}}
+                <p></p>
+                <p>Congratulations: {{$.Winners}}.</p>
+        </body>
+</html>`)
+	if err != nil {
+		return err
+	}
+
+	err = tmpl.Execute(buf, gin.H{
 		"Results": rs,
 		"Winners": restful.ToSentence(names),
 	})
@@ -140,7 +161,7 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *History, ps sn.
 			},
 			To: &mailjet.RecipientsV31{
 				mailjet.RecipientV31{
-					Email: p.User.Email,
+					Email: g.EmailFor(p.User.ID()),
 					Name:  p.User.Name,
 				},
 			},
@@ -172,7 +193,7 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *History, ps sn.
 // 	return restful.HTML("Congratulations: %s.", restful.ToSentence(names))
 // }
 
-func (g *History) winners() Players {
+func (g *Game) winners() Players {
 	l := len(g.WinnerIDS)
 	if l == 0 {
 		return nil

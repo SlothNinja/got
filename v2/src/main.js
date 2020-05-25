@@ -3,6 +3,9 @@ import App from './App.vue'
 import vuetify from './plugins/vuetify'
 import router from './router/router'
 import axios from 'axios'
+import { Plugin } from 'vue-fragment'
+
+Vue.use(Plugin)
 
 const _ = require('lodash')
 

@@ -74,24 +74,19 @@ type Area struct {
 	Clickable bool  `json:"clickable"`
 }
 
-// SelectedArea returns a previously selected area.
-func (h *History) SelectedArea() *Area {
-	return h.getArea(h.SelectedAreaID)
-}
-
 // SelectedThiefArea returns the area corresponding to a previously selected thief.
-func (h *History) SelectedThiefArea() *Area {
-	return h.getArea(h.SelectedThiefAreaID)
+func (g *Game) SelectedThiefArea() *Area {
+	return g.getArea(g.SelectedThiefAreaID)
 }
 
-func (h *History) getArea(id areaID) *Area {
-	if id.Row < rowA || id.Row > h.lastRow() {
+func (g *Game) getArea(id areaID) *Area {
+	if id.Row < rowA || id.Row > g.lastRow() {
 		return nil
 	}
 	if id.Column < col1 || id.Column > col8 {
 		return nil
 	}
-	return h.Grid[id.Row-1][id.Column-1]
+	return g.Grid[id.Row-1][id.Column-1]
 }
 
 func newArea(id areaID, card *Card) *Area {
@@ -102,7 +97,7 @@ func newArea(id areaID, card *Card) *Area {
 	}
 }
 
-func (h *History) lastRow() aRow {
+func (h *Game) lastRow() aRow {
 	row := rowG
 	if h.NumPlayers == 2 {
 		row = rowF
@@ -110,7 +105,7 @@ func (h *History) lastRow() aRow {
 	return row
 }
 
-func (h *History) createGrid() {
+func (h *Game) createGrid() {
 	deck := newDeck()
 	h.Grid = make(Grid, h.lastRow())
 	for row := rowA; row <= h.lastRow(); row++ {

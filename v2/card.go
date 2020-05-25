@@ -11,59 +11,59 @@ type cKind int
 
 const (
 	noType cKind = iota
-	lamp
-	camel
-	sword
-	carpet
-	coins
-	turban
+	lampCard
+	camelCard
+	swordCard
+	carpetCard
+	coinsCard
+	turbanCard
 	jewels
-	guard
-	sCamel
-	sLamp
+	guardCard
+	sCamelCard
+	sLampCard
 )
 
 func cardTypes() []cKind {
 	return []cKind{
-		lamp,
-		camel,
-		sword,
-		carpet,
-		coins,
-		turban,
+		lampCard,
+		camelCard,
+		swordCard,
+		carpetCard,
+		coinsCard,
+		turbanCard,
 		jewels,
-		guard,
-		sCamel,
-		sLamp,
+		guardCard,
+		sCamelCard,
+		sLampCard,
 	}
 }
 
 var ctypeStrings = map[cKind]string{
-	noType: "None",
-	lamp:   "Lamp",
-	camel:  "Camel",
-	sword:  "Sword",
-	carpet: "Carpet",
-	coins:  "Coins",
-	turban: "Turban",
-	jewels: "Jewels",
-	guard:  "Guard",
-	sCamel: "Camel",
-	sLamp:  "Lamp",
+	noType:     "None",
+	lampCard:       "Lamp",
+	camelCard:      "Camel",
+	swordCard:      "Sword",
+	carpetCard:     "Carpet",
+	coinsCard:      "Coins",
+	turbanCard: "Turban",
+	jewels:     "Jewels",
+	guardCard:      "Guard",
+	sCamelCard:     "Camel",
+	sLampCard:      "Lamp",
 }
 
 var stringsCType = map[string]cKind{
 	"none":        noType,
-	"lamp":        lamp,
-	"camel":       camel,
-	"sword":       sword,
-	"carpet":      carpet,
-	"coins":       coins,
-	"turban":      turban,
+	"lamp":        lampCard,
+	"camel":       camelCard,
+	"sword":       swordCard,
+	"carpet":      carpetCard,
+	"coins":       coinsCard,
+	"turban":      turbanCard,
 	"jewels":      jewels,
-	"guard":       guard,
-	"start-camel": sCamel,
-	"start-lamp":  sLamp,
+	"guard":       guardCard,
+	"start-camel": sCamelCard,
+	"start-lamp":  sLampCard,
 }
 
 func toCType(s string) (t cKind) {
@@ -77,17 +77,17 @@ func toCType(s string) (t cKind) {
 }
 
 var ctypeValues = map[cKind]int{
-	noType: 0,
-	lamp:   1,
-	camel:  4,
-	sword:  5,
-	carpet: 3,
-	coins:  3,
-	turban: 2,
-	jewels: 2,
-	guard:  -1,
-	sCamel: 0,
-	sLamp:  0,
+	noType:     0,
+	lampCard:       1,
+	camelCard:      4,
+	swordCard:      5,
+	carpetCard:     3,
+	coinsCard:      3,
+	turbanCard: 2,
+	jewels:     2,
+	guardCard:      -1,
+	sCamelCard:     0,
+	sLampCard:      0,
 }
 
 func (t cKind) String() string {
@@ -100,9 +100,9 @@ func (t cKind) LString() string {
 
 func (t cKind) IDString() string {
 	switch t {
-	case sCamel:
+	case sCamelCard:
 		return "start-camel"
-	case sLamp:
+	case sLampCard:
 		return "start-lamp"
 	default:
 		return t.LString()
@@ -125,13 +125,13 @@ func (t *cKind) UnmarshalJSON(bs []byte) error {
 
 // Card is a playing card used to form grid, player's hand, and player's deck.
 type Card struct {
-	Type   cKind `json:"kind"`
+	Kind   cKind `json:"kind"`
 	FaceUp bool  `json:"faceUp"`
 }
 
 func newCard(t cKind, f bool) *Card {
 	return &Card{
-		Type:   t,
+		Kind:   t,
 		FaceUp: f,
 	}
 }
@@ -142,8 +142,8 @@ type Cards []*Card
 func newDeck() Cards {
 	deck := make(Cards, 64)
 	for j := 0; j < 8; j++ {
-		for i, typ := range []cKind{lamp, camel, sword, carpet, coins, turban, jewels, guard} {
-			deck[i+j*8] = &Card{Type: typ}
+		for i, typ := range []cKind{lampCard, camelCard, swordCard, carpetCard, coinsCard, turbanCard, jewels, guardCard} {
+			deck[i+j*8] = &Card{Kind: typ}
 		}
 	}
 	return deck
@@ -165,7 +165,7 @@ func (cs *Cards) indexFor(c *Card) (int, bool) {
 	}
 
 	for i := range *cs {
-		if (*cs)[i].Type == c.Type {
+		if (*cs)[i].Kind == c.Kind {
 			return i, true
 		}
 	}
@@ -205,46 +205,37 @@ func (cs Cards) appendS(cards ...*Card) Cards {
 
 // IDString outputs a card id.
 func (c Card) IDString() string {
-	return c.Type.IDString()
+	return c.Kind.IDString()
 }
 
 func newStartHand() Cards {
-	return Cards{newCard(sLamp, true), newCard(sLamp, true), newCard(sCamel, true)}
+	return Cards{newCard(sLampCard, true), newCard(sLampCard, true), newCard(sCamelCard, true)}
 }
 
 var toolTipStrings = map[cKind]string{
-	noType: "None",
-	lamp:   "Move in a straight line until coming to the edge of the grid, an empty space, or another Thief.",
-	camel:  "Move exactly 3 spaces in any direction. The spaces do not have to be in a straight line, but you cannot move over the same space twice.",
-	sword:  "Move in a straight line until you come to another player's thief. Bump that thief to the next card and place your thief on the vacated card.",
-	carpet: "Move in a straight line over at least one empty space.  Stop moving your thief on the first card after the empty space(s).",
-	coins:  "Move one space and then draw an additional card during the draw step. Your hand size is permanently increased by 1.",
-	turban: "Move two spaces. Claim the first Magic Item you pass over in addition to the card you claim in the Claim Magic Item step.",
-	jewels: "Move as if you played the card that was last played by an opponent.",
-	guard:  "This card cannot be played and does nothing for you in your hand.",
-	sCamel: "Move exactly 3 spaces in any direction. The spaces do not have to be in a straight line, but you cannot move over the same space twice.",
-	sLamp:  "Move in a straight line until coming to the edge of the grid, an empty space, or another Thief.",
+	noType:     "None",
+	lampCard:       "Move in a straight line until coming to the edge of the grid, an empty space, or another Thief.",
+	camelCard:      "Move exactly 3 spaces in any direction. The spaces do not have to be in a straight line, but you cannot move over the same space twice.",
+	swordCard:      "Move in a straight line until you come to another player's thief. Bump that thief to the next card and place your thief on the vacated card.",
+	carpetCard:     "Move in a straight line over at least one empty space.  Stop moving your thief on the first card after the empty space(s).",
+	coinsCard:      "Move one space and then draw an additional card during the draw step. Your hand size is permanently increased by 1.",
+	turbanCard: "Move two spaces. Claim the first Magic Item you pass over in addition to the card you claim in the Claim Magic Item step.",
+	jewels:     "Move as if you played the card that was last played by an opponent.",
+	guardCard:      "This card cannot be played and does nothing for you in your hand.",
+	sCamelCard:     "Move exactly 3 spaces in any direction. The spaces do not have to be in a straight line, but you cannot move over the same space twice.",
+	sLampCard:      "Move in a straight line until coming to the edge of the grid, an empty space, or another Thief.",
 }
 
 // ToolTip outputs a description of the cards ability.
 func (c Card) ToolTip() string {
-	return c.Type.toolTip()
+	return c.Kind.toolTip()
 }
 
 func (t cKind) toolTip() string {
 	return toolTipStrings[t]
 }
 
-// SelectedCard provides a previously selected card.
-func (h *History) SelectedCard() *Card {
-	cp := h.CurrentPlayer()
-	if h.SelectedCardIndex >= 0 && h.SelectedCardIndex < len(cp.Hand) {
-		return cp.Hand[h.SelectedCardIndex]
-	}
-	return nil
-}
-
 // Value provides the point value of a card.
 func (c *Card) Value() int {
-	return ctypeValues[c.Type]
+	return ctypeValues[c.Kind]
 }

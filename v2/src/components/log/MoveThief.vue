@@ -1,5 +1,5 @@
 <template>
-  <li>Moved thief to {{value.card}} at {{row}}{{value.to.column}}.</li>
+  <li>Moved thief to {{message.area.card.kind}} at {{row}}{{message.area.column}}.</li>
 </template>
 
 <script>
@@ -8,11 +8,11 @@
   export default {
     mixins: [ Text ],
     name: 'sn-log-move-thief-msg',
-    props: [ 'value', 'game' ],
+    props: [ 'message', 'game' ],
     computed: {
       row: function () {
         var self = this
-        return self.rowText(self.value.to.row)
+        return self.rowText(self.message.area.row)
       }
     }
   }

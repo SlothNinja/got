@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -30,6 +31,9 @@ const (
 )
 
 func main() {
+	// Seed random number generator
+	rand.Seed(time.Now().UnixNano())
+
 	if sn.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	} else {

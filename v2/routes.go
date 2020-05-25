@@ -71,6 +71,9 @@ func (client Client) addRoutes(engine *gin.Engine) *gin.Engine {
 	// Move Thief Finish
 	g.PUT(mtfinishPath, client.moveThiefFinishTurn)
 
+	// Passed Finish
+	g.PUT(pfinishPath, client.passedFinishTurn)
+
 	// Update
 	g.PUT(updatePath, client.update)
 
@@ -85,6 +88,9 @@ func (client Client) addRoutes(engine *gin.Engine) *gin.Engine {
 
 	// Move Thief
 	g.PUT(moveThiefPath, client.moveThief)
+
+	// Pass
+	g.PUT(passPath, client.pass)
 
 	// Add Message
 	g.PUT(msgPath, client.Game.AddMessage(""))

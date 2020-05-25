@@ -1,6 +1,6 @@
 <template>
   <li>
-    Placed thief on {{value.area.card.kind}} at {{row}}{{value.area.column}}.
+    Placed thief on {{message.area.card.kind}} at {{row}}{{message.area.column}}.
   </li>
 </template>
 
@@ -10,11 +10,11 @@
   export default {
     mixins: [ Text ],
     name: 'sn-log-place-thief-msg',
-    props: [ 'value', 'game' ],
+    props: [ 'message', 'game' ],
     computed: {
       row: function () {
         var self = this
-        return self.rowText(self.value.area.row)
+        return self.rowText(self.message.area.row)
       }
     }
   }

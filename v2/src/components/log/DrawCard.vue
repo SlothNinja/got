@@ -1,10 +1,13 @@
 <template>
-  <li>Drew card.</li>
+  <fragment>
+    <li v-if='message.shuffled'>Shuffled deck.</li>
+    <li>Drew card.</li>
+  </fragment>
 </template>
 
 <script>
   export default {
     name: 'sn-log-draw-card-msg',
-    props: [ 'value', 'game' ]
+    props: [ 'message', 'game' ]
   }
 </script>

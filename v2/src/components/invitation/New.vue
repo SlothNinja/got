@@ -18,31 +18,24 @@
               <v-card-text>
                 <v-form action="/got/invitation" method="post">
                   <v-text-field
-                    name="title"
                     label="Title"
                     v-model="invitation.title"
-                    id="title"
                   >
                   </v-text-field>
                   <v-select
                     label="Number Players"
-                    name="num-players"
-                    v-bind:items="npItems"
+                    :items="npItems"
                     v-model="invitation.numPlayers"
                   >
                   </v-select> 
                   <v-select 
-                    id="two-thief-variant"
                     label="Two Thief Variant"
-                    name="two-thief-variant"
-                    v-bind:items="optItems"
+                    :items="optItems"
                     v-model="invitation.twoThief"
                   >
                   </v-select> 
                   <v-text-field
                     label="Password"
-                    name="password"
-                    id="password"
                     v-model="invitation.password"
                     placeholder="Enter Password for Private Game"
                     type="password"

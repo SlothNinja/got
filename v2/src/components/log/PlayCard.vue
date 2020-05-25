@@ -5,19 +5,23 @@
 </template>
 
 <script>
+
+  const _ = require('lodash')
+
   export default {
     name: 'sn-log-play-card-msg',
-    props: [ 'value', 'game' ],
+    props: [ 'message', 'game' ],
     computed: {
       kind: function () {
         var self = this
-        switch (self.value.card) {
+        var kind = _.get(self.message, 'card.kind', 'none')
+        switch (kind) {
           case 'start-lamp':
             return 'lamp'
           case 'start-camel':
             return 'camel'
           default:
-            return self.value.card
+            return kind
         }
       }
     }

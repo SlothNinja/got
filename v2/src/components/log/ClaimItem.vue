@@ -1,8 +1,8 @@
 <template>
   <li>
-    Claimed {{value.card}} card at
-    <span v-if='!value.toHand'>{{row}}{{value.from.column}}.</span>
-    <span v-else>{{row}}{{value.from.column}} and placed it in hand.</span>
+    Claimed {{message.area.card.kind}} card at
+    <span v-if='!message.hand'>{{row}}{{message.area.column}}.</span>
+    <span v-else>{{row}}{{message.area.column}} and placed it in hand.</span>
   </li>
 </template>
 
@@ -12,11 +12,11 @@
   export default {
     mixins: [ Text ],
     name: 'sn-log-claim-item-msg',
-    props: [ 'value', 'game' ],
+    props: [ 'message', 'game' ],
     computed: {
       row: function () {
         var self = this
-        return self.rowText(self.value.from.row)
+        return self.rowText(self.message.area.row)
       }
     }
   }

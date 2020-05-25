@@ -4,7 +4,7 @@
     <sn-nav-drawer v-model='nav' app></sn-nav-drawer>
     <sn-snackbar v-model='snackbar.open'>
       <div class='text-center'>
-        {{snackbar.message}}
+        <span v-html='snackbar.message'></span>
       </div>
     </sn-snackbar>
     <v-content>
@@ -25,6 +25,9 @@
            <div class="py-1" v-for="user in item.users" :key="user.id" >
              <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
            </div>
+         </template>
+         <template v-slot:item.public="{ item }">
+           {{publicPrivate(item)}}
          </template>
          <template v-slot:item.actions="{ item }">
            <v-btn 
@@ -61,59 +64,6 @@
              Show
            </v-btn>
          </template>
-         <!--
-         <template slot="items" slot-scope="props">
-           <td class="text-xs-right">{{ props.item.id }}</td>
-           <td class="text-xs-right">
-             <router-link :to="{ name: 'game', params: { id: props.item.id }}">
-               {{ props.item.title }}
-             </router-link>
-           </td>
-           <td class="text-xs-right">
-             <div class="text-xs-center">
-               <sn-user-btn :user="props.item.creator" size="small" ></sn-user-btn>
-               <div class="pb-1">{{props.item.creator.name}}</div>
-             </div>
-           </td>
-           <td class="text-xs-right">{{ props.item.numPlayers }}</td>
-           <td class="text-xs-right">
-             <v-layout row>
-             <v-flex class="text-xs-center" v-for="user in props.item.users" :key="user.id" >
-               <sn-user-btn :user="user" size="small" ></sn-user-btn>
-               <div class="pb-1">{{user.name}}</div>
-             </v-flex>
-             </v-layout>
-           </td>
-           <td class="text-xs-right">{{ props.item.lastUpdated }}</td>
-           <td class="text-xs-right">{{ props.item.public }}</td>
-           <td class="text-xs-right">
-             <v-btn 
-               v-if="canAccept(props.item.id)"
-               @click="action('accept', props.item.id)"
-               color='green'
-               dark
-               >
-               Accept
-             </v-btn>
-             <v-btn 
-               v-if="canDrop(props.item.id)"
-               @click="action('drop', props.item.id)"
-               color='green'
-               dark
-               >
-               Drop
-             </v-btn>
-             <v-btn 
-               v-if="status == 'Running'"
-               :to="{ name: 'game', params: { id: props.item.id }}"
-               color='green'
-               dark
-               >
-               Show
-             </v-btn>
-           </td>
-         </template>
-         -->
       </v-data-table>
     </v-card-text>
   </v-card>
@@ -219,21 +169,6 @@
             self.snackbar.message = 'Server Error.  Try refreshing page.'
             self.snackbar.open = true
         })
-        // $.ajax({
-        //   url: 'http://localhost:8081/got/game/' + action + '/' + id,
-        //   dataType: 'json',
-        //   type: 'PUT',
-        //   success: function (data) {
-        //     var index = _.findIndex(self.items, [ 'id', id ])
-        //     if (index >= 0) {
-        //       if (data.header.status === 1) { // recruiting is a status of 1
-        //         self.items.splice(index, 1, data.header)
-        //       } else {
-        //         self.items.splice(index, 1)
-        //       }
-        //     }
-        //   }
-        // })
       },
       canAccept: function (id) {
         var self = this
@@ -252,6 +187,9 @@
       getItem: function (id) {
         var self = this
         return _.find(self.items, [ 'id', id ])
+      },
+      publicPrivate: function (item) {
+        return item.public ? 'Public' : 'Private'
       }
     },
     computed: {

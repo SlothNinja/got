@@ -1,53 +1,33 @@
 <template>
   <div>
-    <v-tooltip bottom color='info'>
+    <v-tooltip :disabled='!canReset' bottom color='info'>
       <template v-slot:activator="{ on }">
-        <v-btn
-          v-on="on"
-          icon
-          :disabled="!canReset"
-          @click.native="$emit('action', { action: 'reset', data: { undo: value.undo }})"
-        >
+        <v-btn v-on="on" icon :disabled="!canReset" @click="$emit('action', { action: 'reset', data: { undo: value.undo }})" >
           <v-icon>clear</v-icon>
         </v-btn>
       </template>
       <span>Reset</span>
     </v-tooltip>
-    <v-tooltip bottom color='info'>
+    <v-tooltip :disabled='!canUndo' bottom color='info'>
       <template v-slot:activator="{ on }">
-      <v-btn
-        v-on='on'
-        icon
-        :disabled='!canUndo'
-        @click="$emit('action', { action: 'undo', data: { undo: value.undo }})"
-      >
+      <v-btn v-on='on' :disabled='!canUndo' icon @click="$emit('action', { action: 'undo', data: { undo: value.undo }})" >
         <v-icon>undo</v-icon>
       </v-btn>
       </template>
       <span>Undo</span>
     </v-tooltip>
-    <v-tooltip bottom color='info'>
+    <v-tooltip :disabled='!canRedo' bottom color='info'>
       <template v-slot:activator='{ on }'>
-      <v-btn
-          v-on='on'
-        icon
-        :disabled='!canRedo'
-        @click="$emit('action', { action: 'redo', data: { undo: value.undo }})"
-      >
+      <v-btn v-on='on' icon :disabled='!canRedo' @click="$emit('action', { action: 'redo', data: { undo: value.undo }})" >
         <v-icon>redo</v-icon>
       </v-btn>
       </template>
       <span>Redo</span>
     </v-tooltip>
 
-    <v-tooltip bottom color='info'>
+    <v-tooltip :disabled='!canFinish' bottom color='info'>
       <template v-slot:activator='{ on }'>
-      <v-btn
-        v-on='on'
-        icon
-        :disabled='!canFinish'
-              @click="$emit('action', { action : finishAction, data: { undo: value.undo }})"
-      >
+      <v-btn v-on='on' icon :disabled='!canFinish' @click="$emit('action', { action : finishAction, data: { undo: value.undo }})" >
         <v-icon>done</v-icon>
       </v-btn>
       </template>
@@ -56,11 +36,7 @@
 
     <v-tooltip bottom color='info'>
       <template v-slot:activator='{ on }'>
-        <v-btn
-          v-on='on'
-          icon
-          @click.native="$emit('action', { action : 'refresh' })"
-        >
+        <v-btn v-on='on' icon @click.native="$emit('action', { action : 'refresh' })" >
           <v-icon>refresh</v-icon>
         </v-btn>
       </template>
@@ -103,10 +79,16 @@
       },
       finishAction: function () {
         var self = this
-        if (self.game.phase == 'Place Thieves') {
-          return 'ptfinish'
+        switch (self.game.phase) {
+          case 'Place Thieves':
+            return 'ptfinish'
+          case 'Move Thief':
+            return 'mtfinish'
+          case 'Passed':
+            return 'pfinish'
+          default:
+            return ''
         }
-        return 'mtfinish'
       },
       game: {
         get: function () {

@@ -1,5 +1,5 @@
 <template>
-  <v-card class='mx-auto' :id='`log-${value.id}`'>
+  <v-card class='mx-auto' >
 
     <v-system-bar
       color='green'
@@ -25,9 +25,9 @@
       <v-col cols='9'>
         <ul>
           <sn-log-message
-            v-for='(entry, index) in value.log'
+            v-for='(message, index) in entry.messages'
             :key='index'
-            :value='entry'
+            :message='message'
             :game='game'
           >
           </sn-log-message>
@@ -38,9 +38,9 @@
       <v-col cols='12'>
         <ul>
           <sn-log-message
-            v-for='(entry, index) in value.log'
+            v-for='(message, index) in entry.messages'
             :key='index'
-            :value='entry'
+            :message='message'
             :game='game'
           >
           </sn-log-message>
@@ -64,31 +64,24 @@
   export default {
     mixins: [ Color ],
     name: 'sn-log-entry',
-    props: [ 'value' ],
+    props: [ 'entry', 'game' ],
     components: {
       'sn-log-message': Message,
       'sn-user-btn': Button
     },
     computed: {
-      game: function () {
-        var self = this
-        return {
-          header: self.value.header,
-          state: self.value.state
-        }
-      },
       turn: function () {
         var self = this
-        return _.get(self.value, 'log[0].turn', 0)
+        return _.get(self.entry, 'turn', 0)
       },
       player: function () {
         var self = this
-        var pid = _.get(self.value, 'log[0].pid', 0)
-        return _.find(self.value.players, ['id', pid])
+        var pid = _.get(self.entry, 'pid', 0)
+        return _.find(self.game.players, ['id', pid])
       },
       updatedAt: function () {
         var self = this
-        var d = _.get(self.value, 'header.updatedAt', false)
+        var d = _.get(self.entry, 'updatedAt', false)
         if (d) {
           return new Date(d).toString()
         }

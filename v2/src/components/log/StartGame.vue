@@ -12,6 +12,7 @@
         <sn-user-btn
           :user='player.user'
           size='x-small'
+          :color='colorByPID(player.id)'
         >
         </sn-user-btn>
         <span class='ml-1'>{{player.user.name}}</span>
@@ -26,18 +27,19 @@
 <script>
   import Button from '@/components/user/Button'
   import Player from '@/components/mixins/Player'
+  import Color from '@/components/mixins/Color'
 
   export default {
-    mixins: [ Player ],
+    mixins: [ Player, Color ],
     name: 'sn-log-start-game-msg',
-    props: [ 'value', 'game' ],
+    props: [ 'message', 'game' ],
     components: {
       'sn-user-btn': Button
     },
     computed: {
       players: function () {
         var self = this
-        return self.playersByPIDS(self.value.pids)
+        return self.playersByPIDS(self.message.pids)
       }
     }
   }

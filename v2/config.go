@@ -4,14 +4,14 @@ const (
 	msgEnter       = "Entering"
 	msgExit        = "Exiting"
 	invitationKind = "Invitation"
+	gCommitedKind  = "Committed"
 	gameKind       = "Game"
-	historyKind    = "History"
-	gheaderKind    = "GHeader"
+	headerKind     = "Header"
 	rootKind       = "Root"
 	noPID          = 0
 
-	forward  = 1
-	backward = -1
+	forward  direction = 1
+	backward direction = -1
 
 	// routes/paths
 	idParam         = "id"
@@ -24,12 +24,14 @@ const (
 	resetPath       = "/reset/:" + idParam
 	ptfinishPath    = "/ptfinish/:" + idParam
 	mtfinishPath    = "/mtfinish/:" + idParam
+	pfinishPath     = "/pfinish/:" + idParam
 	dropPath        = "/drop/:" + idParam
 	acceptPath      = "/accept/:" + idParam
 	updatePath      = showPath
 	placeThiefPath  = "place-thief/:" + idParam
 	selectThiefPath = "select-thief/:" + idParam
 	moveThiefPath   = "move-thief/:" + idParam
+	passPath        = "pass/:" + idParam
 	playCardPath    = "play-card/:" + idParam
 	msgPath         = showPath + "/addmessage"
 	gamePath        = "/game"

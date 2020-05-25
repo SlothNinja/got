@@ -9,104 +9,90 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// func init() {
-// 	gob.Register(new(playCardEntry))
-// }
-
-func (h *History) startCardPlay(c *gin.Context) (tmpl string, err error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	h.Phase = playCard
-	h.Turn = 1
-	return
-}
-
 func (client Client) playCard(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	h, err := client.getHistory(c)
+	g, err := client.getGame(c)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	log.Debugf("h.Key: %v", h.Key)
-
-	err = h.playCard(c)
+	cp, err := g.playCard(c)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	ks, es := h.cache()
+	ks, es := g.cache()
 	_, err = client.DS.Put(c, ks, es)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	h.updateClickablesFor(c, h.CurrentPlayer())
-	c.JSON(http.StatusOK, gin.H{"game": h})
+	g.updateClickablesFor(c, cp, g.SelectedThiefArea())
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (h *History) playCard(c *gin.Context) error {
+func (g *Game) playCard(c *gin.Context) (*Player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
 	// reset card played related flags
-	h.Stepped = 0
-	h.JewelsPlayed = false
-	h.PlayedCard = nil
+	g.Stepped = 0
+	g.PlayedCard = nil
 
-	card, err := h.validatePlayCard(c)
+	cp, card, err := g.validatePlayCard(c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	cp := h.CurrentPlayer()
 	cp.Hand.play(card)
 	cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
 
-	if card.Type == jewels {
-		pc := h.Jewels
-		h.PlayedCard = &pc
-		h.JewelsPlayed = true
+	if card.Kind == jewels {
+		pc := g.Jewels
+		g.PlayedCard = &pc
 	} else {
-		h.PlayedCard = card
+		g.PlayedCard = card
 	}
 
-	// Log placement
-	// e := g.newPlayCardEntryFor(cp, card)
-	// restful.AddNoticef(c, string(e.HTML(g)))
+	g.Phase = selectThiefPhase
+	g.Undo.Update()
 
-	h.startSelectThief(c)
-	h.Undo.Update()
-	return nil
+	g.newEntryFor(cp.ID, Message{
+		"template": "play-card",
+		"card":     *card,
+	})
+	return cp, nil
 }
 
-func (h *History) validatePlayCard(c *gin.Context) (*Card, error) {
+func (g *Game) validatePlayCard(c *gin.Context) (*Player, *Card, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	err := h.validatePlayerAction(c)
+	cp, err := g.validatePlayerAction(c)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	card, err := h.getCardFrom(c)
+	card, err := g.getCardFrom(c, cp)
 	switch {
 	case err != nil:
-		return nil, err
+		return nil, nil, err
 	case card == nil:
-		return nil, fmt.Errorf("you must select a card: %w", sn.ErrValidation)
+		return nil, nil, fmt.Errorf("you must select a card: %w", sn.ErrValidation)
+	case g.Phase != playCardPhase:
+		return nil, nil, fmt.Errorf("expected %q phase but have %q phase: %w",
+			playCardPhase, g.Phase, sn.ErrValidation)
 	default:
-		return card, nil
+		return cp, card, nil
 	}
 }
 
-func (h *History) getCardFrom(c *gin.Context) (*Card, error) {
+func (g *Game) getCardFrom(c *gin.Context, cp *Player) (*Card, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -119,9 +105,6 @@ func (h *History) getCardFrom(c *gin.Context) (*Card, error) {
 		return nil, err
 	}
 
-	log.Debugf("obj: %#v", obj)
-
-	cp := h.CurrentPlayer()
 	i, found := cp.Hand.indexFor(newCard(obj.Kind, false))
 	if !found {
 		return nil, fmt.Errorf("unable to find card: %#w", sn.ErrValidation)
@@ -148,7 +131,7 @@ func (h *History) getCardFrom(c *gin.Context) (*Card, error) {
 // 	return restful.HTML("%s played %s card.", g.NameByPID(e.PlayerID), e.Type)
 // }
 
-func (h *History) lampAreas(thiefArea *Area) []*Area {
+func (h *Game) lampAreas(thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -206,7 +189,7 @@ func (h *History) lampAreas(thiefArea *Area) []*Area {
 }
 
 // camelAreas returns areas from thief area ta reachable via a camel card.
-func (h *History) camelAreas(ta *Area) []*Area {
+func (h *Game) camelAreas(ta *Area) []*Area {
 	var as []*Area
 
 	// Move Three Left?
@@ -401,26 +384,14 @@ func canMoveTo(as ...*Area) bool {
 	return true
 }
 
-func (h *History) isSwordArea(a *Area) bool {
-	if h.SelectedThiefArea() != nil {
-		return hasArea(h.swordAreas(), a)
-	}
-	return false
-}
-
-func (h *History) swordAreas() []*Area {
-	cp := h.CurrentPlayer()
-	if h.ClickAreas != nil {
-		return h.ClickAreas
-	}
-	as := make([]*Area, 0)
-	a := h.SelectedThiefArea()
+func (g *Game) swordAreas(cp *Player, thiefArea *Area) []*Area {
+	var as []*Area
 
 	// Move Left
-	if area, row := a, a.Row; a.Column >= col3 {
+	if area, row := thiefArea, thiefArea.Row; thiefArea.Column >= col3 {
 		// Left as far as permitted
-		for col := a.Column - 1; col >= col3; col-- {
-			if temp := h.getArea(areaID{row, col}); !canMoveTo(temp) {
+		for col := thiefArea.Column - 1; col >= col3; col-- {
+			if temp := g.getArea(areaID{row, col}); !canMoveTo(temp) {
 				break
 			} else {
 				area = temp
@@ -428,17 +399,17 @@ func (h *History) swordAreas() []*Area {
 		}
 
 		// Check for Thief and Place to Bump
-		moveTo, bumpTo := h.getArea(areaID{row, area.Column - 1}), h.getArea(areaID{row, area.Column - 2})
+		moveTo, bumpTo := g.getArea(areaID{row, area.Column - 1}), g.getArea(areaID{row, area.Column - 2})
 		if cp.anotherThiefIn(moveTo) && canMoveTo(bumpTo) {
 			as = append(as, moveTo)
 		}
 	}
 
 	// Move Right
-	if area, row := a, a.Row; a.Column <= col6 {
+	if area, row := thiefArea, thiefArea.Row; thiefArea.Column <= col6 {
 		// Right as far as permitted
-		for col := a.Column + 1; col <= col6; col++ {
-			if temp := h.getArea(areaID{row, col}); !canMoveTo(temp) {
+		for col := thiefArea.Column + 1; col <= col6; col++ {
+			if temp := g.getArea(areaID{row, col}); !canMoveTo(temp) {
 				break
 			} else {
 				area = temp
@@ -446,17 +417,17 @@ func (h *History) swordAreas() []*Area {
 		}
 
 		// Check for Thief and Place to Bump
-		moveTo, bumpTo := h.getArea(areaID{row, area.Column + 1}), h.getArea(areaID{row, area.Column + 2})
+		moveTo, bumpTo := g.getArea(areaID{row, area.Column + 1}), g.getArea(areaID{row, area.Column + 2})
 		if cp.anotherThiefIn(moveTo) && canMoveTo(bumpTo) {
 			as = append(as, moveTo)
 		}
 	}
 
 	// Move Up
-	if area, col := a, a.Column; a.Row >= rowC {
+	if area, col := thiefArea, thiefArea.Column; thiefArea.Row >= rowC {
 		// Up as far as permitted
-		for row := a.Row - 1; row >= rowC; row-- {
-			if temp := h.getArea(areaID{row, col}); !canMoveTo(temp) {
+		for row := thiefArea.Row - 1; row >= rowC; row-- {
+			if temp := g.getArea(areaID{row, col}); !canMoveTo(temp) {
 				break
 			} else {
 				area = temp
@@ -464,18 +435,18 @@ func (h *History) swordAreas() []*Area {
 		}
 
 		// Check for Thief and Place to Bump
-		moveTo, bumpTo := h.getArea(areaID{area.Row - 1, col}), h.getArea(areaID{area.Row - 2, col})
+		moveTo, bumpTo := g.getArea(areaID{area.Row - 1, col}), g.getArea(areaID{area.Row - 2, col})
 		if cp.anotherThiefIn(moveTo) && canMoveTo(bumpTo) {
 			as = append(as, moveTo)
 		}
 	}
 
 	// Move Down
-	if area, col := a, a.Column; a.Row <= h.lastRow()-2 {
+	if area, col := thiefArea, thiefArea.Column; thiefArea.Row <= g.lastRow()-2 {
 		// Down as far as permitted
-		for row := a.Row + 1; row <= h.lastRow()-2; row++ {
+		for row := thiefArea.Row + 1; row <= g.lastRow()-2; row++ {
 			//g.debugf("Row: %v Col: %v", row, col)
-			if temp := h.getArea(areaID{row, col}); !canMoveTo(temp) {
+			if temp := g.getArea(areaID{row, col}); !canMoveTo(temp) {
 				break
 			} else {
 				area = temp
@@ -483,13 +454,12 @@ func (h *History) swordAreas() []*Area {
 		}
 
 		// Check for Thief and Place to Bump
-		moveTo, bumpTo := h.getArea(areaID{area.Row + 1, col}), h.getArea(areaID{area.Row + 2, col})
+		moveTo, bumpTo := g.getArea(areaID{area.Row + 1, col}), g.getArea(areaID{area.Row + 2, col})
 		if cp.anotherThiefIn(moveTo) && canMoveTo(bumpTo) {
 			as = append(as, moveTo)
 		}
 	}
 
-	h.ClickAreas = as
 	return as
 }
 
@@ -497,17 +467,14 @@ func (p *Player) anotherThiefIn(a *Area) bool {
 	return a.hasThief() && a.Thief != p.ID
 }
 
-func (h *History) isCarpetArea(a *Area) bool {
+func (h *Game) isCarpetArea(a *Area) bool {
 	if h.SelectedThiefArea() != nil {
 		return hasArea(h.carpetAreas(), a)
 	}
 	return false
 }
 
-func (h *History) carpetAreas() []*Area {
-	if h.ClickAreas != nil {
-		return h.ClickAreas
-	}
+func (h *Game) carpetAreas() []*Area {
 	as := make([]*Area, 0)
 	a1 := h.SelectedThiefArea()
 
@@ -583,145 +550,113 @@ MoveDown:
 		as = append(as, a2)
 	}
 
-	h.ClickAreas = as
 	return as
 }
 
-func (h *History) isTurban0Area(a *Area) bool {
-	if h.SelectedThiefArea() != nil {
-		return hasArea(h.turban0Areas(), a)
-	}
-	return false
-}
-
-func (h *History) turban0Areas() []*Area {
-	if h.ClickAreas != nil {
-		return h.ClickAreas
-	}
-	as := make([]*Area, 0)
-	a := h.SelectedThiefArea()
+func (g *Game) turban0Areas(thiefArea *Area) []*Area {
+	var as []*Area
 
 	// Move Left
-	if col := a.Column - 1; col >= col1 {
-		if area := h.getArea(areaID{a.Row, col}); canMoveTo(area) {
+	if col := thiefArea.Column - 1; col >= col1 {
+		if area := g.getArea(areaID{thiefArea.Row, col}); canMoveTo(area) {
 			// Left
-			if col := col - 1; col >= col1 && canMoveTo(h.getArea(areaID{area.Row, col})) {
+			if col := col - 1; col >= col1 && canMoveTo(g.getArea(areaID{area.Row, col})) {
 				as = append(as, area)
 			}
 			// Up
-			if row := area.Row - 1; row >= rowA && canMoveTo(h.getArea(areaID{row, col})) {
+			if row := area.Row - 1; row >= rowA && canMoveTo(g.getArea(areaID{row, col})) {
 				as = append(as, area)
 			}
 			// Down
-			if row := area.Row + 1; row <= h.lastRow() && canMoveTo(h.getArea(areaID{row, col})) {
+			if row := area.Row + 1; row <= g.lastRow() && canMoveTo(g.getArea(areaID{row, col})) {
 				as = append(as, area)
 			}
 		}
 	}
 
 	// Move Right
-	if col := a.Column + 1; col <= col8 {
-		if area := h.getArea(areaID{a.Row, col}); canMoveTo(area) {
+	if col := thiefArea.Column + 1; col <= col8 {
+		if area := g.getArea(areaID{thiefArea.Row, col}); canMoveTo(area) {
 			// Right
-			if col := col + 1; col <= col8 && canMoveTo(h.getArea(areaID{area.Row, col})) {
+			if col := col + 1; col <= col8 && canMoveTo(g.getArea(areaID{area.Row, col})) {
 				as = append(as, area)
 			}
 			// Up
-			if row := area.Row - 1; row >= rowA && canMoveTo(h.getArea(areaID{row, col})) {
+			if row := area.Row - 1; row >= rowA && canMoveTo(g.getArea(areaID{row, col})) {
 				as = append(as, area)
 			}
 			// Down
-			if row := area.Row + 1; row <= h.lastRow() && canMoveTo(h.getArea(areaID{row, col})) {
+			if row := area.Row + 1; row <= g.lastRow() && canMoveTo(g.getArea(areaID{row, col})) {
 				as = append(as, area)
 			}
 		}
 	}
 
 	// Move Up
-	if row := a.Row - 1; row >= rowA {
-		if area := h.getArea(areaID{row, a.Column}); canMoveTo(area) {
+	if row := thiefArea.Row - 1; row >= rowA {
+		if area := g.getArea(areaID{row, thiefArea.Column}); canMoveTo(area) {
 			// Left
-			if col := area.Column - 1; col >= col1 && canMoveTo(h.getArea(areaID{row, col})) {
+			if col := area.Column - 1; col >= col1 && canMoveTo(g.getArea(areaID{row, col})) {
 				as = append(as, area)
 			}
 			// Right
-			if col := area.Column + 1; col <= col8 && canMoveTo(h.getArea(areaID{area.Row, col})) {
+			if col := area.Column + 1; col <= col8 && canMoveTo(g.getArea(areaID{area.Row, col})) {
 				as = append(as, area)
 			}
 			// Up
-			if row := row - 1; row >= rowA && canMoveTo(h.getArea(areaID{row, a.Column})) {
+			if row := row - 1; row >= rowA && canMoveTo(g.getArea(areaID{row, thiefArea.Column})) {
 				as = append(as, area)
 			}
 		}
 	}
 
 	// Move Down
-	if row := a.Row + 1; row <= h.lastRow() {
-		if area := h.getArea(areaID{row, a.Column}); canMoveTo(area) {
+	if row := thiefArea.Row + 1; row <= g.lastRow() {
+		if area := g.getArea(areaID{row, thiefArea.Column}); canMoveTo(area) {
 			// Left
-			if col := area.Column - 1; col >= col1 && canMoveTo(h.getArea(areaID{row, col})) {
+			if col := area.Column - 1; col >= col1 && canMoveTo(g.getArea(areaID{row, col})) {
 				as = append(as, area)
 			}
 			// Right
-			if col := area.Column + 1; col <= col8 && canMoveTo(h.getArea(areaID{area.Row, col})) {
+			if col := area.Column + 1; col <= col8 && canMoveTo(g.getArea(areaID{area.Row, col})) {
 				as = append(as, area)
 			}
 			// Down
-			if row := row + 1; row <= h.lastRow() && canMoveTo(h.getArea(areaID{row, a.Column})) {
+			if row := row + 1; row <= g.lastRow() && canMoveTo(g.getArea(areaID{row, thiefArea.Column})) {
 				as = append(as, area)
 			}
 		}
 	}
 
-	h.ClickAreas = as
 	return as
 }
 
-func (h *History) isTurban1Area(a *Area) bool {
-	if h.SelectedThiefArea() != nil {
-		return hasArea(h.turban1Areas(), a)
-	}
-	return false
-}
-
-func (h *History) turban1Areas() []*Area {
-	if h.ClickAreas != nil {
-		return h.ClickAreas
-	}
-	as := make([]*Area, 0)
-	a := h.SelectedThiefArea()
+func (g *Game) turban1Areas(thiefArea *Area) []*Area {
+	var as []*Area
 
 	// Move Left
-	if a.Column-1 >= col1 && canMoveTo(h.getArea(areaID{a.Row, a.Column - 1})) {
-		as = append(as, h.getArea(areaID{a.Row, a.Column - 1}))
+	if thiefArea.Column-1 >= col1 && canMoveTo(g.getArea(areaID{thiefArea.Row, thiefArea.Column - 1})) {
+		as = append(as, g.getArea(areaID{thiefArea.Row, thiefArea.Column - 1}))
 	}
 
 	// Move Right
-	if a.Column+1 <= col8 && canMoveTo(h.getArea(areaID{a.Row, a.Column + 1})) {
-		as = append(as, h.getArea(areaID{a.Row, a.Column + 1}))
+	if thiefArea.Column+1 <= col8 && canMoveTo(g.getArea(areaID{thiefArea.Row, thiefArea.Column + 1})) {
+		as = append(as, g.getArea(areaID{thiefArea.Row, thiefArea.Column + 1}))
 	}
 
 	// Move Up
-	if a.Row-1 >= rowA && canMoveTo(h.getArea(areaID{a.Row - 1, a.Column})) {
-		as = append(as, h.getArea(areaID{a.Row - 1, a.Column}))
+	if thiefArea.Row-1 >= rowA && canMoveTo(g.getArea(areaID{thiefArea.Row - 1, thiefArea.Column})) {
+		as = append(as, g.getArea(areaID{thiefArea.Row - 1, thiefArea.Column}))
 	}
 
 	// Move Down
-	if a.Row+1 <= h.lastRow() && canMoveTo(h.getArea(areaID{a.Row + 1, a.Column})) {
-		as = append(as, h.getArea(areaID{a.Row + 1, a.Column}))
+	if thiefArea.Row+1 <= g.lastRow() && canMoveTo(g.getArea(areaID{thiefArea.Row + 1, thiefArea.Column})) {
+		as = append(as, g.getArea(areaID{thiefArea.Row + 1, thiefArea.Column}))
 	}
 
-	h.ClickAreas = as
 	return as
 }
 
-func (h *History) isCoinsArea(a *Area) bool {
-	if h.SelectedThiefArea() != nil {
-		return hasArea(h.coinsAreas(), a)
-	}
-	return false
-}
-
-func (h *History) coinsAreas() []*Area {
-	return h.turban1Areas()
+func (g *Game) coinsAreas(thiefArea *Area) []*Area {
+	return g.turban1Areas(thiefArea)
 }

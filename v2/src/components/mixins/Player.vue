@@ -6,9 +6,11 @@
     computed: {
       cp: function () {
         var self = this
-        var cpid = _.get(self.game.cpids, 0, -1)
-        self.$root.cp = self.playerByPID(cpid)
-        return self.$root.cp
+        return self.playerByPID(self.cpid)
+      },
+      cpid: function () {
+        var self = this
+        return _.get(self.game.cpids, 0, -1)
       },
       isCP: function () {
         var self = this
@@ -20,6 +22,11 @@
       }
     },
     methods: {
+      cpIs: function (player) {
+        var self = this
+        var pid = _.get(player, 'id', -2)
+        return self.cpid == pid
+      },
       playerByPID: function (pid) {
         var self = this
         return _.find(self.game.players, ['id', pid])

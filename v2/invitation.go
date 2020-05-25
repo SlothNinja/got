@@ -8,14 +8,33 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/Pallinder/go-randomdata"
 	"github.com/SlothNinja/sn/v2"
-	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
 )
 
 // Invitation provides a game invitation
 type Invitation struct {
-	Key *datastore.Key `json:"key" datastore:"__key__"`
+	Key *datastore.Key
 	Header
+}
+
+func (inv Invitation) MarshalJSON() ([]byte, error) {
+	h, err := json.Marshal(inv.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	var data map[string]interface{}
+	err = json.Unmarshal(h, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	data["key"] = inv.Key
+	data["id"] = inv.ID()
+	data["lastUpdated"] = sn.LastUpdated(inv.UpdatedAt)
+	data["public"] = inv.Password == ""
+
+	return json.Marshal(data)
 }
 
 func (inv *Invitation) ID() int64 {
@@ -65,60 +84,34 @@ func getID(c *gin.Context) (int64, error) {
 	return strconv.ParseInt(c.Param(idParam), 10, 64)
 }
 
-type omit *struct{}
-
-func (inv Invitation) MarshalJSON() ([]byte, error) {
-	type JInvitation Invitation
-
-	return json.Marshal(struct {
-		JInvitation
-		ID           int64   `json:"id"`
-		Creator      *User   `json:"creator"`
-		Users        []*User `json:"users"`
-		LastUpdated  string  `json:"lastUpdated"`
-		Public       bool    `json:"public"`
-		CreatorEmail omit    `json:"creatorEmail,omitempty"`
-		CreatorKey   omit    `json:"creatorKey,omitempty"`
-		CreatorName  omit    `json:"creatorName,omitempty"`
-		UserEmails   omit    `json:"userEmails,omitempty"`
-		UserKeys     omit    `json:"userKeys,omitempty"`
-		UserNames    omit    `json:"userNames,omitempty"`
-	}{
-		JInvitation: JInvitation(inv),
-		ID:          inv.ID(),
-		Creator:     toUser(inv.CreatorKey, inv.CreatorName, inv.CreatorEmail),
-		Users:       toUsers(inv.UserKeys, inv.UserNames, inv.UserEmails),
-		LastUpdated: sn.LastUpdated(inv.UpdatedAt),
-		Public:      inv.Password == "",
-	})
-}
-
-type User struct {
-	*user.User
-	ID        int64 `json:"id"`
-	LCName    omit  `json:"lcname,omitempty"`
-	Joined    omit  `json:"joined,omitempty"`
-	CreatedAt omit  `json:"createdat,omitempty"`
-	UpdatedAt omit  `json:"updatedat,omitempty"`
-	Admin     omit  `json:"admin,omitempty"`
-}
-
-func toUser(k *datastore.Key, name, email string) *User {
-	var id int64 = -1
-	if k != nil {
-		id = k.ID
-	}
-	u := &User{User: user.New(id)}
-	u.ID = id
-	u.Name = name
-	u.Email = email
-	return u
-}
-
-func toUsers(ks []*datastore.Key, names, emails []string) []*User {
-	us := make([]*User, len(ks))
-	for i := range ks {
-		us[i] = toUser(ks[i], names[i], emails[i])
-	}
-	return us
-}
+// type omit *struct{}
+//
+// type User struct {
+// 	*user.User
+// 	ID        int64 `json:"id"`
+// 	LCName    omit  `json:"lcname,omitempty"`
+// 	Joined    omit  `json:"joined,omitempty"`
+// 	CreatedAt omit  `json:"createdat,omitempty"`
+// 	UpdatedAt omit  `json:"updatedat,omitempty"`
+// 	Admin     omit  `json:"admin,omitempty"`
+// }
+//
+// func toUser(k *datastore.Key, name, email string) *User {
+// 	var id int64 = -1
+// 	if k != nil {
+// 		id = k.ID
+// 	}
+// 	u := &User{User: user.New(id)}
+// 	u.ID = id
+// 	u.Name = name
+// 	u.Email = email
+// 	return u
+// }
+//
+// func toUsers(ks []*datastore.Key, names, emails []string) []*User {
+// 	us := make([]*User, len(ks))
+// 	for i := range ks {
+// 		us[i] = toUser(ks[i], names[i], emails[i])
+// 	}
+// 	return us
+// }

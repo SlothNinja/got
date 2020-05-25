@@ -26,60 +26,29 @@
         </v-col>
 
         <v-col cols='7' class='d-flex justify-center'>
-          <sn-control-bar
-            v-model='game'
-            @action='action($event)'
-          >
-          </sn-control-bar>
+          <sn-control-bar v-model='game' @action='action($event)' ></sn-control-bar>
         </v-col>
 
       </v-row>
     </sn-toolbar>
 
-    <sn-nav-drawer
-      v-model='nav'
-      app
-    >
-    </sn-nav-drawer>
+    <sn-nav-drawer v-model='nav' ></sn-nav-drawer>
 
-    <sn-rdrawer
-      v-model='history'
-      app
-    >
-      <sn-game-log
-        @message='sbMessage = $event; sbOpen = true'
-        v-if='history'
-        :stack='undo'
-      >
-      </sn-game-log>
+    <sn-rdrawer v-model='history' >
+      <sn-game-log @message='sbMessage = $event; sbOpen = true' v-if='history' :game='game' ></sn-game-log>
     </sn-rdrawer>
 
-    <sn-rdrawer
-      v-model='chat'
-      app
-    >
-      <sn-chat-box
-        @message='sbMessage = $event; sbOpen = true'
-        v-if='chat'
-        :user='cu'
-      >
-      </sn-chat-box>
+    <sn-rdrawer v-model='chat' >
+      <sn-chat-box @message='sbMessage = $event; sbOpen = true' v-if='chat' :user='cu' ></sn-chat-box>
     </sn-rdrawer>
 
     <sn-snackbar v-model='sbOpen'>
-      <div class='text-center'>
-        {{sbMessage}}
-      </div>
+      <div class='text-center'>{{sbMessage}}</div>
     </sn-snackbar>
 
     <v-content>
       <v-container fluid style='overflow:auto'>
-        <v-card
-          min-width='1185'
-          min-height='740'
-          flat
-          class='theme--light v-application'
-        >
+        <v-card min-width='1185' min-height='740' flat class='theme--light v-application' >
           <v-row>
             <v-col cols='3'>
               <v-card
@@ -89,15 +58,12 @@
                 class='theme--light v-application d-flex flex-column justify-space-between'
               >
 
-                <sn-status-panel
-                  :game='game'
-                >
-                </sn-status-panel>
+                <sn-status-panel :game='game' ></sn-status-panel>
 
                 <sn-player-panels
                   v-model='tab'
                   @show='cardbar = $event'
-                  @pass="action({action: 'pass', data: {} })"
+                  @pass="action({action: 'pass', data: { undo: game.undo }})"
                   :game='game'
                 >
                 </sn-player-panels>
@@ -113,16 +79,9 @@
                 class='theme--light v-application d-flex flex-column justify-space-between'
               >
 
-                <sn-messagebar>
-                  {{message}}
-                </sn-messagebar>
+                <sn-messagebar>{{message}}</sn-messagebar>
 
-                <sn-board
-                  id='board'
-                  :game='game'
-                  @selected='selected($event)'
-                >
-                </sn-board>
+                <sn-board id='board' :game='game' @selected='selected($event)' ></sn-board>
 
               </v-card>
             </v-col>
@@ -142,10 +101,7 @@
       </v-container>
     </v-content>
 
-    <sn-footer
-      app
-    >
-    </sn-footer>
+    <sn-footer></sn-footer>
 
   </v-app>
 </template>
@@ -175,6 +131,7 @@
   const phaseSelectThief = "Select Thief"
   const phaseMoveThief = "Move Thief"
   const phaseGameOver = "Game Over"
+  const phasePassed = 'Passed'
 
   export default {
     mixins: [ CurrentUser, Player ],
@@ -416,6 +373,8 @@
             return 'Select highlighted spot in grid to move thief'
           case phaseGameOver: 
             return 'Game Over'
+          case phasePassed:
+            return 'Finish turn by selecting above check mark.'
         }
         return ''
       }

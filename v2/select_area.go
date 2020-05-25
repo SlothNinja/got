@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *History) getAreaFrom(c *gin.Context) (*Area, error) {
+func (g *Game) getAreaFrom(c *gin.Context) (*Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

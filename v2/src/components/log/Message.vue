@@ -1,7 +1,7 @@
 <template>
   <component
     :is='component'
-    :value='value'
+    :message='message'
     :game='game'
   >
   </component>
@@ -20,7 +20,7 @@
 
   export default {
     name: 'sn-log-message',
-    props: [ 'value', 'game' ],
+    props: [ 'message', 'game' ],
     components: {
       'sn-log-start-game-msg': StartGame,
       'sn-log-place-thief-msg': PlaceThief,
@@ -35,7 +35,7 @@
     computed: {
       component: function () {
         var self = this
-        return `sn-log-${self.value.template}-msg`
+        return `sn-log-${self.message.template}-msg`
       }
     }
   }

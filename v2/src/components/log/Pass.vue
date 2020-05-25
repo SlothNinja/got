@@ -7,6 +7,6 @@
 <script>
   export default {
     name: 'sn-log-pass-msg',
-    props: [ 'value', 'game' ]
+    props: [ 'message', 'game' ]
   }
 </script>

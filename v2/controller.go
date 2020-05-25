@@ -37,20 +37,17 @@ func (client Client) show(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g, err := client.getGame(c)
+	g, err := client.getGCommited(c)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	var h *History
-	h = (*History)(g)
-
-	h.updateClickablesFor(c, h.CurrentPlayer())
-	c.JSON(http.StatusOK, gin.H{"game": h})
+	g.updateClickablesFor(c, g.currentPlayer(), g.SelectedThiefArea())
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *Game) update(c *gin.Context) error {
+func (g *GCommited) update(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -91,7 +88,22 @@ func (client Client) reset(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	client.undoOperations(c, (*sn.Stack).Reset)
+	gcommitted, err := client.getGCommited(c)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	k := newGameKey(gcommitted.ID(), gcommitted.Undo.Current)
+	g := gcommitted.Game
+	_, err = client.DS.Put(c, k, &g)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	g.updateClickablesFor(c, g.currentPlayer(), g.SelectedThiefArea())
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
 func (client Client) undoOperations(c *gin.Context, action func(*sn.Stack) bool) {
@@ -111,24 +123,21 @@ func (client Client) undoOperations(c *gin.Context, action func(*sn.Stack) bool)
 	}
 
 	action(&undo)
-	h := newHistory(id, undo.Current)
-	err = client.DS.Get(c, h.Key, h)
+	g := newGame(id, undo.Current)
+	err = client.DS.Get(c, g.Key, g)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	log.Debugf("h.Undo: %#v", h.Undo)
-
-	log.Debugf("undo.Committed: %v h.Undo.Committed: %v", undo.Committed, h.Undo.Committed)
-	if undo.Committed != h.Undo.Committed {
+	if undo.Committed != g.Undo.Committed {
 		jerr(c, fmt.Errorf("invalid game state"))
 		return
 	}
 
-	h.Undo = undo
-	h.updateClickablesFor(c, h.CurrentPlayer())
-	c.JSON(http.StatusOK, gin.H{"game": h})
+	g.Undo = undo
+	g.updateClickablesFor(c, g.currentPlayer(), g.SelectedThiefArea())
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
 func (client Client) update(c *gin.Context) {
@@ -385,13 +394,9 @@ func (client Client) accept(c *gin.Context) {
 		return
 	}
 
-	h := newHistory(inv.Key.ID, 0)
-	h.Header = inv.Header
-	err = h.Start(c)
-	if err != nil {
-		jerr(c, err)
-		return
-	}
+	g := newGame(inv.Key.ID, 0)
+	g.Header = inv.Header
+	g.start()
 
 	_, err = client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		err = tx.Delete(inv.Key)
@@ -399,8 +404,8 @@ func (client Client) accept(c *gin.Context) {
 			return err
 		}
 
-		h.StartedAt = time.Now()
-		_, err = tx.PutMulti(h.save())
+		g.StartedAt = time.Now()
+		_, err = tx.PutMulti(g.save())
 		return err
 	})
 	if err != nil {
@@ -408,13 +413,13 @@ func (client Client) accept(c *gin.Context) {
 		return
 	}
 
-	cp := h.CurrentPlayer()
-	err = h.SendTurnNotificationsTo(c, cp)
+	cp := g.currentPlayer()
+	err = g.SendTurnNotificationsTo(c, cp)
 	if err != nil {
 		log.Warningf(err.Error())
 	}
 
-	inv.Header = h.Header
+	inv.Header = g.Header
 	c.JSON(http.StatusOK, gin.H{
 		"invitation": inv,
 		"message": fmt.Sprintf(
@@ -425,16 +430,16 @@ func (client Client) accept(c *gin.Context) {
 	})
 }
 
-func (h *History) cache() (*datastore.Key, interface{}) {
-	return newHistoryKey(h.ID(), h.Undo.Current), h
+func (g *Game) cache() (*datastore.Key, interface{}) {
+	return newGameKey(g.ID(), g.Undo.Current), g
 }
 
-func (h *History) save() ([]*datastore.Key, []interface{}) {
-	gh := newGHeader(h.ID())
-	gh.Header = h.Header
+func (g *Game) save() ([]*datastore.Key, []interface{}) {
+	gh := newGHeader(g.ID())
+	gh.Header = g.Header
 
-	ks := []*datastore.Key{newGameKey(h.ID()), newHistoryKey(h.ID(), h.Undo.Current), gh.Key}
-	es := []interface{}{h, h, gh}
+	ks := []*datastore.Key{newGCommittedKey(g.ID()), newGameKey(g.ID(), g.Undo.Current), gh.Key}
+	es := []interface{}{g, g, gh}
 	return ks, es
 }
 
@@ -546,7 +551,7 @@ func (client Client) getInvitation(c *gin.Context) (*Invitation, error) {
 	return inv, err
 }
 
-func (client Client) getGame(c *gin.Context) (*Game, error) {
+func (client Client) getGCommited(c *gin.Context) (*GCommited, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -555,7 +560,7 @@ func (client Client) getGame(c *gin.Context) (*Game, error) {
 		return nil, err
 	}
 
-	g := newGame(id)
+	g := newGCommited(id)
 	err = client.DS.Get(c, g.Key, g)
 	return g, err
 }
@@ -695,7 +700,7 @@ func (client Client) gamesIndex(c *gin.Context) {
 
 	status := sn.ToStatus[c.Param("status")]
 	q := datastore.
-		NewQuery(gheaderKind).
+		NewQuery(headerKind).
 		Filter("Status=", int(status)).
 		Order("-UpdatedAt")
 
@@ -719,7 +724,7 @@ func (client Client) Current(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"cu": toUser(u.Key, u.Name, u.Email)})
+	c.JSON(http.StatusOK, gin.H{"cu": sn.ToUser(u.Key, u.Name, u.EmailHash)})
 }
 
 // func (g *Game) updateHeader() {

@@ -23,7 +23,7 @@
           <sn-deck :id='`hand-${player.id}`' label='Hand' :deck='player.hand' :show='false'></sn-deck>
         </v-col>
         <v-col>
-          <sn-deck :id='`draw-${player.id}`' label='Draw' :deck='player.draw' :show='false'></sn-deck>
+          <sn-deck :id='`draw-${player.id}`' label='Draw' :deck='player.drawPile' :show='false'></sn-deck>
         </v-col>
       </v-row>
       <v-row>
@@ -32,7 +32,7 @@
             small
             class='mb-3'
             width='64'
-            v-if='isPlayerFor(player, cu)'
+            :disabled='!canShow'
             color='info'
             dark
             @click.stop="$emit('show')"
@@ -42,7 +42,7 @@
           <v-btn
             small
             width='64'
-            v-if='isPlayerFor(player, cu) && canPass'
+            :disabled='!canPass'
             color='info'
             dark
             @click.stop="$emit('pass')"
@@ -54,7 +54,7 @@
           <sn-deck
             :id='`discard-${player.id}`'
             label='Discard'
-            :deck='player.discard'
+            :deck='player.discardPile'
             :show='true'
           >
           </sn-deck>
@@ -92,7 +92,7 @@
       },
       playIcon: function () {
         var self = this
-        return self.cp && (self.cp.id === self.player.id)
+        return self.cpIs(self.player)
       },
       icon: function () {
         var self = this
@@ -104,7 +104,11 @@
       },
       canPass: function () {
         var self = this
-        return self.cp && self.cu && !self.cp.performedAction && (self.cp.user.id === self.cu.id)
+        return self.isCPorAdmin && !self.cp.performedAction && self.isPlayerFor(self.player, self.cu) && self.game.phase == 'Play Card' 
+      },
+      canShow: function () {
+        var self = this
+        return self.isPlayerFor(self.player, self.cu)
       }
     }
   }
