@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) validatePlayerAction(c *gin.Context) (*Player, error) {
+func (g *game) validatePlayerAction(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -24,7 +24,7 @@ func (g *Game) validatePlayerAction(c *gin.Context) (*Player, error) {
 	}
 }
 
-func (g *Game) validateCPorAdmin(c *gin.Context) (*Player, error) {
+func (g *game) validateCPorAdmin(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -36,29 +36,24 @@ func (g *Game) validateCPorAdmin(c *gin.Context) (*Player, error) {
 	return g.validateCurrentPlayer(c, cu)
 }
 
-func (g *Game) validateCurrentPlayer(c *gin.Context, cu *user.User) (*Player, error) {
+func (g *game) validateCurrentPlayer(c *gin.Context, cu *user.User) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	log.Debugf("g.CPIDS: %#v", g.CPIDS)
 	cp := g.currentPlayer()
-	log.Debugf("cp.ID: %v", cp.ID)
-
 	switch {
 	case cu == nil:
 		return nil, sn.ErrUserNotFound
 	case cp == nil:
 		return nil, sn.ErrPlayerNotFound
 	case cp.User.ID() != cu.ID():
-		log.Debugf("cp.User.ID(): %#v", cp.User.ID())
-		log.Debugf("cu: %#v", cu.ID())
 		return nil, sn.ErrNotCurrentPlayer
 	default:
 		return cp, nil
 	}
 }
 
-func (g *Game) validateAdmin(c *gin.Context) (*user.User, error) {
+func (g *game) validateAdmin(c *gin.Context) (*user.User, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

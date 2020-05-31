@@ -11,13 +11,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Invitation provides a game invitation
-type Invitation struct {
+type invitation struct {
 	Key *datastore.Key
 	Header
 }
 
-func (inv Invitation) MarshalJSON() ([]byte, error) {
+func (inv invitation) MarshalJSON() ([]byte, error) {
 	h, err := json.Marshal(inv.Header)
 	if err != nil {
 		return nil, err
@@ -37,26 +36,26 @@ func (inv Invitation) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func (inv *Invitation) ID() int64 {
+func (inv *invitation) ID() int64 {
 	if inv == nil || inv.Key == nil {
 		return 0
 	}
 	return inv.Key.ID
 }
 
-func newInvitation(id int64) *Invitation {
-	return &Invitation{Key: newInvitationKey(id)}
+func newInvitation(id int64) *invitation {
+	return &invitation{Key: newInvitationKey(id)}
 }
 
 func newInvitationKey(id int64) *datastore.Key {
 	return datastore.IDKey(invitationKind, id, rootKey(id))
 }
 
-func (inv *Invitation) Load(ps []datastore.Property) error {
+func (inv *invitation) Load(ps []datastore.Property) error {
 	return datastore.LoadStruct(inv, ps)
 }
 
-func (inv *Invitation) Save() ([]datastore.Property, error) {
+func (inv *invitation) Save() ([]datastore.Property, error) {
 	t := time.Now()
 	if inv.CreatedAt.IsZero() {
 		inv.CreatedAt = t
@@ -65,12 +64,12 @@ func (inv *Invitation) Save() ([]datastore.Property, error) {
 	return datastore.SaveStruct(inv)
 }
 
-func (inv *Invitation) LoadKey(k *datastore.Key) error {
+func (inv *invitation) LoadKey(k *datastore.Key) error {
 	inv.Key = k
 	return nil
 }
 
-func defaultInvitation() *Invitation {
+func defaultInvitation() *invitation {
 	inv := newInvitation(0)
 
 	// Default Values

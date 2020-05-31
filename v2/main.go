@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	NODE_ENV       = "NODE_ENV"
+	nodeEnv       = "NODE_ENV"
 	production     = "production"
 	userPrefix     = "user"
 	gamesPrefix    = "games"
@@ -84,7 +84,7 @@ func main() {
 	// r = atf.NewClient(db, mcache).Register(ATF, r)
 
 	// Guild of Thieves
-	r = NewClient(db, mcache).addRoutes(r)
+	r = newClient(db, mcache).addRoutes(r)
 
 	// Tammany Hall
 	// r = tammany.NewClient(db, mcache).Register(Tammany, r)

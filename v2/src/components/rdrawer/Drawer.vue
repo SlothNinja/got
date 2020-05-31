@@ -2,8 +2,6 @@
   <v-navigation-drawer
     clipped
     width="500"
-    temporary
-    hide-overlay
     fixed
     v-model="drawer"
     right 

@@ -2,7 +2,7 @@
   <div>
     <v-tooltip :disabled='!canReset' bottom color='info'>
       <template v-slot:activator="{ on }">
-        <v-btn v-on="on" icon :disabled="!canReset" @click="$emit('action', { action: 'reset', data: { undo: value.undo }})" >
+        <v-btn v-on="on" icon :disabled="!canReset" @click="$emit('action', { action: 'reset', data: { undo: game.undo }})" >
           <v-icon>clear</v-icon>
         </v-btn>
       </template>
@@ -10,7 +10,7 @@
     </v-tooltip>
     <v-tooltip :disabled='!canUndo' bottom color='info'>
       <template v-slot:activator="{ on }">
-      <v-btn v-on='on' :disabled='!canUndo' icon @click="$emit('action', { action: 'undo', data: { undo: value.undo }})" >
+      <v-btn v-on='on' :disabled='!canUndo' icon @click="$emit('action', { action: 'undo', data: { undo: game.undo }})" >
         <v-icon>undo</v-icon>
       </v-btn>
       </template>
@@ -18,7 +18,7 @@
     </v-tooltip>
     <v-tooltip :disabled='!canRedo' bottom color='info'>
       <template v-slot:activator='{ on }'>
-      <v-btn v-on='on' icon :disabled='!canRedo' @click="$emit('action', { action: 'redo', data: { undo: value.undo }})" >
+      <v-btn v-on='on' icon :disabled='!canRedo' @click="$emit('action', { action: 'redo', data: { undo: game.undo }})" >
         <v-icon>redo</v-icon>
       </v-btn>
       </template>
@@ -27,7 +27,7 @@
 
     <v-tooltip :disabled='!canFinish' bottom color='info'>
       <template v-slot:activator='{ on }'>
-      <v-btn v-on='on' icon :disabled='!canFinish' @click="$emit('action', { action : finishAction, data: { undo: value.undo }})" >
+      <v-btn v-on='on' icon :disabled='!canFinish' @click="$emit('action', { action : finishAction, data: { undo: game.undo }})" >
         <v-icon>done</v-icon>
       </v-btn>
       </template>
@@ -57,25 +57,21 @@
     mixins: [ Player, CurrentUser ],
     props: [ 'value' ],
     computed: {
-      undoValue: function () {
-        var self = this
-        return self.value.undo.current - 1
-      },
       canUndo: function () {
         var self = this
-        return (self.isCPorAdmin) && (self.value.undo.current > self.value.undo.committed)
+        return (self.game.status == 3) && (self.isCPorAdmin) && (self.game.undo.current > self.game.undo.committed)
       },
       canRedo: function () {
         var self = this
-        return (self.isCPorAdmin) && (self.value.undo.current < self.value.undo.updated)
+        return (self.game.status == 3) && (self.isCPorAdmin) && (self.game.undo.current < self.game.undo.updated)
       },
       canReset: function () {
         var self = this
-        return self.isCPorAdmin
+        return (self.game.status == 3) && self.isCPorAdmin
       },
       canFinish: function () {
         var self = this
-        return self.isCPorAdmin ? (_.get(self.cp, 'performedAction', true)) : false
+        return (self.game.status == 3) && self.isCPorAdmin ? (_.get(self.cp, 'performedAction', true)) : false
       },
       finishAction: function () {
         var self = this

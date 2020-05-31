@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) getAreaFrom(c *gin.Context) (*Area, error) {
+func (g *game) getAreaFrom(c *gin.Context) (*Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -23,7 +23,7 @@ func (g *Game) getAreaFrom(c *gin.Context) (*Area, error) {
 
 	a := g.getArea(obj.ID)
 	if a == nil {
-		return nil, fmt.Errorf("unable to find area: %#w", sn.ErrValidation)
+		return nil, fmt.Errorf("unable to find area: %w", sn.ErrValidation)
 	}
 	return a, nil
 }

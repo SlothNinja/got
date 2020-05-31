@@ -1,8 +1,6 @@
 <template>
-  <v-card>
-
+  <v-card height='200'>
     <v-card-text>
-
       <v-row>
         <v-col>
           <span class='font-weight-black mr-1'>Title:</span>{{game.title}}
@@ -15,12 +13,19 @@
           <div><span class='font-weight-black'>Turn:</span> {{game.turn}}</div>
         </v-col>
         <v-col cols='4'>
+          <div v-if='game.status == 2'>
+            <v-dialog v-model='dialog' scrollable max-width='600px'>
+              <template v-slot:activator="{ on }">
+                <v-btn small class='mt-5' color='info' dark v-on='on'>Results</v-btn>
+              </template>
+              <v-card>
+                <sn-results-table :game='game'></sn-results-table>
+              </v-card>
+            </v-dialog>
+          </div>
+          <div v-else>
             <div class='text-center font-weight-black'>Jewels</div>
-            <v-card
-              color='green'
-              height='90'
-              width='90'
-            >
+            <v-card color='green' height='90' width='90' >
               <v-tooltip bottom>
                 <template v-slot:activator="{ on }">
                   <space-image v-on="on" :value='game.jewels'></space-image>
@@ -28,6 +33,7 @@
                 <span>{{tooltip(game.jewels)}}</span>
               </v-tooltip>
             </v-card>
+          </div>
         </v-col>
       </v-row>
     </v-card-text>
@@ -36,15 +42,20 @@
 
 <script>
   import SpaceImage from '@/components/board/SpaceImage'
-  // import Button from '@/components/player/Button'
   import Tooltip from '@/components/mixins/Tooltip'
+  import ResultsTable from '@/components/game/ResultsTable'
 
   export default {
     mixins: [ Tooltip ],
     name: 'sn-status-panel',
+    data () {
+      return {
+        dialog: true
+      }
+    },
     components: {
-      // 'sn-player-btn': Button,
-      'space-image': SpaceImage
+      'space-image': SpaceImage,
+      'sn-results-table': ResultsTable
     },
     props: [ 'game' ]
   }

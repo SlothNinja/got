@@ -2,10 +2,10 @@ package main
 
 import "encoding/json"
 
-type Phase int
+type phase int
 
 const (
-	noPhase Phase = iota
+	noPhase phase = iota
 	placeThievesPhase
 	playCardPhase
 	selectThiefPhase
@@ -13,8 +13,8 @@ const (
 	passedPhase
 )
 
-func (p Phase) String() string {
-	return map[Phase]string{
+func (p phase) String() string {
+	return map[phase]string{
 		noPhase:           "None",
 		placeThievesPhase: "Place Thieves",
 		playCardPhase:     "Play Card",
@@ -24,8 +24,8 @@ func (p Phase) String() string {
 	}[p]
 }
 
-func (p *Phase) fromString(s string) {
-	*p = map[string]Phase{
+func (p *phase) fromString(s string) {
+	*p = map[string]phase{
 		"None":          noPhase,
 		"Place Thieves": placeThievesPhase,
 		"Play Card":     playCardPhase,
@@ -35,11 +35,11 @@ func (p *Phase) fromString(s string) {
 	}[s]
 }
 
-func (p Phase) MarshalJSON() ([]byte, error) {
+func (p phase) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
 }
 
-func (p *Phase) UnmarshalJSON(bs []byte) error {
+func (p *phase) UnmarshalJSON(bs []byte) error {
 	var s string
 	err := json.Unmarshal(bs, &s)
 	if err != nil {

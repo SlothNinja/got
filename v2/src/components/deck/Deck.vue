@@ -34,7 +34,7 @@
     props: [ 'deck', 'show', 'label' ],
     methods: {
       topCard: function (deck) {
-        var card = _.last(deck)
+        var card = _.first(deck)
         return card ? card.kind : 'card-back'
       },
     }

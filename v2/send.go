@@ -9,12 +9,12 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-func (g *Game) SendTurnNotificationsTo(c *gin.Context, ps ...*Player) error {
+func (g *game) SendTurnNotificationsTo(c *gin.Context, ps ...*player) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	subject := fmt.Sprintf("It's your turn in %s (%s #%d).", g.Type, g.Title, g.ID())
-	url := fmt.Sprintf(`<a href="http://www.slothninja.com/%s/game/show/%d">here</a>`, g.Type.Prefix(), g.ID())
+	subject := fmt.Sprintf("It's your turn in %s (%s #%d).", g.Type, g.Title, g.id())
+	url := fmt.Sprintf(`<a href="http://www.slothninja.com/%s/game/show/%d">here</a>`, g.Type.Prefix(), g.id())
 	body := fmt.Sprintf(`<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 		<html>
 			<head>

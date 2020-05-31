@@ -58,7 +58,7 @@
                 class='theme--light v-application d-flex flex-column justify-space-between'
               >
 
-                <sn-status-panel :game='game' ></sn-status-panel>
+                <sn-status-panel :game='game'></sn-status-panel>
 
                 <sn-player-panels
                   v-model='tab'
@@ -125,13 +125,6 @@
 
   const _ = require('lodash')
   const axios = require('axios')
-  const phaseNone = "None"
-  const phasePlaceThieves = "Place Thieves"
-  const phasePlayCard = "Play Card"
-  const phaseSelectThief = "Select Thief"
-  const phaseMoveThief = "Move Thief"
-  const phaseGameOver = "Game Over"
-  const phasePassed = 'Passed'
 
   export default {
     mixins: [ CurrentUser, Player ],
@@ -142,7 +135,7 @@
           title: '',
           id: 0,
           turn: 0,
-          phase: phaseNone,
+          phase: 'None',
           colorMaps: [],
           options: {},
           glog: [],
@@ -221,7 +214,7 @@
         var self = this
         console.log(`selected data: ${JSON.stringify(data)}`)
         switch (self.game.phase) {
-          case phasePlaceThieves:
+          case 'Place Thieves':
             self.action({
               action: 'place-thief',
               data: {
@@ -230,7 +223,7 @@
               }
             })
             break
-          case phasePlayCard:
+          case 'Play Card':
             self.cardbar = false
             self.action({
               action: 'play-card',
@@ -240,7 +233,7 @@
               }
             })
             break
-          case phaseSelectThief:
+          case 'Select Thief':
             self.action({
               action: 'select-thief',
               data: {
@@ -249,7 +242,7 @@
               }
             })
             break
-          case phaseMoveThief:
+          case 'Move Thief':
             self.action({
               action: 'move-thief',
               data: {
@@ -332,10 +325,13 @@
       },
       message: function () {
         var self = this
+        if (self.game.status == 2) {
+          return 'Game Over'
+        }
         switch (self.game.phase) {
-          case phaseNone:
+          case 'None':
             return self.waitMessage
-          case phasePlaceThieves:
+          case 'Place Thieves':
             if (!self.isCP) {
               return self.waitMessage
             }
@@ -345,7 +341,7 @@
             } else {
               return 'Select empty space in grid to place thief.'
             }
-          case phasePlayCard:
+          case 'Play Card':
             if (!self.isCP) {
               return self.waitMessage
             }
@@ -355,13 +351,13 @@
             } else {
               return 'Select card from hand'
             }
-          case phaseSelectThief:
+          case 'Select Thief':
             if (!self.isCP) {
               return self.waitMessage
             }
 
             return 'Select thief in grid'
-          case phaseMoveThief:
+          case 'Move Thief':
             if (!self.isCP) {
               return self.waitMessage
             }
@@ -371,9 +367,7 @@
             }
 
             return 'Select highlighted spot in grid to move thief'
-          case phaseGameOver: 
-            return 'Game Over'
-          case phasePassed:
+          case 'Passed':
             return 'Finish turn by selecting above check mark.'
         }
         return ''

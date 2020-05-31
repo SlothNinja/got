@@ -1,15 +1,15 @@
 package main
 
-func (g *Game) drawCard(cp *Player) {
+func (g *game) drawCard(cp *player) {
 	if g.Turn != 1 {
 		_, shuffle := cp.draw()
-		g.appendEntry(Message{
+		g.appendEntry(message{
 			"template": "draw-card",
 			"shuffled": shuffle,
 		})
-		if g.PlayedCard.Kind == coinsCard {
+		if g.playedCard.Kind == coinsCard {
 			_, shuffle = cp.draw()
-			g.appendEntry(Message{
+			g.appendEntry(message{
 				"template": "draw-card",
 				"shuffled": shuffle,
 			})
@@ -17,7 +17,7 @@ func (g *Game) drawCard(cp *Player) {
 	}
 }
 
-func (p *Player) draw() (*Card, bool) {
+func (p *player) draw() (*Card, bool) {
 	shuffle := false
 	if len(p.DrawPile) == 0 {
 		shuffle = true

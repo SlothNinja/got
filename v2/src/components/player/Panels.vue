@@ -14,7 +14,13 @@
         :href="`#player-${player.id}`"
         ripple
       >
-        {{ player.user.name }}
+        <v-icon>{{icon(player)}}</v-icon>
+        <sn-user-btn 
+          :user='player.user'
+          :color='colorByPID(player.id)'
+          size='small'
+        >
+        </sn-user-btn>
       </v-tab>
       <v-tab-item
         v-for="player in game.players"
@@ -36,14 +42,29 @@
 <script>
   import Panel from '@/components/player/Panel'
   import Player from '@/components/mixins/Player'
+  import Button from '@/components/user/Button'
+  import Color from '@/components/mixins/Color'
 
   export default {
-    mixins: [ Player ],
+    mixins: [ Player, Color ],
     name: 'sn-player-panels',
     components: {
+      'sn-user-btn': Button,
       'sn-player-panel': Panel
     },
     props: [ 'value', 'game' ],
+    methods: {
+      icon: function (player) {
+        var self = this
+        if (player.passed) {
+          return 'stop_circle'
+        }
+        if (self.cpIs(player)) {
+          return 'play_circle_filled'
+        }
+        return ''
+      }
+    },
     computed: {
       tab: {
         get: function () {

@@ -5,57 +5,59 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) claimItem(cp *Player) {
+func (g *game) claimItem(cp *player, a *Area) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	sa := g.SelectedThiefArea()
+	loggedArea := *a
+	card := a.Card
 
-	loggedArea := *sa
-	card := sa.Card
-
-	sa.Card = nil
-	sa.Thief = noPID
+	a.Card = nil
+	a.Thief = noPID
 
 	switch {
 	case g.Turn == 4:
-		g.appendEntry(Message{
+		g.appendEntry(message{
 			"template": "claim-item",
 			"area":     loggedArea,
 			"hand":     true,
 		})
 		card.FaceUp = true
 		cp.Hand.append(card)
-	case g.Stepped == 1:
-		g.appendEntry(Message{
+		cp.Stats.Claimed.inc(card.Kind)
+	case g.stepped == 1:
+		g.appendEntry(message{
 			"template": "claim-item",
 			"area":     loggedArea,
 			"hand":     false,
 		})
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
+		cp.Stats.Claimed.inc(card.Kind)
 	default:
-		g.appendEntry(Message{
+		g.appendEntry(message{
 			"template": "claim-item",
 			"area":     loggedArea,
 			"hand":     false,
 		})
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
+		cp.Stats.Claimed.inc(card.Kind)
 		g.drawCard(cp)
 	}
 }
 
-func (g *Game) finalClaim(c *gin.Context) {
-	for _, row := range g.Grid {
+func (g *game) finalClaim(c *gin.Context) {
+	for _, row := range g.grid {
 		for _, a := range row {
-			if p := g.PlayerByID(a.Thief); p != nil {
+			if p := g.playerByID(a.Thief); p != nil {
 				card := a.Card
 				a.Card = nil
 				a.Thief = noPID
 				p.DiscardPile = append(Cards{card}, p.DiscardPile...)
+				p.Stats.Claimed.inc(card.Kind)
 			}
 		}
 	}
-	for _, p := range g.Players {
+	for _, p := range g.players {
 		p.Hand.append(p.DiscardPile...)
 		p.Hand.append(p.DrawPile...)
 		for _, card := range p.Hand {

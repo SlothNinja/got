@@ -9,11 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (client Client) selectThief(c *gin.Context) {
+func (cl client) selectThief(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g, err := client.getGame(c)
+	g, err := cl.getGame(c)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -26,7 +26,7 @@ func (client Client) selectThief(c *gin.Context) {
 	}
 
 	ks, es := g.cache()
-	_, err = client.DS.Put(c, ks, es)
+	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -36,7 +36,7 @@ func (client Client) selectThief(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *Game) selectThief(c *gin.Context) (*Player, *Area, error) {
+func (g *game) selectThief(c *gin.Context) (*player, *Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -45,18 +45,18 @@ func (g *Game) selectThief(c *gin.Context) (*Player, *Area, error) {
 		return nil, nil, err
 	}
 
-	g.SelectedThiefAreaID = thiefArea.areaID
+	g.thiefAreaID = thiefArea.areaID
 	g.Phase = moveThiefPhase
 	g.Undo.Update()
 
-	g.appendEntry(Message{
+	g.appendEntry(message{
 		"template": "select-thief",
 		"area":     *thiefArea,
 	})
 	return cp, thiefArea, nil
 }
 
-func (g *Game) validateSelectThief(c *gin.Context) (*Player, *Area, error) {
+func (g *game) validateSelectThief(c *gin.Context) (*player, *Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

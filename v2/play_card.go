@@ -9,11 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (client Client) playCard(c *gin.Context) {
+func (cl client) playCard(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g, err := client.getGame(c)
+	g, err := cl.getGame(c)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -26,23 +26,23 @@ func (client Client) playCard(c *gin.Context) {
 	}
 
 	ks, es := g.cache()
-	_, err = client.DS.Put(c, ks, es)
+	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	g.updateClickablesFor(c, cp, g.SelectedThiefArea())
+	g.updateClickablesFor(c, cp, g.selectedThiefArea())
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *Game) playCard(c *gin.Context) (*Player, error) {
+func (g *game) playCard(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
 	// reset card played related flags
-	g.Stepped = 0
-	g.PlayedCard = nil
+	g.stepped = 0
+	g.playedCard = nil
 
 	cp, card, err := g.validatePlayCard(c)
 	if err != nil {
@@ -51,25 +51,27 @@ func (g *Game) playCard(c *gin.Context) (*Player, error) {
 
 	cp.Hand.play(card)
 	cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
+	cp.Stats.Played.inc(card.Kind)
 
 	if card.Kind == jewels {
-		pc := g.Jewels
-		g.PlayedCard = &pc
+		pc := g.jewels
+		cp.Stats.JewelsAs.inc(pc.Kind)
+		g.playedCard = &pc
 	} else {
-		g.PlayedCard = card
+		g.playedCard = card
 	}
 
 	g.Phase = selectThiefPhase
 	g.Undo.Update()
 
-	g.newEntryFor(cp.ID, Message{
+	g.newEntryFor(cp.ID, message{
 		"template": "play-card",
 		"card":     *card,
 	})
 	return cp, nil
 }
 
-func (g *Game) validatePlayCard(c *gin.Context) (*Player, *Card, error) {
+func (g *game) validatePlayCard(c *gin.Context) (*player, *Card, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -92,7 +94,7 @@ func (g *Game) validatePlayCard(c *gin.Context) (*Player, *Card, error) {
 	}
 }
 
-func (g *Game) getCardFrom(c *gin.Context, cp *Player) (*Card, error) {
+func (g *game) getCardFrom(c *gin.Context, cp *player) (*Card, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -107,37 +109,18 @@ func (g *Game) getCardFrom(c *gin.Context, cp *Player) (*Card, error) {
 
 	i, found := cp.Hand.indexFor(newCard(obj.Kind, false))
 	if !found {
-		return nil, fmt.Errorf("unable to find card: %#w", sn.ErrValidation)
+		return nil, fmt.Errorf("unable to find card: %w", sn.ErrValidation)
 	}
 	return cp.Hand[i], nil
 }
 
-// type playCardEntry struct {
-// 	*Entry
-// 	Type cType
-// }
-
-// func (g *History) newPlayCardEntryFor(p *Player, c *Card) *playCardEntry {
-// 	e := &playCardEntry{
-// 		Entry: g.newEntryFor(p),
-// 		Type:  c.Type,
-// 	}
-// 	p.Log = append(p.Log, e)
-// 	g.Log = append(g.Log, e)
-// 	return e
-// }
-
-// func (e *playCardEntry) HTML(g *History) template.HTML {
-// 	return restful.HTML("%s played %s card.", g.NameByPID(e.PlayerID), e.Type)
-// }
-
-func (h *Game) lampAreas(thiefArea *Area) []*Area {
+func (g *game) lampAreas(thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
 	var a2 *Area
 	for col := thiefArea.Column - 1; col >= col1; col-- {
-		temp := h.getArea(areaID{thiefArea.Row, col})
+		temp := g.getArea(areaID{thiefArea.Row, col})
 		if !canMoveTo(temp) {
 			break
 		}
@@ -150,7 +133,7 @@ func (h *Game) lampAreas(thiefArea *Area) []*Area {
 	// Move right
 	a2 = nil
 	for col := thiefArea.Column + 1; col <= col8; col++ {
-		temp := h.getArea(areaID{thiefArea.Row, col})
+		temp := g.getArea(areaID{thiefArea.Row, col})
 		if !canMoveTo(temp) {
 			break
 		}
@@ -163,7 +146,7 @@ func (h *Game) lampAreas(thiefArea *Area) []*Area {
 	// Move Up
 	a2 = nil
 	for row := thiefArea.Row - 1; row >= rowA; row-- {
-		temp := h.getArea(areaID{row, thiefArea.Column})
+		temp := g.getArea(areaID{row, thiefArea.Column})
 		if !canMoveTo(temp) {
 			break
 		}
@@ -175,8 +158,8 @@ func (h *Game) lampAreas(thiefArea *Area) []*Area {
 
 	// Move Down
 	a2 = nil
-	for row := thiefArea.Row + 1; row <= h.lastRow(); row++ {
-		temp := h.getArea(areaID{row, thiefArea.Column})
+	for row := thiefArea.Row + 1; row <= g.lastRow(); row++ {
+		temp := g.getArea(areaID{row, thiefArea.Column})
 		if !canMoveTo(temp) {
 			break
 		}
@@ -189,14 +172,14 @@ func (h *Game) lampAreas(thiefArea *Area) []*Area {
 }
 
 // camelAreas returns areas from thief area ta reachable via a camel card.
-func (h *Game) camelAreas(ta *Area) []*Area {
+func (g *game) camelAreas(ta *Area) []*Area {
 	var as []*Area
 
 	// Move Three Left?
 	if ta.Column-3 >= col1 {
-		area1 := h.getArea(areaID{ta.Row, ta.Column - 1})
-		area2 := h.getArea(areaID{ta.Row, ta.Column - 2})
-		area3 := h.getArea(areaID{ta.Row, ta.Column - 3})
+		area1 := g.getArea(areaID{ta.Row, ta.Column - 1})
+		area2 := g.getArea(areaID{ta.Row, ta.Column - 2})
+		area3 := g.getArea(areaID{ta.Row, ta.Column - 3})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area3)
 		}
@@ -204,9 +187,9 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move Three Right?
 	if ta.Column+3 <= col8 {
-		area1 := h.getArea(areaID{ta.Row, ta.Column + 1})
-		area2 := h.getArea(areaID{ta.Row, ta.Column + 2})
-		area3 := h.getArea(areaID{ta.Row, ta.Column + 3})
+		area1 := g.getArea(areaID{ta.Row, ta.Column + 1})
+		area2 := g.getArea(areaID{ta.Row, ta.Column + 2})
+		area3 := g.getArea(areaID{ta.Row, ta.Column + 3})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area3)
 		}
@@ -214,19 +197,19 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move Three Up?
 	if ta.Row-3 >= rowA {
-		area1 := h.getArea(areaID{ta.Row - 1, ta.Column})
-		area2 := h.getArea(areaID{ta.Row - 2, ta.Column})
-		area3 := h.getArea(areaID{ta.Row - 3, ta.Column})
+		area1 := g.getArea(areaID{ta.Row - 1, ta.Column})
+		area2 := g.getArea(areaID{ta.Row - 2, ta.Column})
+		area3 := g.getArea(areaID{ta.Row - 3, ta.Column})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area3)
 		}
 	}
 
 	// Move Three Down?
-	if ta.Row+3 <= h.lastRow() {
-		area1 := h.getArea(areaID{ta.Row + 1, ta.Column})
-		area2 := h.getArea(areaID{ta.Row + 2, ta.Column})
-		area3 := h.getArea(areaID{ta.Row + 3, ta.Column})
+	if ta.Row+3 <= g.lastRow() {
+		area1 := g.getArea(areaID{ta.Row + 1, ta.Column})
+		area2 := g.getArea(areaID{ta.Row + 2, ta.Column})
+		area3 := g.getArea(areaID{ta.Row + 3, ta.Column})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area3)
 		}
@@ -234,23 +217,23 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move Two Left One Up or One Up Two Left or One Left One Up One Left?
 	if ta.Column-2 >= col1 && ta.Row-1 >= rowA {
-		area1 := h.getArea(areaID{ta.Row, ta.Column - 1})
-		area2 := h.getArea(areaID{ta.Row, ta.Column - 2})
-		area3 := h.getArea(areaID{ta.Row - 1, ta.Column - 2})
-		area4 := h.getArea(areaID{ta.Row - 1, ta.Column})
-		area5 := h.getArea(areaID{ta.Row - 1, ta.Column - 1})
+		area1 := g.getArea(areaID{ta.Row, ta.Column - 1})
+		area2 := g.getArea(areaID{ta.Row, ta.Column - 2})
+		area3 := g.getArea(areaID{ta.Row - 1, ta.Column - 2})
+		area4 := g.getArea(areaID{ta.Row - 1, ta.Column})
+		area5 := g.getArea(areaID{ta.Row - 1, ta.Column - 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
 	}
 
 	// Move Two Left One Down or One Down Two Left or One Left One Down One Left?
-	if ta.Column-2 >= col1 && ta.Row+1 <= h.lastRow() {
-		area1 := h.getArea(areaID{ta.Row, ta.Column - 1})
-		area2 := h.getArea(areaID{ta.Row, ta.Column - 2})
-		area3 := h.getArea(areaID{ta.Row + 1, ta.Column - 2})
-		area4 := h.getArea(areaID{ta.Row + 1, ta.Column})
-		area5 := h.getArea(areaID{ta.Row + 1, ta.Column - 1})
+	if ta.Column-2 >= col1 && ta.Row+1 <= g.lastRow() {
+		area1 := g.getArea(areaID{ta.Row, ta.Column - 1})
+		area2 := g.getArea(areaID{ta.Row, ta.Column - 2})
+		area3 := g.getArea(areaID{ta.Row + 1, ta.Column - 2})
+		area4 := g.getArea(areaID{ta.Row + 1, ta.Column})
+		area5 := g.getArea(areaID{ta.Row + 1, ta.Column - 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
@@ -258,35 +241,35 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move Two Right One Up or One Up Two Right or One Right One Up One Right?
 	if ta.Column+2 <= col8 && ta.Row-1 >= rowA {
-		area1 := h.getArea(areaID{ta.Row, ta.Column + 1})
-		area2 := h.getArea(areaID{ta.Row, ta.Column + 2})
-		area3 := h.getArea(areaID{ta.Row - 1, ta.Column + 2})
-		area4 := h.getArea(areaID{ta.Row - 1, ta.Column})
-		area5 := h.getArea(areaID{ta.Row - 1, ta.Column + 1})
+		area1 := g.getArea(areaID{ta.Row, ta.Column + 1})
+		area2 := g.getArea(areaID{ta.Row, ta.Column + 2})
+		area3 := g.getArea(areaID{ta.Row - 1, ta.Column + 2})
+		area4 := g.getArea(areaID{ta.Row - 1, ta.Column})
+		area5 := g.getArea(areaID{ta.Row - 1, ta.Column + 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
 	}
 
 	// Move Two Right One Down or One Down Two Right or One Right One Down One Right?
-	if ta.Column+2 <= col8 && ta.Row+1 <= h.lastRow() {
-		area1 := h.getArea(areaID{ta.Row, ta.Column + 1})
-		area2 := h.getArea(areaID{ta.Row, ta.Column + 2})
-		area3 := h.getArea(areaID{ta.Row + 1, ta.Column + 2})
-		area4 := h.getArea(areaID{ta.Row + 1, ta.Column})
-		area5 := h.getArea(areaID{ta.Row + 1, ta.Column + 1})
+	if ta.Column+2 <= col8 && ta.Row+1 <= g.lastRow() {
+		area1 := g.getArea(areaID{ta.Row, ta.Column + 1})
+		area2 := g.getArea(areaID{ta.Row, ta.Column + 2})
+		area3 := g.getArea(areaID{ta.Row + 1, ta.Column + 2})
+		area4 := g.getArea(areaID{ta.Row + 1, ta.Column})
+		area5 := g.getArea(areaID{ta.Row + 1, ta.Column + 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
 	}
 
 	// Move One Right Two Down or Two Down One Right or One Down One Right One Down?
-	if ta.Column+1 <= col8 && ta.Row+2 <= h.lastRow() {
-		area1 := h.getArea(areaID{ta.Row + 1, ta.Column})
-		area2 := h.getArea(areaID{ta.Row + 2, ta.Column})
-		area3 := h.getArea(areaID{ta.Row + 2, ta.Column + 1})
-		area4 := h.getArea(areaID{ta.Row, ta.Column + 1})
-		area5 := h.getArea(areaID{ta.Row + 1, ta.Column + 1})
+	if ta.Column+1 <= col8 && ta.Row+2 <= g.lastRow() {
+		area1 := g.getArea(areaID{ta.Row + 1, ta.Column})
+		area2 := g.getArea(areaID{ta.Row + 2, ta.Column})
+		area3 := g.getArea(areaID{ta.Row + 2, ta.Column + 1})
+		area4 := g.getArea(areaID{ta.Row, ta.Column + 1})
+		area5 := g.getArea(areaID{ta.Row + 1, ta.Column + 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
@@ -294,23 +277,23 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move One Right Two Up or Two Up One Right or One Up One Right One Up?
 	if ta.Column+1 <= col8 && ta.Row-2 >= rowA {
-		area1 := h.getArea(areaID{ta.Row - 1, ta.Column})
-		area2 := h.getArea(areaID{ta.Row - 2, ta.Column})
-		area3 := h.getArea(areaID{ta.Row - 2, ta.Column + 1})
-		area4 := h.getArea(areaID{ta.Row, ta.Column + 1})
-		area5 := h.getArea(areaID{ta.Row - 1, ta.Column + 1})
+		area1 := g.getArea(areaID{ta.Row - 1, ta.Column})
+		area2 := g.getArea(areaID{ta.Row - 2, ta.Column})
+		area3 := g.getArea(areaID{ta.Row - 2, ta.Column + 1})
+		area4 := g.getArea(areaID{ta.Row, ta.Column + 1})
+		area5 := g.getArea(areaID{ta.Row - 1, ta.Column + 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
 	}
 
 	// Move One Left Two Down or Two Down One Left or One Down One Left One Down?
-	if ta.Column-1 >= col1 && ta.Row+2 <= h.lastRow() {
-		area1 := h.getArea(areaID{ta.Row + 1, ta.Column})
-		area2 := h.getArea(areaID{ta.Row + 2, ta.Column})
-		area3 := h.getArea(areaID{ta.Row + 2, ta.Column - 1})
-		area4 := h.getArea(areaID{ta.Row, ta.Column - 1})
-		area5 := h.getArea(areaID{ta.Row + 1, ta.Column - 1})
+	if ta.Column-1 >= col1 && ta.Row+2 <= g.lastRow() {
+		area1 := g.getArea(areaID{ta.Row + 1, ta.Column})
+		area2 := g.getArea(areaID{ta.Row + 2, ta.Column})
+		area3 := g.getArea(areaID{ta.Row + 2, ta.Column - 1})
+		area4 := g.getArea(areaID{ta.Row, ta.Column - 1})
+		area5 := g.getArea(areaID{ta.Row + 1, ta.Column - 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
@@ -318,11 +301,11 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move One Left Two Up or Two Up One Left or One Up One Left One Up?
 	if ta.Column-1 >= col1 && ta.Row-2 >= rowA {
-		area1 := h.getArea(areaID{ta.Row - 1, ta.Column})
-		area2 := h.getArea(areaID{ta.Row - 2, ta.Column})
-		area3 := h.getArea(areaID{ta.Row - 2, ta.Column - 1})
-		area4 := h.getArea(areaID{ta.Row, ta.Column - 1})
-		area5 := h.getArea(areaID{ta.Row - 1, ta.Column - 1})
+		area1 := g.getArea(areaID{ta.Row - 1, ta.Column})
+		area2 := g.getArea(areaID{ta.Row - 2, ta.Column})
+		area3 := g.getArea(areaID{ta.Row - 2, ta.Column - 1})
+		area4 := g.getArea(areaID{ta.Row, ta.Column - 1})
+		area5 := g.getArea(areaID{ta.Row - 1, ta.Column - 1})
 		if canMoveTo(area1, area2, area3) || canMoveTo(area3, area4, area5) || canMoveTo(area1, area5, area3) {
 			as = append(as, area3)
 		}
@@ -330,9 +313,9 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move One Left One Up One Right or One Up One Left One Down?
 	if ta.Column-1 >= col1 && ta.Row-1 >= rowA {
-		area1 := h.getArea(areaID{ta.Row, ta.Column - 1})
-		area2 := h.getArea(areaID{ta.Row - 1, ta.Column - 1})
-		area3 := h.getArea(areaID{ta.Row - 1, ta.Column})
+		area1 := g.getArea(areaID{ta.Row, ta.Column - 1})
+		area2 := g.getArea(areaID{ta.Row - 1, ta.Column - 1})
+		area3 := g.getArea(areaID{ta.Row - 1, ta.Column})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area1)
 			as = append(as, area3)
@@ -341,9 +324,9 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 
 	// Move One Up One Right One Down or One Right One Up One Left?
 	if ta.Column+1 <= col8 && ta.Row-1 >= rowA {
-		area1 := h.getArea(areaID{ta.Row, ta.Column + 1})
-		area2 := h.getArea(areaID{ta.Row - 1, ta.Column + 1})
-		area3 := h.getArea(areaID{ta.Row - 1, ta.Column})
+		area1 := g.getArea(areaID{ta.Row, ta.Column + 1})
+		area2 := g.getArea(areaID{ta.Row - 1, ta.Column + 1})
+		area3 := g.getArea(areaID{ta.Row - 1, ta.Column})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area1)
 			as = append(as, area3)
@@ -351,10 +334,10 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 	}
 
 	// Move One Left One Down One Right or One Down One Left One Up?
-	if ta.Column-1 >= col1 && ta.Row+1 <= h.lastRow() {
-		area1 := h.getArea(areaID{ta.Row, ta.Column - 1})
-		area2 := h.getArea(areaID{ta.Row + 1, ta.Column - 1})
-		area3 := h.getArea(areaID{ta.Row + 1, ta.Column})
+	if ta.Column-1 >= col1 && ta.Row+1 <= g.lastRow() {
+		area1 := g.getArea(areaID{ta.Row, ta.Column - 1})
+		area2 := g.getArea(areaID{ta.Row + 1, ta.Column - 1})
+		area3 := g.getArea(areaID{ta.Row + 1, ta.Column})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area1)
 			as = append(as, area3)
@@ -362,10 +345,10 @@ func (h *Game) camelAreas(ta *Area) []*Area {
 	}
 
 	// Move One Down One Right One Up or One Right One Down One Left?
-	if ta.Column+1 <= col8 && ta.Row+1 <= h.lastRow() {
-		area1 := h.getArea(areaID{ta.Row, ta.Column + 1})
-		area2 := h.getArea(areaID{ta.Row + 1, ta.Column + 1})
-		area3 := h.getArea(areaID{ta.Row + 1, ta.Column})
+	if ta.Column+1 <= col8 && ta.Row+1 <= g.lastRow() {
+		area1 := g.getArea(areaID{ta.Row, ta.Column + 1})
+		area2 := g.getArea(areaID{ta.Row + 1, ta.Column + 1})
+		area3 := g.getArea(areaID{ta.Row + 1, ta.Column})
 		if canMoveTo(area1, area2, area3) {
 			as = append(as, area1)
 			as = append(as, area3)
@@ -384,7 +367,7 @@ func canMoveTo(as ...*Area) bool {
 	return true
 }
 
-func (g *Game) swordAreas(cp *Player, thiefArea *Area) []*Area {
+func (g *game) swordAreas(cp *player, thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -463,26 +446,26 @@ func (g *Game) swordAreas(cp *Player, thiefArea *Area) []*Area {
 	return as
 }
 
-func (p *Player) anotherThiefIn(a *Area) bool {
+func (p *player) anotherThiefIn(a *Area) bool {
 	return a.hasThief() && a.Thief != p.ID
 }
 
-func (h *Game) isCarpetArea(a *Area) bool {
-	if h.SelectedThiefArea() != nil {
-		return hasArea(h.carpetAreas(), a)
+func (g *game) isCarpetArea(a *Area) bool {
+	if g.selectedThiefArea() != nil {
+		return hasArea(g.carpetAreas(), a)
 	}
 	return false
 }
 
-func (h *Game) carpetAreas() []*Area {
+func (g *game) carpetAreas() []*Area {
 	as := make([]*Area, 0)
-	a1 := h.SelectedThiefArea()
+	a1 := g.selectedThiefArea()
 
 	// Move Left
 	var a2, empty *Area
 MoveLeft:
 	for col := a1.Column - 1; col >= col1; col-- {
-		switch temp := h.getArea(areaID{a1.Row, col}); {
+		switch temp := g.getArea(areaID{a1.Row, col}); {
 		case temp.Card == nil:
 			empty = temp
 		case empty != nil && canMoveTo(temp):
@@ -500,7 +483,7 @@ MoveLeft:
 	a2, empty = nil, nil
 MoveRight:
 	for col := a1.Column + 1; col <= col8; col++ {
-		switch temp := h.getArea(areaID{a1.Row, col}); {
+		switch temp := g.getArea(areaID{a1.Row, col}); {
 		case temp.Card == nil:
 			empty = temp
 		case empty != nil && canMoveTo(temp):
@@ -518,7 +501,7 @@ MoveRight:
 	a2, empty = nil, nil
 MoveUp:
 	for row := a1.Row - 1; row >= rowA; row-- {
-		switch temp := h.getArea(areaID{row, a1.Column}); {
+		switch temp := g.getArea(areaID{row, a1.Column}); {
 		case temp.Card == nil:
 			empty = temp
 		case empty != nil && canMoveTo(temp):
@@ -535,8 +518,8 @@ MoveUp:
 	// Move Down
 	a2, empty = nil, nil
 MoveDown:
-	for row := a1.Row + 1; row <= h.lastRow(); row++ {
-		switch temp := h.getArea(areaID{row, a1.Column}); {
+	for row := a1.Row + 1; row <= g.lastRow(); row++ {
+		switch temp := g.getArea(areaID{row, a1.Column}); {
 		case temp.Card == nil:
 			empty = temp
 		case empty != nil && canMoveTo(temp):
@@ -553,7 +536,7 @@ MoveDown:
 	return as
 }
 
-func (g *Game) turban0Areas(thiefArea *Area) []*Area {
+func (g *game) turban0Areas(thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -631,7 +614,7 @@ func (g *Game) turban0Areas(thiefArea *Area) []*Area {
 	return as
 }
 
-func (g *Game) turban1Areas(thiefArea *Area) []*Area {
+func (g *game) turban1Areas(thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -657,6 +640,6 @@ func (g *Game) turban1Areas(thiefArea *Area) []*Area {
 	return as
 }
 
-func (g *Game) coinsAreas(thiefArea *Area) []*Area {
+func (g *game) coinsAreas(thiefArea *Area) []*Area {
 	return g.turban1Areas(thiefArea)
 }

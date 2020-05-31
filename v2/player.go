@@ -2,14 +2,15 @@ package main
 
 import (
 	"sort"
+	"time"
 
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
 )
 
-// Player represents one of the players of the game.
-type Player struct {
+// player represents one of the players of the game.
+type player struct {
 	ID              int        `json:"id"`
 	PerformedAction bool       `json:"performedAction"`
 	Score           int        `json:"score"`
@@ -19,20 +20,31 @@ type Player struct {
 	Hand            Cards      `json:"hand"`
 	DrawPile        Cards      `json:"drawPile"`
 	DiscardPile     Cards      `json:"discardPile"`
+	Stats           stats      `json:"stats"`
 }
 
-func (g *Game) pids() []int {
-	pids := make([]int, len(g.Players))
-	for i := range g.Players {
-		pids[i] = g.Players[i].ID
+type stats struct {
+	Moves    int           `json:"moves"`
+	Played   cardCount     `json:"played"`
+	JewelsAs cardCount     `json:"jewelsAs"`
+	Claimed  cardCount     `json:"claimed"`
+	Placed   [3]cKind      `json:"placed"`
+	Think    time.Duration `json:"think"`
+	Finish   int           `json:"finish"`
+}
+
+func (g *game) pids() []int {
+	pids := make([]int, len(g.players))
+	for i := range g.players {
+		pids[i] = g.players[i].ID
 	}
 	return pids
 }
 
 // Players is a slice of players of the game.
-type Players []*Player
+type Players []*player
 
-func allPassed(ps []*Player) bool {
+func allPassed(ps []*player) bool {
 	for _, p := range ps {
 		if !p.Passed {
 			return false
@@ -41,33 +53,16 @@ func allPassed(ps []*Player) bool {
 	return true
 }
 
-// Len is part of the sort.Interface interface
-func (ps Players) Len() int { return len(ps) }
-
-// Swap is part of the sort.Interface interface
-func (ps Players) Swap(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
-
-// ByScore enables sorting players by their score.
-type ByScore struct{ Players }
-
-// Less defines when a player has a lower score than another player.
-func (bs ByScore) Less(i, j int) bool {
-	return bs.Players[i].compareByScore(bs.Players[j]) == sn.LessThan
+func byScore(ps []*player) {
+	sort.Slice(ps, func(i, j int) bool { return ps[i].compare(ps[j]) == sn.LessThan })
 }
 
-func (p *Player) CompareByScore(p2 *Player) sn.Comparison {
-	switch {
-	case p.Score < p2.Score:
-		return sn.LessThan
-	case p.Score > p2.Score:
-		return sn.GreaterThan
-	default:
-		return sn.EqualTo
-	}
+func reverse(ps []*player) {
+	sort.Slice(ps, func(i, j int) bool { return false })
 }
 
-func (p *Player) compareByScore(p2 *Player) sn.Comparison {
-	byScore := p.CompareByScore(p2)
+func (p *player) compare(p2 *player) sn.Comparison {
+	byScore := p.compareByScore(p2)
 	if byScore != sn.EqualTo {
 		return byScore
 	}
@@ -83,30 +78,31 @@ func (p *Player) compareByScore(p2 *Player) sn.Comparison {
 	return p.compareByCards(p2)
 }
 
-func (p *Player) compareByLamps(p2 *Player) sn.Comparison {
-	switch c0, c1 := lampCount(p.Hand...), lampCount(p2.Hand...); {
+func (p *player) compareByScore(p2 *player) sn.Comparison {
+	switch {
+	case p.Score < p2.Score:
+		return sn.LessThan
+	case p.Score > p2.Score:
+		return sn.GreaterThan
+	default:
+		return sn.EqualTo
+	}
+}
+
+func (p *player) compareByLamps(p2 *player) sn.Comparison {
+	c0, c1 := p.Stats.Claimed[lampCard.String()], p2.Stats.Claimed[lampCard.String()]
+	switch {
 	case c0 < c1:
 		return sn.LessThan
 	case c0 > c1:
 		return sn.GreaterThan
+	default:
+		return sn.EqualTo
 	}
-	return sn.EqualTo
 }
 
-// CountFor provides the number of faceUp and faceDown cards a player has.
-func (cs Cards) CountFor(t cKind) (faceUp, faceDown int) {
-	for _, c := range cs {
-		switch {
-		case c.Kind == t && c.FaceUp:
-			faceUp++
-		case c.Kind == t && !c.FaceUp:
-			faceDown++
-		}
-	}
-	return
-}
-
-func lampCount(cs ...*Card) (count int) {
+func lampCount(cs []*Card) int {
+	var count int
 	for _, c := range cs {
 		if c.Kind == lampCard || c.Kind == sLampCard {
 			count++
@@ -115,26 +111,19 @@ func lampCount(cs ...*Card) (count int) {
 	return count
 }
 
-func (p *Player) compareByCamels(p2 *Player) sn.Comparison {
-	switch c0, c1 := camelCount(p.Hand...), camelCount(p2.Hand...); {
+func (p *player) compareByCamels(p2 *player) sn.Comparison {
+	c0, c1 := p.Stats.Claimed[camelCard.String()], p2.Stats.Claimed[camelCard.String()]
+	switch {
 	case c0 < c1:
 		return sn.LessThan
 	case c0 > c1:
 		return sn.GreaterThan
+	default:
+		return sn.EqualTo
 	}
-	return sn.EqualTo
 }
 
-func camelCount(cs ...*Card) (count int) {
-	for _, c := range cs {
-		if c.Kind == camelCard || c.Kind == sCamelCard {
-			count++
-		}
-	}
-	return count
-}
-
-func (p *Player) compareByCards(p2 *Player) sn.Comparison {
+func (p *player) compareByCards(p2 *player) sn.Comparison {
 	switch c0, c1 := len(p.Hand), len(p2.Hand); {
 	case c0 < c1:
 		return sn.LessThan
@@ -144,30 +133,30 @@ func (p *Player) compareByCards(p2 *Player) sn.Comparison {
 	return sn.EqualTo
 }
 
-func (client Client) determinePlaces(c *gin.Context, g *Game) (sn.Places, error) {
+func (cl client) determinePlaces(c *gin.Context, g *game) (sn.Places, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
 	// sort players by score
-	sort.Sort(Reverse{ByScore{g.Players}})
-
+	sort.Slice(g.players, func(i, j int) bool { return g.players[i].compare(g.players[j]) != sn.LessThan })
 	places := make(sn.Places, 0)
 	rmap := make(sn.ResultsMap, 0)
-	for i, p1 := range g.Players {
+	for i, p1 := range g.players {
 		results := make(sn.Results, 0)
 		tie := false
-		for j, p2 := range g.Players {
-			r, err := client.Game.For(c, p2.User.Key, g.Type)
+		for j, p2 := range g.players {
+			r, err := cl.Game.For(c, p2.User.Key, g.Type)
 			if err != nil {
+				log.Warningf(err.Error())
 				return nil, err
 			}
 			result := &sn.Result{
-				GameID: g.ID(),
+				GameID: g.id(),
 				Type:   g.Type,
 				R:      r.R,
 				RD:     r.RD,
 			}
-			switch c := p1.compareByScore(p2); {
+			switch c := p1.compare(p2); {
 			case i == j:
 			case c == sn.GreaterThan:
 				result.Outcome = 1
@@ -185,25 +174,18 @@ func (client Client) determinePlaces(c *gin.Context, g *Game) (sn.Places, error)
 		if !tie {
 			places = append(places, rmap)
 			rmap = make(sn.ResultsMap, 0)
-		} else if i == len(g.Players)-1 {
+		} else if i == len(g.players)-1 {
 			places = append(places, rmap)
 		}
+		finish := len(places)
+		log.Debugf("finish: %d", finish)
+		p1.Stats.Finish = finish
 	}
 	return places, nil
 }
 
-// Reverse is a wrapper for sorting in reverse order.
-type Reverse struct{ sort.Interface }
-
-// Less indicates if one element should preceed another.
-func (r Reverse) Less(i, j int) bool { return r.Interface.Less(j, i) }
-
-// func (p *Player) init(gr sn.Gamer) {
-// 	p.SetGame(gr)
-// }
-
-func (g *Game) newPlayer(i int) *Player {
-	return &Player{
+func (g *game) newPlayer(i int) *player {
+	return &player{
 		ID:          i + 1,
 		Colors:      defaultColors()[:g.NumPlayers],
 		Hand:        newStartHand(),
@@ -213,91 +195,13 @@ func (g *Game) newPlayer(i int) *Player {
 	}
 }
 
-// func (g *Game) addNewPlayer(i int) {
-// 	p := newPlayer()
-// 	g.Players = append(g.Players, p)
-// 	p.ID = i + 1
-// 	p.User = sn.ToUser(g.UserKeys[i], g.UserNames[i], g.UserEmails[i])
-// }
-
-// func createPlayer(g *Game, uid int64) *Player {
-// 	p := newPlayer()
-// 	p.ID = len(g.Players)
-// 	return p
-// }
-
-func (p *Player) beginningOfTurnReset() {
+func (p *player) beginningOfTurnReset() {
 	p.PerformedAction = false
 }
 
-func (h *Game) updateClickablesFor(c *gin.Context, p *Player, ta *Area) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	canClick := h.CanClick(c, p, ta)
-	h.Grid.Each(func(a *Area) { a.Clickable = canClick(a) })
-}
-
-// CanClick a function specialized by current game context to test whether a player can click on
-// a particular area in the grid.  The main benefit is the function provides a closure around area computions,
-// essentially caching the results.
-func (g *Game) CanClick(c *gin.Context, p *Player, ta *Area) func(*Area) bool {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	ff := func(a *Area) bool { return false }
-	cp, err := g.validatePlayerAction(c)
-	switch {
-	case g == nil:
-		return ff
-	case err != nil:
-		return ff
-	case g.Phase == placeThievesPhase:
-		return func(a *Area) bool { return a.Thief == noPID }
-	case g.Phase == selectThiefPhase:
-		return func(a *Area) bool { return a.Thief == cp.ID }
-	case g.Phase == moveThiefPhase:
-		switch {
-		case p == nil:
-			return ff
-		case p.ID != cp.ID:
-			return ff
-		case g.PlayedCard == nil:
-			return ff
-		case ta == nil:
-			return ff
-		case g.PlayedCard.Kind == lampCard || g.PlayedCard.Kind == sLampCard:
-			as := g.lampAreas(ta)
-			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Kind == camelCard || g.PlayedCard.Kind == sCamelCard:
-			as := g.camelAreas(ta)
-			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Kind == swordCard:
-			as := g.swordAreas(cp, ta)
-			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Kind == carpetCard:
-			as := g.carpetAreas()
-			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Kind == turbanCard && g.Stepped == 0:
-			as := g.turban0Areas(ta)
-			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Kind == turbanCard && g.Stepped == 1:
-			as := g.turban1Areas(ta)
-			return func(a *Area) bool { return hasArea(as, a) }
-		case g.PlayedCard.Kind == coinsCard:
-			as := g.coinsAreas(ta)
-			return func(a *Area) bool { return hasArea(as, a) }
-		default:
-			return ff
-		}
-	default:
-		return ff
-	}
-}
-
-func (g *Game) endOfTurnUpdateFor(p *Player) {
-	if g.PlayedCard != nil {
-		g.Jewels = *(g.PlayedCard)
+func (g *game) endOfTurnUpdateFor(p *player) {
+	if g.playedCard != nil {
+		g.jewels = *(g.playedCard)
 	}
 
 	for _, card := range p.Hand {
@@ -306,12 +210,12 @@ func (g *Game) endOfTurnUpdateFor(p *Player) {
 }
 
 // IndexFor returns the index for the player and bool indicating whether player found.
-func (g *Game) indexFor(p *Player) (int, bool) {
+func (g *game) indexFor(p *player) (int, bool) {
 	if p == nil {
 		return -1, false
 	}
 
-	for i, p2 := range g.Players {
+	for i, p2 := range g.players {
 		if p == p2 {
 			return i, true
 		}

@@ -13,66 +13,27 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-func (client Client) endGame(c *gin.Context, g *Game) (sn.Places, error) {
+func (cl client) endGame(c *gin.Context, g *game) (sn.Places, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	ps, err := client.determinePlaces(c, g)
+	ps, err := cl.determinePlaces(c, g)
 	if err != nil {
 		return nil, err
 	}
 	g.setWinners(ps[0])
-	//	g.newEndGameEntry()
 	return ps, nil
 }
 
-// func toIDS(places []Players) [][]int64 {
-// 	sids := make([][]int64, len(places))
-// 	for i, players := range places {
-// 		for _, p := range players {
-// 			sids[i] = append(sids[i], p.User.ID())
-// 		}
-// 	}
-// 	return sids
-// }
-
-// type endGameEntry struct {
-// 	*Entry
-// }
-//
-// func (g *Game) newEndGameEntry() {
-// 	e := &endGameEntry{
-// 		Entry: g.newEntry(),
-// 	}
-// 	g.Log = append(g.Log, e)
-// }
-//
-// func (e *endGameEntry) HTML(g *Game) (s template.HTML) {
-// 	rows := restful.HTML("")
-// 	for _, p := range g.Players() {
-// 		rows += restful.HTML("<tr>")
-// 		rows += restful.HTML("<td>%s</td> <td>%d</td> <td>%d</td> <td>%d</td> <td>%d</td>",
-// 			g.NameFor(p), p.Score, lampCount(p.Hand...), camelCount(p.Hand...), len(p.Hand))
-// 		rows += restful.HTML("</tr>")
-// 	}
-// 	s += restful.HTML("<table class='strippedDataTable'><thead><tr><th>Player</th><th>Score</th>")
-// 	s += restful.HTML("<th>Lamps</th><th>Camels</th><th>Cards</th></tr></thead><tbody>")
-// 	s += rows
-// 	s += restful.HTML("</tbody></table>")
-// 	return
-// }
-
-func (g *Game) setWinners(rmap sn.ResultsMap) {
+func (g *game) setWinners(rmap sn.ResultsMap) {
 	g.Status = sn.Completed
 
 	g.setCurrentPlayer(nil)
 	g.WinnerIDS = nil
 	for key := range rmap {
-		p := g.PlayerByUserID(key.ID)
+		p := g.playerByUserID(key.ID)
 		g.WinnerIDS = append(g.WinnerIDS, p.ID)
 	}
-
-	// g.newAnnounceWinnersEntry()
 }
 
 type result struct {
@@ -82,7 +43,7 @@ type result struct {
 
 type results []result
 
-func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Places, cs []*sn.Contest) error {
+func (cl client) sendEndGameNotifications(c *gin.Context, g *game, ps sn.Places, cs []*sn.Contest) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -92,8 +53,8 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Pla
 	var i int
 	for place, rmap := range ps {
 		for k := range rmap {
-			p := g.PlayerByUserID(k.ID)
-			cr, nr, err := client.Game.IncreaseFor(c, p.User.Key, g.Type, cs)
+			p := g.playerByUserID(k.ID)
+			cr, nr, err := cl.Game.IncreaseFor(c, p.User.Key, g.Type, cs)
 			if err != nil {
 				log.Warningf(err.Error())
 			}
@@ -116,9 +77,7 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Pla
 		names = append(names, p.User.Name)
 	}
 
-	//	ts := restful.TemplatesFrom(c)
 	buf := new(bytes.Buffer)
-	//	tmpl := ts["got/end_game_notification"]
 	tmpl := template.New("end_game_notification")
 	tmpl, err := tmpl.Parse(`
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
@@ -150,10 +109,10 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Pla
 		return err
 	}
 
-	ms := make([]mailjet.InfoMessagesV31, len(g.Players))
-	subject := fmt.Sprintf("SlothNinja Games: Guild of Thieves #%d Has Ended", g.ID)
+	ms := make([]mailjet.InfoMessagesV31, len(g.players))
+	subject := fmt.Sprintf("SlothNinja Games: Guild of Thieves #%d Has Ended", g.id())
 	body := buf.String()
-	for i, p := range g.Players {
+	for i, p := range g.players {
 		ms[i] = mailjet.InfoMessagesV31{
 			From: &mailjet.RecipientV31{
 				Email: "webmaster@slothninja.com",
@@ -173,27 +132,7 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps sn.Pla
 	return err
 }
 
-// type announceWinnersEntry struct {
-// 	*Entry
-// }
-//
-// func (g *Game) newAnnounceWinnersEntry() *announceWinnersEntry {
-// 	e := &announceWinnersEntry{
-// 		Entry: g.newEntry(),
-// 	}
-// 	g.Log = append(g.Log, e)
-// 	return e
-// }
-//
-// func (e *announceWinnersEntry) HTML(g *Game) template.HTML {
-// 	names := make([]string, len(g.winners()))
-// 	for i, winner := range g.winners() {
-// 		names[i] = winner.User.Name
-// 	}
-// 	return restful.HTML("Congratulations: %s.", restful.ToSentence(names))
-// }
-
-func (g *Game) winners() Players {
+func (g *game) winners() Players {
 	l := len(g.WinnerIDS)
 	if l == 0 {
 		return nil
@@ -201,7 +140,7 @@ func (g *Game) winners() Players {
 	}
 	ps := make(Players, l)
 	for i, pid := range g.WinnerIDS {
-		ps[i] = g.PlayerByID(pid)
+		ps[i] = g.playerByID(pid)
 	}
 	return ps
 }

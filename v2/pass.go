@@ -10,11 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (client Client) pass(c *gin.Context) {
+func (cl client) pass(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g, err := client.getGame(c)
+	g, err := cl.getGame(c)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -27,7 +27,7 @@ func (client Client) pass(c *gin.Context) {
 	}
 
 	ks, es := g.cache()
-	_, err = client.DS.Put(c, ks, es)
+	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
 		jerr(c, err)
 		return
@@ -36,7 +36,7 @@ func (client Client) pass(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *Game) pass(c *gin.Context) error {
+func (g *game) pass(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -50,11 +50,11 @@ func (g *Game) pass(c *gin.Context) error {
 	g.Phase = passedPhase
 
 	g.Undo.Update()
-	g.newEntryFor(cp.ID, Message{"template": "pass"})
+	g.newEntryFor(cp.ID, message{"template": "pass"})
 	return nil
 }
 
-func (g *Game) validatePass(c *gin.Context) (*Player, error) {
+func (g *game) validatePass(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -70,35 +70,23 @@ func (g *Game) validatePass(c *gin.Context) (*Player, error) {
 	}
 }
 
-// func (g *Game) passedNextPlayer(p *Player) *Player {
-// 	np := g.nextPlayer(forward, p)
-// 	for !allPassed(g.Players) {
-// 		if np != nil && !np.Passed {
-// 			np.beginningOfTurnReset()
-// 			return np
-// 		}
-// 		np = g.nextPlayer(forward, np)
-// 	}
-// 	return nil
-// }
-
-func (client Client) passedFinishTurn(c *gin.Context) {
+func (cl client) passedFinishTurn(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g, err := client.getGame(c)
+	g, err := cl.getGame(c)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	gc, err := client.getGCommited(c)
+	gcommitted, err := cl.getGCommited(c)
 	if err != nil {
 		jerr(c, err)
 		return
 	}
 
-	if gc.Undo.Committed != g.Undo.Committed {
+	if gcommitted.Undo.Committed != g.Undo.Committed {
 		jerr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
 		return
 	}
@@ -111,21 +99,21 @@ func (client Client) passedFinishTurn(c *gin.Context) {
 
 	if end {
 		g.finalClaim(c)
-		ps, err := client.endGame(c, g)
+		ps, err := cl.endGame(c, g)
 		cs := sn.GenContests(c, ps)
 		g.Status = sn.Completed
 
 		// Need to call SendTurnNotificationsTo before saving the new contests
 		// SendEndGameNotifications relies on pulling the old contests from the db.
 		// Saving the contests resulting in double counting.
-		err = client.sendEndGameNotifications(c, g, ps, cs)
+		err = cl.sendEndGameNotifications(c, g, ps, cs)
 		if err != nil {
 			// log but otherwise ignore send errors
 			log.Warningf(err.Error())
 		}
 	}
 
-	_, err = client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
+	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		g.Undo.Commit()
 		_, err := tx.PutMulti(g.save())
 		return err
@@ -138,9 +126,9 @@ func (client Client) passedFinishTurn(c *gin.Context) {
 
 }
 
-func notPassed(p *Player) bool { return !p.Passed }
+func notPassed(p *player) bool { return !p.Passed }
 
-func (g *Game) passedFinishTurn(c *gin.Context) (bool, error) {
+func (g *game) passedFinishTurn(c *gin.Context) (bool, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -172,7 +160,7 @@ func (g *Game) passedFinishTurn(c *gin.Context) (bool, error) {
 	return false, nil
 }
 
-func (g *Game) validatePassedFinishTurn(c *gin.Context) (*Player, error) {
+func (g *game) validatePassedFinishTurn(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

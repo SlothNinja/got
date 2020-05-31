@@ -3,18 +3,11 @@
     <div class='mx-4'>
       <v-row>
         <v-col>
-          <sn-user-btn 
-            :id="`panel-button-${player.user.id}`"
-            :user='player.user'
-            :color='color'
-            size='large'
-          >
-          </sn-user-btn>
+          <div>{{player.user.name}}</div>
+          <div><strong>Score:</strong> {{player.score}}</div>
         </v-col>
         <v-col>
-          <v-icon :color="iconColor">{{icon}}</v-icon>
-          {{player.user.name}}
-          <div><strong>Score:</strong> {{player.score}}</div>
+          <div v-if='player.passed'><strong>Passed</strong></div>
         </v-col>
       </v-row>
       <v-divider></v-divider>
@@ -66,7 +59,6 @@
 
 <script>
   import Deck from '@/components/deck/Deck'
-  import Button from '@/components/user/Button'
   import CurrentUser from '@/components/mixins/CurrentUser'
   import Player from '@/components/mixins/Player'
   import Color from '@/components/mixins/Color'
@@ -77,7 +69,6 @@
     mixins: [ CurrentUser, Player, Color ],
     name: 'sn-player-panel',
     components: {
-      'sn-user-btn': Button,
       'sn-deck': Deck
     },
     props: [ 'player', 'game' ],
@@ -85,22 +76,6 @@
       length: function () {
         var self = this
         return _.size(self.player.discard)
-      },
-      color: function () {
-        var self = this
-        return self.colorByPID(self.player.id)
-      },
-      playIcon: function () {
-        var self = this
-        return self.cpIs(self.player)
-      },
-      icon: function () {
-        var self = this
-        return self.playIcon ? 'play_arrow' : 'stop'
-      },
-      iconColor: function () {
-        var self = this
-        return self.playIcon ? 'green' : 'red'
       },
       canPass: function () {
         var self = this

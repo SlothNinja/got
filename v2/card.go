@@ -23,6 +23,17 @@ const (
 	sLampCard
 )
 
+type cardCount map[string]int
+
+func (cc *cardCount) inc(k cKind) {
+	m := *cc
+	if m == nil {
+		m = make(cardCount)
+	}
+	m[k.String()]++
+	*cc = m
+}
+
 func cardTypes() []cKind {
 	return []cKind{
 		lampCard,
@@ -40,16 +51,16 @@ func cardTypes() []cKind {
 
 var ctypeStrings = map[cKind]string{
 	noType:     "None",
-	lampCard:       "Lamp",
-	camelCard:      "Camel",
-	swordCard:      "Sword",
-	carpetCard:     "Carpet",
-	coinsCard:      "Coins",
+	lampCard:   "Lamp",
+	camelCard:  "Camel",
+	swordCard:  "Sword",
+	carpetCard: "Carpet",
+	coinsCard:  "Coins",
 	turbanCard: "Turban",
 	jewels:     "Jewels",
-	guardCard:      "Guard",
-	sCamelCard:     "Camel",
-	sLampCard:      "Lamp",
+	guardCard:  "Guard",
+	sCamelCard: "Camel",
+	sLampCard:  "Lamp",
 }
 
 var stringsCType = map[string]cKind{
@@ -78,48 +89,48 @@ func toCType(s string) (t cKind) {
 
 var ctypeValues = map[cKind]int{
 	noType:     0,
-	lampCard:       1,
-	camelCard:      4,
-	swordCard:      5,
-	carpetCard:     3,
-	coinsCard:      3,
+	lampCard:   1,
+	camelCard:  4,
+	swordCard:  5,
+	carpetCard: 3,
+	coinsCard:  3,
 	turbanCard: 2,
 	jewels:     2,
-	guardCard:      -1,
-	sCamelCard:     0,
-	sLampCard:      0,
+	guardCard:  -1,
+	sCamelCard: 0,
+	sLampCard:  0,
 }
 
-func (t cKind) String() string {
-	return ctypeStrings[t]
+func (ck cKind) String() string {
+	return ctypeStrings[ck]
 }
 
-func (t cKind) LString() string {
-	return strings.ToLower(t.String())
+func (ck cKind) lString() string {
+	return strings.ToLower(ck.String())
 }
 
-func (t cKind) IDString() string {
-	switch t {
+func (ck cKind) idString() string {
+	switch ck {
 	case sCamelCard:
 		return "start-camel"
 	case sLampCard:
 		return "start-lamp"
 	default:
-		return t.LString()
+		return ck.lString()
 	}
 }
 
-func (t cKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.IDString())
+func (ck cKind) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ck.idString())
 }
 
-func (t *cKind) UnmarshalJSON(bs []byte) error {
+func (ck *cKind) UnmarshalJSON(bs []byte) error {
 	var s string
 	err := json.Unmarshal(bs, &s)
 	if err != nil {
 		return err
 	}
-	*t = toCType(s)
+	*ck = toCType(s)
 	return nil
 }
 
@@ -134,6 +145,11 @@ func newCard(t cKind, f bool) *Card {
 		Kind:   t,
 		FaceUp: f,
 	}
+}
+
+// value provides the point value of a card.
+func (c *Card) value() int {
+	return ctypeValues[c.Kind]
 }
 
 // Cards is a slice of cards used to form player's hand or deck.
@@ -203,39 +219,6 @@ func (cs Cards) appendS(cards ...*Card) Cards {
 	return append(cs, cards...)
 }
 
-// IDString outputs a card id.
-func (c Card) IDString() string {
-	return c.Kind.IDString()
-}
-
 func newStartHand() Cards {
 	return Cards{newCard(sLampCard, true), newCard(sLampCard, true), newCard(sCamelCard, true)}
-}
-
-var toolTipStrings = map[cKind]string{
-	noType:     "None",
-	lampCard:       "Move in a straight line until coming to the edge of the grid, an empty space, or another Thief.",
-	camelCard:      "Move exactly 3 spaces in any direction. The spaces do not have to be in a straight line, but you cannot move over the same space twice.",
-	swordCard:      "Move in a straight line until you come to another player's thief. Bump that thief to the next card and place your thief on the vacated card.",
-	carpetCard:     "Move in a straight line over at least one empty space.  Stop moving your thief on the first card after the empty space(s).",
-	coinsCard:      "Move one space and then draw an additional card during the draw step. Your hand size is permanently increased by 1.",
-	turbanCard: "Move two spaces. Claim the first Magic Item you pass over in addition to the card you claim in the Claim Magic Item step.",
-	jewels:     "Move as if you played the card that was last played by an opponent.",
-	guardCard:      "This card cannot be played and does nothing for you in your hand.",
-	sCamelCard:     "Move exactly 3 spaces in any direction. The spaces do not have to be in a straight line, but you cannot move over the same space twice.",
-	sLampCard:      "Move in a straight line until coming to the edge of the grid, an empty space, or another Thief.",
-}
-
-// ToolTip outputs a description of the cards ability.
-func (c Card) ToolTip() string {
-	return c.Kind.toolTip()
-}
-
-func (t cKind) toolTip() string {
-	return toolTipStrings[t]
-}
-
-// Value provides the point value of a card.
-func (c *Card) Value() int {
-	return ctypeValues[c.Kind]
 }

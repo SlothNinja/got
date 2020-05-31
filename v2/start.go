@@ -7,36 +7,36 @@ import (
 )
 
 // Start begins a Guild of Thieves game.
-func (g *Game) start() {
+func (g *game) start() {
 	g.Status = sn.Running
 	g.setupPhase()
 
 	g.Phase = placeThievesPhase
 }
 
-func (g *Game) addNewPlayers() {
-	g.Players = make([]*Player, g.NumPlayers)
-	for i := range g.Players {
-		g.Players[i] = g.newPlayer(i)
+func (g *game) addNewPlayers() {
+	g.players = make([]*player, g.NumPlayers)
+	for i := range g.players {
+		g.players[i] = g.newPlayer(i)
 	}
 }
 
-func (g *Game) setupPhase() {
+func (g *game) setupPhase() {
 	g.addNewPlayers()
 	g.randomTurnOrder()
 	g.createGrid()
-	cp := g.nextPlayer(backward, g.Players[0])
+	cp := g.nextPlayer(backward, g.players[0])
 	g.setCurrentPlayer(cp)
 
-	g.newEntry(Message{
+	g.newEntry(message{
 		"template": "start-game",
 		"pids":     g.pids(),
 	})
 	g.Turn = 1
 }
 
-func (g *Game) randomTurnOrder() {
-	rand.Shuffle(len(g.Players), func(i, j int) {
-		g.Players[i], g.Players[j] = g.Players[j], g.Players[i]
+func (g *game) randomTurnOrder() {
+	rand.Shuffle(len(g.players), func(i, j int) {
+		g.players[i], g.players[j] = g.players[j], g.players[i]
 	})
 }

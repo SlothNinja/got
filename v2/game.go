@@ -9,38 +9,34 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
 	"github.com/gin-gonic/gin"
 )
 
-type Game struct {
+type game struct {
 	Key          *datastore.Key `datastore:"__key__"`
 	EncodedState string         `datastore:",noindex"`
 	EncodedLog   string         `datastore:",noindex"`
 	Header
-	State `datastore:"-"`
-	Log   `datastore:"-"`
+	glog
+	state
 }
 
-func newGame(id, rev int64) *Game {
-	g := new(Game)
-	g.Key = newGameKey(id, rev)
-	g.Type = sn.GOT
-	return g
+func newGame(id, rev int64) *game {
+	return &game{Key: newGameKey(id, rev)}
 }
 
 func newGameKey(id, rev int64) *datastore.Key {
 	return datastore.NameKey(gameKind, fmt.Sprintf("%d-%d", id, rev), rootKey(id))
 }
 
-func (g Game) ID() int64 {
+func (g game) id() int64 {
 	if g.Key == nil || g.Key.Parent == nil {
 		return 0
 	}
 	return g.Key.Parent.ID
 }
 
-func (g Game) Rev() int64 {
+func (g game) rev() int64 {
 	if g.Key == nil {
 		return 0
 	}
@@ -56,7 +52,7 @@ func (g Game) Rev() int64 {
 	return rev
 }
 
-func (client Client) getGame(c *gin.Context, inc ...int64) (*Game, error) {
+func (cl client) getGame(c *gin.Context, inc ...int64) (*game, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -75,7 +71,7 @@ func (client Client) getGame(c *gin.Context, inc ...int64) (*Game, error) {
 	}
 
 	g := newGame(id, undo.Current)
-	err = client.DS.Get(c, g.Key, g)
+	err = cl.DS.Get(c, g.Key, g)
 	if err != nil {
 		return nil, err
 	}
@@ -83,37 +79,37 @@ func (client Client) getGame(c *gin.Context, inc ...int64) (*Game, error) {
 	return g, nil
 }
 
-func (g *Game) Load(ps []datastore.Property) error {
+func (g *game) Load(ps []datastore.Property) error {
 	err := datastore.LoadStruct(g, ps)
 	if err != nil {
 		return err
 	}
 
-	var s State
+	var s state
 	err = json.Unmarshal([]byte(g.EncodedState), &s)
 	if err != nil {
 		return err
 	}
-	g.State = s
+	g.state = s
 
-	var l Log
+	var l glog
 	err = json.Unmarshal([]byte(g.EncodedLog), &l)
 	if err != nil {
 		return err
 	}
-	g.Log = l
+	g.glog = l
 	return nil
 }
 
-func (g *Game) Save() ([]datastore.Property, error) {
+func (g *game) Save() ([]datastore.Property, error) {
 
-	encodedState, err := json.Marshal(g.State)
+	encodedState, err := json.Marshal(g.state)
 	if err != nil {
 		return nil, err
 	}
 	g.EncodedState = string(encodedState)
 
-	encodedLog, err := json.Marshal(g.Log)
+	encodedLog, err := json.Marshal(g.glog)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +124,12 @@ func (g *Game) Save() ([]datastore.Property, error) {
 	return datastore.SaveStruct(g)
 }
 
-func (g *Game) LoadKey(k *datastore.Key) error {
+func (g *game) LoadKey(k *datastore.Key) error {
 	g.Key = k
 	return nil
 }
 
-func (g Game) MarshalJSON() ([]byte, error) {
+func (g game) MarshalJSON() ([]byte, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -148,7 +144,7 @@ func (g Game) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	s, err := json.Marshal(g.State)
+	s, err := json.Marshal(g.state)
 	if err != nil {
 		return nil, err
 	}
@@ -160,9 +156,9 @@ func (g Game) MarshalJSON() ([]byte, error) {
 	}
 
 	data["key"] = g.Key
-	data["id"] = g.ID()
-	data["log"] = g.Log
-	data["rev"] = g.Rev()
+	data["id"] = g.id()
+	data["log"] = g.glog
+	data["rev"] = g.rev()
 
 	for k, v := range state {
 		data[k] = v

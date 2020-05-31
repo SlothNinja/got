@@ -11,10 +11,11 @@ import (
 // Header provides game/invitation header data
 type Header struct {
 	TwoThiefVariant bool
-	Phase           Phase
+	Phase           phase
 	sn.Header
 }
 
+// MarshalJSON implements json.Marshaler interface
 func (h Header) MarshalJSON() ([]byte, error) {
 	snh, err := json.Marshal(h.Header)
 	if err != nil {
@@ -33,18 +34,20 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
+// GHeader stores game headers with associate game data.
 type GHeader struct {
 	Key *datastore.Key `datastore:"__key__"`
 	Header
 }
 
-func (gh GHeader) ID() int64 {
+func (gh GHeader) id() int64 {
 	if gh.Key == nil {
 		return 0
 	}
 	return gh.Key.ID
 }
 
+// MarshalJSON implements json.Marshaler interface
 func (gh GHeader) MarshalJSON() ([]byte, error) {
 	h, err := json.Marshal(gh.Header)
 	if err != nil {
@@ -58,7 +61,7 @@ func (gh GHeader) MarshalJSON() ([]byte, error) {
 	}
 
 	data["key"] = gh.Key
-	data["id"] = gh.ID()
+	data["id"] = gh.id()
 	data["lastUpdated"] = sn.LastUpdated(gh.UpdatedAt)
 	data["public"] = gh.Password == ""
 
@@ -73,10 +76,12 @@ func newGHeaderKey(id int64) *datastore.Key {
 	return datastore.IDKey(headerKind, id, rootKey(id))
 }
 
+// Load implements datastore.PropertyLoadSaver interface
 func (gh *GHeader) Load(ps []datastore.Property) error {
 	return datastore.LoadStruct(gh, ps)
 }
 
+// Save implements datastore.PropertyLoadSaver interface
 func (gh *GHeader) Save() ([]datastore.Property, error) {
 	t := time.Now()
 	if gh.CreatedAt.IsZero() {
@@ -86,6 +91,7 @@ func (gh *GHeader) Save() ([]datastore.Property, error) {
 	return datastore.SaveStruct(gh)
 }
 
+// LoadKey implements datastore.LoadKey interface
 func (gh *GHeader) LoadKey(k *datastore.Key) error {
 	gh.Key = k
 	return nil

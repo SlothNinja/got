@@ -2,6 +2,7 @@
   <v-app-bar
     hide-on-scroll
     clipped-left
+    clipped-right
     color='green'
     dark
     app

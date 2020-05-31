@@ -8,115 +8,100 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
-type Client struct {
+type client struct {
 	DS    *datastore.Client
 	Game  sn.Client
 	Cache *cache.Cache
 }
 
-func NewClient(dsClient *datastore.Client, mcache *cache.Cache) Client {
-	return Client{
+func newClient(dsClient *datastore.Client, mcache *cache.Cache) client {
+	return client{
 		DS:    dsClient,
 		Game:  sn.NewClient(dsClient),
 		Cache: mcache,
 	}
 }
 
-func (client Client) addRoutes(engine *gin.Engine) *gin.Engine {
+func (cl client) addRoutes(eng *gin.Engine) *gin.Engine {
 	////////////////////////////////////////////
 	// User Current
-	engine.GET(cuPath, client.Current)
+	eng.GET(cuPath, cl.current)
 
 	////////////////////////////////////////////
 	// Invitation Group
-	inv := engine.Group(invitationPath)
+	inv := eng.Group(invitationPath)
 
 	// New
-	inv.GET(newPath, client.newInvitation)
+	inv.GET(newPath, cl.newInvitation)
 
 	// Create
-	inv.PUT(newPath, client.create)
+	inv.PUT(newPath, cl.create)
 
 	// Drop
-	inv.PUT(dropPath, client.drop)
+	inv.PUT(dropPath, cl.drop)
 
 	// Accept
-	inv.PUT(acceptPath, client.accept)
+	inv.PUT(acceptPath, cl.accept)
 
 	/////////////////////////////////////////////
 	// Invitations Group
-	invs := engine.Group(invitationsPath)
+	invs := eng.Group(invitationsPath)
 
 	// Index
-	invs.GET("", client.invitationsIndex)
+	invs.GET("", cl.invitationsIndex)
 
 	// Game Group
-	g := engine.Group(gamePath)
+	g := eng.Group(gamePath)
 
 	// Show
-	g.GET(showPath, client.show)
+	g.GET(showPath, cl.show)
 
 	// Undo
-	g.PUT(undoPath, client.undo)
+	g.PUT(undoPath, cl.undo)
 
 	// Redo
-	g.PUT(redoPath, client.redo)
+	g.PUT(redoPath, cl.redo)
 
 	// Rest
-	g.PUT(resetPath, client.reset)
+	g.PUT(resetPath, cl.reset)
 
 	// Place Thief Finish
-	g.PUT(ptfinishPath, client.placeThievesFinishTurn)
+	g.PUT(ptfinishPath, cl.placeThievesFinishTurn)
 
 	// Move Thief Finish
-	g.PUT(mtfinishPath, client.moveThiefFinishTurn)
+	g.PUT(mtfinishPath, cl.moveThiefFinishTurn)
 
 	// Passed Finish
-	g.PUT(pfinishPath, client.passedFinishTurn)
-
-	// Update
-	g.PUT(updatePath, client.update)
+	g.PUT(pfinishPath, cl.passedFinishTurn)
 
 	// Place Thief
-	g.PUT(placeThiefPath, client.placeThief)
+	g.PUT(placeThiefPath, cl.placeThief)
 
 	// Play Card
-	g.PUT(playCardPath, client.playCard)
+	g.PUT(playCardPath, cl.playCard)
 
 	// Select Thief
-	g.PUT(selectThiefPath, client.selectThief)
+	g.PUT(selectThiefPath, cl.selectThief)
 
 	// Move Thief
-	g.PUT(moveThiefPath, client.moveThief)
+	g.PUT(moveThiefPath, cl.moveThief)
 
 	// Pass
-	g.PUT(passPath, client.pass)
+	g.PUT(passPath, cl.pass)
 
 	// Add Message
-	g.PUT(msgPath, client.Game.AddMessage(""))
+	g.PUT(msgPath, cl.Game.AddMessage(""))
 
 	// Games Group
-	gs := engine.Group(gamesPath)
-
-	// Index
-	// gs.GET("/:status", client.index)
-
-	gs.GET(indexPath, client.index)
+	gs := eng.Group(gamesPath)
 
 	// JSON Data for Index
-	gs.GET(gamesIndexPath, client.gamesIndex)
-
-	// // JSON Data for Index
-	// gs.POST("/:status/user/:uid/json",
-	// 	client.jsonIndexAction,
-	// )
+	gs.GET(gamesIndexPath, cl.gamesIndex)
 
 	// Admin Group
 	admin := g.Group(adminPath, user.RequireAdmin)
 
-	admin.GET(adminGetPath, client.show)
+	admin.GET(adminGetPath, cl.show)
 
-	admin.PUT(adminPutPath, client.update)
-
-	return engine
+	return eng
 }

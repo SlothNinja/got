@@ -7,13 +7,24 @@
 </template>
 
 <script>
+
+  const _ = require('lodash')
+
   export default {
     name: 'sn-space-image',
     props: ['value'],
     computed: {
       kind: function () {
         var self = this
-        return self.value ? self.value.kind : 'none'
+        var kind = _.get(self.value, 'kind', 'none')
+        switch (kind) {
+          case 'start-camel':
+            return 'camel'
+          case 'start-lamp':
+            return 'lamp'
+          default:
+            return kind
+        }
       }
     }
   }

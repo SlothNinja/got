@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/SlothNinja/log"
+	"github.com/gin-gonic/gin"
 )
 
-type Grid [][]*Area
+type grid [][]*Area
 
-func (g Grid) Each(f func(*Area)) {
+func (g grid) each(f func(*Area)) {
 	for row := range g {
 		for _, a := range g[row] {
 			f(a)
@@ -74,19 +77,19 @@ type Area struct {
 	Clickable bool  `json:"clickable"`
 }
 
-// SelectedThiefArea returns the area corresponding to a previously selected thief.
-func (g *Game) SelectedThiefArea() *Area {
-	return g.getArea(g.SelectedThiefAreaID)
+// selectedThiefArea returns the area corresponding to a previously selected thief.
+func (g *game) selectedThiefArea() *Area {
+	return g.getArea(g.thiefAreaID)
 }
 
-func (g *Game) getArea(id areaID) *Area {
+func (g *game) getArea(id areaID) *Area {
 	if id.Row < rowA || id.Row > g.lastRow() {
 		return nil
 	}
 	if id.Column < col1 || id.Column > col8 {
 		return nil
 	}
-	return g.Grid[id.Row-1][id.Column-1]
+	return g.grid[id.Row-1][id.Column-1]
 }
 
 func newArea(id areaID, card *Card) *Area {
@@ -97,21 +100,21 @@ func newArea(id areaID, card *Card) *Area {
 	}
 }
 
-func (h *Game) lastRow() aRow {
+func (g *game) lastRow() aRow {
 	row := rowG
-	if h.NumPlayers == 2 {
+	if g.NumPlayers == 2 {
 		row = rowF
 	}
 	return row
 }
 
-func (h *Game) createGrid() {
+func (g *game) createGrid() {
 	deck := newDeck()
-	h.Grid = make(Grid, h.lastRow())
-	for row := rowA; row <= h.lastRow(); row++ {
-		h.Grid[row-1] = make([]*Area, 8)
+	g.grid = make(grid, g.lastRow())
+	for row := rowA; row <= g.lastRow(); row++ {
+		g.grid[row-1] = make([]*Area, 8)
 		for col := col1; col <= col8; col++ {
-			h.Grid[row-1][col-1] = newArea(areaID{row, col}, deck.draw())
+			g.grid[row-1][col-1] = newArea(areaID{row, col}, deck.draw())
 		}
 	}
 }
@@ -131,4 +134,69 @@ func hasArea(as []*Area, a2 *Area) bool {
 		}
 	}
 	return false
+}
+
+func (g *game) updateClickablesFor(c *gin.Context, p *player, ta *Area) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	canClick := g.canClick(c, p, ta)
+	g.grid.each(func(a *Area) { a.Clickable = canClick(a) })
+}
+
+// canClick a function specialized by current game context to test whether a player can click on
+// a particular area in the grid.  The main benefit is the function provides a closure around area computions,
+// essentially caching the results.
+func (g *game) canClick(c *gin.Context, p *player, ta *Area) func(*Area) bool {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	ff := func(a *Area) bool { return false }
+	cp, err := g.validatePlayerAction(c)
+	switch {
+	case g == nil:
+		return ff
+	case err != nil:
+		return ff
+	case g.Phase == placeThievesPhase:
+		return func(a *Area) bool { return a.Thief == noPID }
+	case g.Phase == selectThiefPhase:
+		return func(a *Area) bool { return a.Thief == cp.ID }
+	case g.Phase == moveThiefPhase:
+		switch {
+		case p == nil:
+			return ff
+		case p.ID != cp.ID:
+			return ff
+		case g.playedCard == nil:
+			return ff
+		case ta == nil:
+			return ff
+		case g.playedCard.Kind == lampCard || g.playedCard.Kind == sLampCard:
+			as := g.lampAreas(ta)
+			return func(a *Area) bool { return hasArea(as, a) }
+		case g.playedCard.Kind == camelCard || g.playedCard.Kind == sCamelCard:
+			as := g.camelAreas(ta)
+			return func(a *Area) bool { return hasArea(as, a) }
+		case g.playedCard.Kind == swordCard:
+			as := g.swordAreas(cp, ta)
+			return func(a *Area) bool { return hasArea(as, a) }
+		case g.playedCard.Kind == carpetCard:
+			as := g.carpetAreas()
+			return func(a *Area) bool { return hasArea(as, a) }
+		case g.playedCard.Kind == turbanCard && g.stepped == 0:
+			as := g.turban0Areas(ta)
+			return func(a *Area) bool { return hasArea(as, a) }
+		case g.playedCard.Kind == turbanCard && g.stepped == 1:
+			as := g.turban1Areas(ta)
+			return func(a *Area) bool { return hasArea(as, a) }
+		case g.playedCard.Kind == coinsCard:
+			as := g.coinsAreas(ta)
+			return func(a *Area) bool { return hasArea(as, a) }
+		default:
+			return ff
+		}
+	default:
+		return ff
+	}
 }
