@@ -48,7 +48,7 @@ func (g *game) placeThief(c *gin.Context) error {
 
 	cp.PerformedAction = true
 	cp.Score += a.Card.value()
-	cp.Stats.Placed[g.Turn-1] = a.Card.Kind
+	cp.Stats.Placed[g.Turn-1].inc(a.Card.Kind)
 	a.Thief = cp.ID
 
 	g.Undo.Update()

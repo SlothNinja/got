@@ -1,4 +1,3 @@
-// Package got implements the card game, Guild of Thieves.
 package main
 
 import (
@@ -49,6 +48,19 @@ func (g *game) playerByUserID(id int64) *player {
 
 	for _, p := range g.players {
 		if p != nil && p.User != nil && p.User.ID() == id {
+			return p
+		}
+	}
+	return nil
+}
+
+func (g *game) playerByUserKey(key *datastore.Key) *player {
+	if key == nil {
+		return nil
+	}
+
+	for _, p := range g.players {
+		if p != nil && p.User != nil && p.User.Key.Equal(key) {
 			return p
 		}
 	}

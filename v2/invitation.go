@@ -31,7 +31,7 @@ func (inv invitation) MarshalJSON() ([]byte, error) {
 	data["key"] = inv.Key
 	data["id"] = inv.ID()
 	data["lastUpdated"] = sn.LastUpdated(inv.UpdatedAt)
-	data["public"] = inv.Password == ""
+	data["public"] = len(inv.Password) == 0
 
 	return json.Marshal(data)
 }

@@ -7,7 +7,7 @@
         <span v-html='snackbar.message'></span>
       </div>
     </sn-snackbar>
-    <v-content>
+    <v-main>
       <v-container>
   <v-card>
     <v-card-title primary-title>
@@ -15,55 +15,128 @@
     </v-card-title>
     <v-card-text>
       <v-data-table
-         :headers="headers"
-         :items="items"
-         >
-         <template v-slot:item.creator="{ item }">
-           <sn-user-btn :user="item.creator" size="x-small"></sn-user-btn>&nbsp;{{item.creator.name}}
-         </template>
+        :headers="headers"
+        :items="items"
+        show-expand
+        single-expand
+      >
          <template v-slot:item.players="{ item }">
-           <div class="py-1" v-for="user in item.users" :key="user.id" >
-             <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
-           </div>
+           <span class="py-1" v-for="user in item.users" :key="user.id" >{{user.name}}</span>
          </template>
          <template v-slot:item.public="{ item }">
            {{publicPrivate(item)}}
          </template>
-         <template v-slot:item.actions="{ item }">
-           <v-btn 
-             x-small
-             rounded
-             width='62'
-             v-if="canAccept(item.id)"
-             @click="action('accept', item.id)"
-             color='info'
-             dark
-             >
-             Accept
-           </v-btn>
-           <v-btn 
-             x-small
-             rounded
-             width='62'
-             v-if="canDrop(item.id)"
-             @click="action('drop', item.id)"
-             color='info'
-             dark
-             >
-             Drop
-           </v-btn>
+         <template v-slot:expanded-item="{ headers, item }">
+           <sn-expanded-row
+             :span='headers.length'
+             :item='item'
+             @action='action($event)'
+           >
+           </sn-expanded-row>
+           <!--
+           <td :colspan='headers.length'>
+           <v-container fluid>
+             <v-row no-gutters >
+               <v-col cols=2></v-col>
+               <v-col cols=2></v-col>
+               <v-col cols=2>GLO</v-col>
+               <v-col cols=2>Played</v-col>
+               <v-col cols=2>Won</v-col>
+               <v-col cols=2>Win %</v-col>
+             </v-row>
+             <v-row no-gutters>
+               <v-col cols=2>Invite from:</v-col>
+               <v-col cols=2>
+                  <sn-user-btn :user="item.creator" size="x-small"></sn-user-btn> {{item.creator.name}}
+               </v-col>
+               <v-col cols=2>0</v-col>
+               <v-col cols=2>0</v-col>
+               <v-col cols=2>0</v-col>
+               <v-col cols=2>0</v-col>
+             </v-row>
+             <v-row no-gutters v-if='cu.id != item.creator.id'>
+               <v-col cols=2>Your Experience:</v-col>
+               <v-col cols=2>
+                  <sn-user-btn :user="cu" size="x-small"></sn-user-btn> {{cu.name}}
+               </v-col>
+               <v-col cols=2>0</v-col>
+               <v-col cols=2>0</v-col>
+               <v-col cols=2>0</v-col>
+               <v-col cols=2>0</v-col>
+             </v-row>
+             <v-row v-if='!item.public'>
+               <v-col cols='4'>
+                 <v-text-field
+                   v-model='password'
+                   :append-icon="show ? 'mdi-eye' : 'mdi-eye-off'"
+                   :rules="[rules.required, rules.min]"
+                   :type="show ? 'text' : 'password'"
+                   label='Password'
+                   placeholder='Enter Password'
+                   clearable
+                   autofocus
+                   dense
+                   outlined
+                   rounded
+                   hint='At least 8 characters'
+                   counter
+                   @click:append="show = !show"
+                 >
+                 </v-text-field>
+               </v-col>
+               <v-col cols='2'>
+                 <v-btn 
+                   x-small
+                   rounded
+                   :disabled='disabled'
+                   @click="action('accept', item.id)"
+                   color='info'
+                   dark
+                 >
+                   Accept
+                 </v-btn>
+               </v-col>
+             </v-row>
+             <v-row v-if='item.public && canAccept(item.id)'>
+               <v-btn 
+                 x-small
+                 rounded
+                 width='62'
+                 @click="action('accept', item.id)"
+                 color='info'
+                 dark
+                 >
+                 Accept
+               </v-btn>
+             </v-row>
+             <v-row>
+               <v-btn 
+                 x-small
+                 rounded
+                 width='62'
+                 v-if="canDrop(item.id)"
+                 @click="action('drop', item.id)"
+                 color='info'
+                 dark
+                 >
+                 Drop
+               </v-btn>
+             </v-row>
+           </v-container>
+           </td>
+           -->
          </template>
       </v-data-table>
     </v-card-text>
   </v-card>
       </v-container>
-    </v-content>
+    </v-main>
     <sn-footer app></sn-footer>
   </v-app>
 </template>
 
 <script>
-  import UserButton from '@/components/user/Button'
+  import Expansion from '@/components/invitation/Expansion'
   import Toolbar from '@/components/Toolbar'
   import NavDrawer from '@/components/NavDrawer'
   import Snackbar from '@/components/Snackbar'
@@ -75,7 +148,7 @@
   export default {
     name: 'index',
     components: {
-      'sn-user-btn': UserButton,
+      'sn-expanded-row': Expansion,
       'sn-toolbar': Toolbar,
       'sn-nav-drawer': NavDrawer,
       'sn-snackbar': Snackbar,
@@ -83,21 +156,22 @@
     },
     data () {
       return {
+        password: '',
+        show: false,
         headers: [
-          {
-            text: 'ID',
-            align: 'left',
-            sortable: true,
-            value: 'id'
-          },
+          { text: '', value: 'data-table-expand' },
+          { text: 'ID', align: 'left', sortable: true, value: 'id' },
           { text: 'Title', value: 'title' },
-          { text: 'Creator', value: 'creator' },
+          { text: 'Creator', value: 'creator.name' },
           { text: 'Num Players', value: 'numPlayers' },
           { text: 'Players', value: 'players' },
           { text: 'Last Updated', value: 'lastUpdated' },
-          { text: 'Public/Private', value: 'public' },
-          { text: 'Actions', value: 'actions' }
+          { text: 'Public/Private', value: 'public' }
         ],
+        rules: {
+          required: value => !!value || 'Required.',
+          min: v => _.size(v) >= 8 || 'Min 8 characters'
+        },
         items: []
       }
     },
@@ -130,9 +204,15 @@
             self.snackbar.open = true
         })
       },
-      action: function (action, id) {
+      action: function (obj) {
         var self = this
-        axios.put(`/invitation/${action}/${id}`)
+        var data = {}
+        var action = _.get(obj, 'action', false)
+        if (action == 'accept') {
+          data = { password: self.password }
+        }
+        var id = _.get(obj, 'item.id', 0)
+        axios.put(`/invitation/${action}/${id}`, data)
           .then(function (response) {
             var msg = _.get(response, 'data.message', false)
             if (msg) {
@@ -181,6 +261,10 @@
       }
     },
     computed: {
+      disabled: function () {
+        var self = this
+        return _.size(self.password) < 8
+      },
       cu: {
         get: function () {
           return this.$root.cu

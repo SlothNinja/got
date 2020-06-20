@@ -98,19 +98,8 @@ func (cl client) passedFinishTurn(c *gin.Context) {
 	}
 
 	if end {
-		g.finalClaim(c)
-		ps, err := cl.endGame(c, g)
-		cs := sn.GenContests(c, ps)
-		g.Status = sn.Completed
-
-		// Need to call SendTurnNotificationsTo before saving the new contests
-		// SendEndGameNotifications relies on pulling the old contests from the db.
-		// Saving the contests resulting in double counting.
-		err = cl.sendEndGameNotifications(c, g, ps, cs)
-		if err != nil {
-			// log but otherwise ignore send errors
-			log.Warningf(err.Error())
-		}
+		cl.endGame(c, g)
+		return
 	}
 
 	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {

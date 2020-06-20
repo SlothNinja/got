@@ -63,7 +63,7 @@ func (gh GHeader) MarshalJSON() ([]byte, error) {
 	data["key"] = gh.Key
 	data["id"] = gh.id()
 	data["lastUpdated"] = sn.LastUpdated(gh.UpdatedAt)
-	data["public"] = gh.Password == ""
+	data["public"] = len(gh.Password) == 0
 
 	return json.Marshal(data)
 }
@@ -96,29 +96,3 @@ func (gh *GHeader) LoadKey(k *datastore.Key) error {
 	gh.Key = k
 	return nil
 }
-
-// func (gh GHeader) MarshalJSON() ([]byte, error) {
-// 	type JGHeader GHeader
-//
-// 	return json.Marshal(struct {
-// 		JGHeader
-// 		ID           int64   `json:"id"`
-// 		Creator      *User   `json:"creator"`
-// 		Users        []*User `json:"users"`
-// 		LastUpdated  string  `json:"lastUpdated"`
-// 		Public       bool    `json:"public"`
-// 		CreatorEmail omit    `json:"creatorEmail,omitempty"`
-// 		CreatorKey   omit    `json:"creatorKey,omitempty"`
-// 		CreatorName  omit    `json:"creatorName,omitempty"`
-// 		UserEmails   omit    `json:"userEmails,omitempty"`
-// 		UserKeys     omit    `json:"userKeys,omitempty"`
-// 		UserNames    omit    `json:"userNames,omitempty"`
-// 	}{
-// 		JGHeader:    JGHeader(gh),
-// 		ID:          gh.Key.ID,
-// 		Creator:     toUser(gh.CreatorKey, gh.CreatorName, gh.CreatorEmail),
-// 		Users:       toUsers(gh.UserKeys, gh.UserNames, gh.UserEmails),
-// 		LastUpdated: sn.LastUpdated(gh.UpdatedAt),
-// 		Public:      gh.Password == "",
-// 	})
-// }

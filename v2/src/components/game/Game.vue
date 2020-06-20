@@ -46,7 +46,7 @@
       <div class='text-center'>{{sbMessage}}</div>
     </sn-snackbar>
 
-    <v-content>
+    <v-main>
       <v-container fluid style='overflow:auto'>
         <v-card min-width='1185' min-height='740' flat class='theme--light v-application' >
           <v-row>
@@ -99,7 +99,7 @@
         </sn-card-bar>
 
       </v-container>
-    </v-content>
+    </v-main>
 
     <sn-footer></sn-footer>
 

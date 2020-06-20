@@ -33,15 +33,15 @@
         </tr>
         <tr>
           <td>Thief 1 Placed On</td>
-          <td class='text-center' v-for="player in game.players" :key="`player-${player.id}-thief-1`">{{player.stats.placed[0]}}</td>
+          <td class='text-center' v-for="player in game.players" :key="`player-${player.id}-thief-1`">{{thief(player, 0)}}</td>
         </tr>
         <tr>
           <td>Thief 2 Placed On</td>
-          <td class='text-center' v-for="player in game.players" :key="`player-${player.id}-thief-2`">{{player.stats.placed[1]}}</td>
+          <td class='text-center' v-for="player in game.players" :key="`player-${player.id}-thief-2`">{{thief(player, 1)}}</td>
         </tr>
         <tr>
           <td>Thief 3 Placed On</td>
-          <td class='text-center' v-for="player in game.players" :key="`player-${player.id}-thief-3`">{{player.stats.placed[2]}}</td>
+          <td class='text-center' v-for="player in game.players" :key="`player-${player.id}-thief-3`">{{thief(player, 2)}}</td>
         </tr>
         <tr>
           <td>Claimed Lamps</td>
@@ -144,6 +144,9 @@
       'sn-user-btn': Button
     },
     methods: {
+      thief: function (player, index) {
+        return _.get(_.invert(player.stats.placed[index]), 1, 'none')
+      },
       claimed: function (player, kind) {
         var claimed = _.get(player, 'stats.claimed', false)
         if (!claimed) {

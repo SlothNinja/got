@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"net/http"
 
+	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/send"
@@ -13,26 +15,66 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-func (cl client) endGame(c *gin.Context, g *game) (sn.Places, error) {
+func (cl client) endGame(c *gin.Context, g *game) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
+	g.finalClaim(c)
 	ps, err := cl.determinePlaces(c, g)
 	if err != nil {
-		return nil, err
+		jerr(c, err)
+		return
 	}
 	g.setWinners(ps[0])
-	return ps, nil
+
+	cs := sn.GenContests(c, ps)
+	g.Status = sn.Completed
+
+	stats, err := cl.updateUStats(c, g)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
+		g.Undo.Commit()
+		ks, es := g.save()
+		for _, contest := range cs {
+			ks = append(ks, contest.Key)
+			es = append(es, contest)
+		}
+		for _, stat := range stats {
+			ks = append(ks, stat.Key)
+			es = append(es, stat)
+		}
+		_, err := tx.PutMulti(ks, es)
+		return err
+	})
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	// Need to call SendTurnNotificationsTo before saving the new contests
+	// SendEndGameNotifications relies on pulling the old contests from the db.
+	// Saving the contests resulting in double counting.
+	err = cl.sendEndGameNotifications(c, g, ps, cs)
+	if err != nil {
+		// log but otherwise ignore send errors
+		log.Warningf(err.Error())
+	}
+	c.JSON(http.StatusOK, gin.H{"game": g})
+
 }
 
 func (g *game) setWinners(rmap sn.ResultsMap) {
 	g.Status = sn.Completed
 
 	g.setCurrentPlayer(nil)
-	g.WinnerIDS = nil
-	for key := range rmap {
-		p := g.playerByUserID(key.ID)
-		g.WinnerIDS = append(g.WinnerIDS, p.ID)
+	g.WinnerKeys = nil
+	for k := range rmap {
+		p := g.playerByUserKey(k)
+		g.WinnerKeys = append(g.WinnerKeys, p.User.Key)
 	}
 }
 
@@ -133,14 +175,14 @@ func (cl client) sendEndGameNotifications(c *gin.Context, g *game, ps sn.Places,
 }
 
 func (g *game) winners() Players {
-	l := len(g.WinnerIDS)
+	l := len(g.WinnerKeys)
 	if l == 0 {
 		return nil
 
 	}
 	ps := make(Players, l)
-	for i, pid := range g.WinnerIDS {
-		ps[i] = g.playerByID(pid)
+	for i, k := range g.WinnerKeys {
+		ps[i] = g.playerByUserKey(k)
 	}
 	return ps
 }

@@ -43,6 +43,9 @@ func (cl client) addRoutes(eng *gin.Engine) *gin.Engine {
 	// Accept
 	inv.PUT(acceptPath, cl.accept)
 
+	// Details
+	inv.GET(detailsPath, cl.details)
+
 	/////////////////////////////////////////////
 	// Invitations Group
 	invs := eng.Group(invitationsPath)
@@ -50,6 +53,7 @@ func (cl client) addRoutes(eng *gin.Engine) *gin.Engine {
 	// Index
 	invs.GET("", cl.invitationsIndex)
 
+	/////////////////////////////////////////////
 	// Game Group
 	g := eng.Group(gamePath)
 
@@ -102,6 +106,9 @@ func (cl client) addRoutes(eng *gin.Engine) *gin.Engine {
 	admin := g.Group(adminPath, user.RequireAdmin)
 
 	admin.GET(adminGetPath, cl.show)
+
+	// Ratings
+	eng = cl.Game.AddRoutes(ratingPrefix, eng)
 
 	return eng
 }

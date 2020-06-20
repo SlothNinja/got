@@ -7,7 +7,7 @@
         {{snackbar.message}}
       </div>
     </sn-snackbar>
-    <v-content>  
+    <v-main>  
       <v-container grid-list-md >
         <v-layout row wrap>
           <v-flex xs6>
@@ -84,7 +84,7 @@
           </v-flex>
         </v-layout>
       </v-container>
-    </v-content>
+    </v-main>
     <sn-footer></sn-footer>
   </v-app>
 </template>

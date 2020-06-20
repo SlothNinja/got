@@ -1,18 +1,21 @@
 <template>
   <v-snackbar
     bottom
-    color="info"
+    color='info'
     vertical
-    v-model="open"
+    v-model='open'
   >
     <slot></slot>
 
-    <v-btn
-      text
-      @click.native="open = false"
-    >
-      Close
-    </v-btn>
+    <template v-slot:action='{ attrs }'>
+      <v-btn
+        v-bind='attrs'
+        text
+        @click.native='open = false'
+      >
+        Close
+      </v-btn>
+    </template>
   </v-snackbar>
 </template>
 

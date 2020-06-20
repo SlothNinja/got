@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	nodeEnv       = "NODE_ENV"
+	nodeEnv        = "NODE_ENV"
 	production     = "production"
 	userPrefix     = "user"
 	gamesPrefix    = "games"

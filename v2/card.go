@@ -7,7 +7,7 @@ import (
 	"github.com/SlothNinja/sn/v2"
 )
 
-type cKind int
+type cKind uint8
 
 const (
 	noType cKind = iota
@@ -23,7 +23,8 @@ const (
 	sLampCard
 )
 
-type cardCount map[string]int
+type cardCount map[string]uint32
+type cardCountAverages map[string]float32
 
 func (cc *cardCount) inc(k cKind) {
 	m := *cc
@@ -32,6 +33,29 @@ func (cc *cardCount) inc(k cKind) {
 	}
 	m[k.String()]++
 	*cc = m
+}
+
+func (cc *cardCount) add(cc2 cardCount) {
+	m := *cc
+	if m == nil {
+		m = make(cardCount)
+	}
+	for k, v := range cc2 {
+		m[k] += v
+	}
+	*cc = m
+}
+
+func (cc *cardCount) avg(played int64) cardCountAverages {
+	if cc == nil || played == 0 {
+		return make(cardCountAverages)
+	}
+
+	cca := make(cardCountAverages)
+	for k, v := range *cc {
+		cca[k] = float32(v) / float32(played)
+	}
+	return cca
 }
 
 func cardTypes() []cKind {

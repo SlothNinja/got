@@ -2,7 +2,6 @@ package main
 
 import (
 	"sort"
-	"time"
 
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn/v2"
@@ -21,16 +20,6 @@ type player struct {
 	DrawPile        Cards      `json:"drawPile"`
 	DiscardPile     Cards      `json:"discardPile"`
 	Stats           stats      `json:"stats"`
-}
-
-type stats struct {
-	Moves    int           `json:"moves"`
-	Played   cardCount     `json:"played"`
-	JewelsAs cardCount     `json:"jewelsAs"`
-	Claimed  cardCount     `json:"claimed"`
-	Placed   [3]cKind      `json:"placed"`
-	Think    time.Duration `json:"think"`
-	Finish   int           `json:"finish"`
 }
 
 func (g *game) pids() []int {
@@ -177,9 +166,7 @@ func (cl client) determinePlaces(c *gin.Context, g *game) (sn.Places, error) {
 		} else if i == len(g.players)-1 {
 			places = append(places, rmap)
 		}
-		finish := len(places)
-		log.Debugf("finish: %d", finish)
-		p1.Stats.Finish = finish
+		p1.Stats.Finish = uint64(len(places))
 	}
 	return places, nil
 }

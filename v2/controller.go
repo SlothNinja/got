@@ -13,6 +13,7 @@ import (
 	"github.com/SlothNinja/sn/v2"
 	"github.com/SlothNinja/user/v2"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (cl client) show(c *gin.Context) {
@@ -184,7 +185,13 @@ func (inv *invitation) fromForm(c *gin.Context, cu *user.User) error {
 		inv.NumPlayers = obj.NumPlayers
 	}
 
-	inv.Password = obj.Password
+	if len(obj.Password) > 0 {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(obj.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		inv.Password = hashed
+	}
 	inv.AddCreator(cu)
 	inv.TwoThiefVariant = obj.TwoThiefVariant
 	inv.AddUser(cu)
@@ -209,8 +216,20 @@ func (cl client) accept(c *gin.Context) {
 		return
 	}
 
-	pwd := c.Param("password")
-	start, err := inv.Accept(cu, pwd)
+	obj := struct {
+		Password string `json:"password"`
+	}{}
+
+	err = c.ShouldBind(&obj)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	log.Debugf("obj.Password: %s", obj.Password)
+	log.Debugf("inv.Password: %s", inv.Password)
+
+	start, err := inv.Accept(cu, []byte(obj.Password))
 	if err != nil {
 		jerr(c, err)
 		return
@@ -263,6 +282,56 @@ func (cl client) accept(c *gin.Context) {
 			<div><strong>%s</strong> is start player.</div>`,
 			inv.ID(), cp.User.Name),
 	})
+}
+
+type detail struct {
+	ID  int64 `json:"id"`
+	GLO int   `json:"glo"`
+}
+
+func (cl client) details(c *gin.Context) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	inv, err := cl.getInvitation(c)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	cu, err := user.FromSession(c)
+	if err != nil || cu == nil {
+		jerr(c, sn.ErrUserNotFound)
+		return
+	}
+
+	ks := make([]*datastore.Key, len(inv.UserKeys))
+	copy(ks, inv.UserKeys)
+
+	hasKey := false
+	for _, k := range inv.UserKeys {
+		if k.Equal(cu.Key) {
+			hasKey = true
+			break
+		}
+	}
+
+	if !hasKey {
+		ks = append(ks, cu.Key)
+	}
+
+	ratings, err := cl.Game.GetMulti(c, ks, inv.Type)
+	if err != nil {
+		jerr(c, err)
+		return
+	}
+
+	details := make([]detail, len(ratings))
+	for i, rating := range ratings {
+		details[i] = detail{ID: rating.Key.Parent.ID, GLO: rating.Rank().GLO()}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"details": details})
 }
 
 func (g *game) cache() (*datastore.Key, interface{}) {

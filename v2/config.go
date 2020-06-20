@@ -8,6 +8,7 @@ const (
 	gameKind       = "Game"
 	headerKind     = "Header"
 	rootKind       = "Root"
+	ustatsKind     = "UStats"
 	noPID          = 0
 
 	forward  direction = 1
@@ -27,6 +28,7 @@ const (
 	pfinishPath     = "/pfinish/:" + idParam
 	dropPath        = "/drop/:" + idParam
 	acceptPath      = "/accept/:" + idParam
+	detailsPath     = "/details/:" + idParam
 	updatePath      = showPath
 	placeThiefPath  = "place-thief/:" + idParam
 	selectThiefPath = "select-thief/:" + idParam

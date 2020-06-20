@@ -7,7 +7,7 @@
         {{snackbar.message}}
       </div>
     </sn-snackbar>
-    <v-content>
+    <v-main>
       <v-card height="37em">
         <v-card-text>
           <v-container>
@@ -48,7 +48,7 @@
           </v-container>
         </v-card-text>
       </v-card>
-    </v-content>
+    </v-main>
     <sn-footer app></sn-footer>
   </v-app>
 </template>

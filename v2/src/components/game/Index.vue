@@ -7,7 +7,7 @@
         <span v-html='snackbar.message'></span>
       </div>
     </sn-snackbar>
-    <v-content>
+    <v-main>
       <v-container>
   <v-card>
     <v-card-title primary-title>
@@ -68,7 +68,7 @@
     </v-card-text>
   </v-card>
       </v-container>
-    </v-content>
+    </v-main>
     <sn-footer app></sn-footer>
   </v-app>
 </template>
