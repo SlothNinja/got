@@ -68,8 +68,8 @@ github.com/SlothNinja/send v1.0.0 h1:uowNL42qqifOIgBHO9xVumcCND6O4saizsJFv+HOXpc
 github.com/SlothNinja/send v1.0.0/go.mod h1:87Tqrad+LSiWi6UJBEg31jTAM1ll7Ob3btjFYtCYSRg=
 github.com/SlothNinja/sn/v2 v2.0.0-alpha.1 h1:bDG/NL1xikI+d8QFMolx3yZe4mw/zluZjInmUW7rUdA=
 github.com/SlothNinja/sn/v2 v2.0.0-alpha.1/go.mod h1:uc+VqtuoIhdc7IyaYXp3Yn7v4hnAEnfyPhG/n59UBEE=
-github.com/SlothNinja/sn/v2 v2.0.0-alpha.4 h1:Pqwbdb2DkpWbDg9h8g/r9aV1BLRBCSFFNmwpZbVPgwc=
-github.com/SlothNinja/sn/v2 v2.0.0-alpha.4/go.mod h1:GZkrrNelhD/ta7juARQNW+wjekdiXS29qq+10i4IsSE=
+github.com/SlothNinja/sn/v2 v2.0.0-alpha.8 h1:37fbVpdiM4gMZWG0sfwuZpp0po6HZiYRfeQDGWPcwZU=
+github.com/SlothNinja/sn/v2 v2.0.0-alpha.8/go.mod h1:GZkrrNelhD/ta7juARQNW+wjekdiXS29qq+10i4IsSE=
 github.com/SlothNinja/user/v2 v2.0.0-alpha.8 h1:SgwM168vxxU5HZa9Oo7zxvZYv55BxaGGj8mfh50H2F8=
 github.com/SlothNinja/user/v2 v2.0.0-alpha.8/go.mod h1:RdFPJNSUFfM2gM0t53MQgf2yoQUw5Dpk0HkUdZaeP90=
 github.com/SlothNinja/user/v2 v2.0.0-alpha.9 h1:1Wl1N/IvC2p+DMThP6kciqb4iLCBIZSkajmFYRq3nJk=

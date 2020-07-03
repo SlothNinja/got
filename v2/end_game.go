@@ -15,6 +15,8 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
+type crmap map[*datastore.Key]*sn.CurrentRating
+
 func (cl client) endGame(c *gin.Context, g *game) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
@@ -36,12 +38,32 @@ func (cl client) endGame(c *gin.Context, g *game) {
 		return
 	}
 
+	crs := make(crmap, len(g.UserKeys))
+	for _, ukey := range g.UserKeys {
+		crs[ukey], err = cl.Game.GetProjectedRating(c, ukey, g.Type)
+		if err != nil {
+			jerr(c, err)
+			return
+		}
+	}
+
+	nrs := make(crmap, len(g.UserKeys))
+	for _, ukey := range g.UserKeys {
+		nrs[ukey], err = crs[ukey].Projected(cs[ukey])
+		if err != nil {
+			jerr(c, err)
+			return
+		}
+	}
+
 	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		g.Undo.Commit()
 		ks, es := g.save()
-		for _, contest := range cs {
-			ks = append(ks, contest.Key)
-			es = append(es, contest)
+		for _, contests := range cs {
+			for _, contest := range contests {
+				ks = append(ks, contest.Key)
+				es = append(es, contest)
+			}
 		}
 		for _, stat := range stats {
 			ks = append(ks, stat.Key)
@@ -58,7 +80,7 @@ func (cl client) endGame(c *gin.Context, g *game) {
 	// Need to call SendTurnNotificationsTo before saving the new contests
 	// SendEndGameNotifications relies on pulling the old contests from the db.
 	// Saving the contests resulting in double counting.
-	err = cl.sendEndGameNotifications(c, g, ps, cs)
+	err = cl.sendEndGameNotifications(c, g, ps, crs, nrs)
 	if err != nil {
 		// log but otherwise ignore send errors
 		log.Warningf(err.Error())
@@ -85,7 +107,7 @@ type result struct {
 
 type results []result
 
-func (cl client) sendEndGameNotifications(c *gin.Context, g *game, ps sn.Places, cs []*sn.Contest) error {
+func (cl client) sendEndGameNotifications(c *gin.Context, g *game, ps sn.Places, crs, nrs crmap) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -96,10 +118,7 @@ func (cl client) sendEndGameNotifications(c *gin.Context, g *game, ps sn.Places,
 	for place, rmap := range ps {
 		for k := range rmap {
 			p := g.playerByUserID(k.ID)
-			cr, nr, err := cl.Game.IncreaseFor(c, p.User.Key, g.Type, cs)
-			if err != nil {
-				log.Warningf(err.Error())
-			}
+			cr, nr := crs[k], nrs[k]
 			clo, nlo := cr.Rank().GLO(), nr.Rank().GLO()
 			inc := nlo - clo
 

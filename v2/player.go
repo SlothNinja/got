@@ -134,7 +134,7 @@ func (cl client) determinePlaces(c *gin.Context, g *game) (sn.Places, error) {
 		results := make(sn.Results, 0)
 		tie := false
 		for j, p2 := range g.players {
-			r, err := cl.Game.For(c, p2.User.Key, g.Type)
+			r, err := cl.Game.GetRating(c, p2.User.Key, g.Type)
 			if err != nil {
 				log.Warningf(err.Error())
 				return nil, err
