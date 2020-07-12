@@ -27,7 +27,7 @@
 
     <v-card-text>
       <div>
-      {{message.message}}
+      {{message.text}}
       </div>
 
       <v-divider></v-divider>
@@ -47,15 +47,9 @@
   export default {
     mixins: [ Color ],
     name: 'sn-message',
-    props: [ 'message' ],
+    props: [ 'message', 'id' ],
     components: {
       'sn-user-btn': UserButton
-    },
-    computed: {
-      id: function () {
-        var self = this
-        return `msg-${self.message.id}`
-      }
     }
   }
 </script>

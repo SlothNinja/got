@@ -1,6 +1,5 @@
 <template>
   <v-navigation-drawer
-    clipped
     width="500"
     fixed
     v-model="drawer"

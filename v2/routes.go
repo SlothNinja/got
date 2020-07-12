@@ -10,14 +10,14 @@ import (
 
 type client struct {
 	DS    *datastore.Client
-	Game  sn.Client
+	SN    sn.Client
 	Cache *cache.Cache
 }
 
 func newClient(dsClient *datastore.Client, mcache *cache.Cache) client {
 	return client{
 		DS:    dsClient,
-		Game:  sn.NewClient(dsClient),
+		SN:    sn.NewClient(dsClient),
 		Cache: mcache,
 	}
 }
@@ -93,8 +93,14 @@ func (cl client) addRoutes(eng *gin.Engine) *gin.Engine {
 	// Pass
 	g.PUT(passPath, cl.pass)
 
+	// Message Group
+	msg := g.Group(msgPath)
+
 	// Add Message
-	g.PUT(msgPath, cl.Game.AddMessage(""))
+	msg.PUT("add", cl.SN.AddMessage)
+
+	// Get Message
+	msg.GET("", cl.SN.GetMLog)
 
 	// Games Group
 	gs := eng.Group(gamesPath)
@@ -108,7 +114,7 @@ func (cl client) addRoutes(eng *gin.Engine) *gin.Engine {
 	admin.GET(adminGetPath, cl.show)
 
 	// Ratings
-	eng = cl.Game.AddRoutes(ratingPrefix, eng)
+	eng = cl.SN.AddRoutes(ratingPrefix, eng)
 
 	return eng
 }

@@ -24,7 +24,7 @@ func (cl client) endGame(c *gin.Context, g *game) {
 	g.finalClaim(c)
 	ps, err := cl.determinePlaces(c, g)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 	g.setWinners(ps[0])
@@ -34,15 +34,15 @@ func (cl client) endGame(c *gin.Context, g *game) {
 
 	stats, err := cl.updateUStats(c, g)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	crs := make(crmap, len(g.UserKeys))
 	for _, ukey := range g.UserKeys {
-		crs[ukey], err = cl.Game.GetProjectedRating(c, ukey, g.Type)
+		crs[ukey], err = cl.SN.GetProjectedRating(c, ukey, g.Type)
 		if err != nil {
-			jerr(c, err)
+			sn.JErr(c, err)
 			return
 		}
 	}
@@ -51,7 +51,7 @@ func (cl client) endGame(c *gin.Context, g *game) {
 	for _, ukey := range g.UserKeys {
 		nrs[ukey], err = crs[ukey].Projected(cs[ukey])
 		if err != nil {
-			jerr(c, err)
+			sn.JErr(c, err)
 			return
 		}
 	}
@@ -73,7 +73,7 @@ func (cl client) endGame(c *gin.Context, g *game) {
 		return err
 	})
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 

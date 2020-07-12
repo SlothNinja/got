@@ -17,20 +17,20 @@ func (cl client) placeThief(c *gin.Context) {
 
 	g, err := cl.getGame(c, 0)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	err = g.placeThief(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	ks, es := g.cache()
 	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -105,24 +105,24 @@ func (cl client) placeThievesFinishTurn(c *gin.Context) {
 
 	g, err := cl.getGame(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	gcommitted, err := cl.getGCommited(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	if gcommitted.Undo.Committed != g.Undo.Committed {
-		jerr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
+		sn.JErr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
 		return
 	}
 
 	cp, err := g.placeThievesFinishTurn(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (cl client) placeThievesFinishTurn(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"game": g})

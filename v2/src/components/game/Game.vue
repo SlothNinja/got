@@ -39,7 +39,9 @@
     </sn-rdrawer>
 
     <sn-rdrawer v-model='chat' >
-      <sn-chat-box @message='sbMessage = $event; sbOpen = true' v-if='chat' :user='cu' ></sn-chat-box>
+      <keep-alive>
+        <sn-chat-box @message='sbMessage = $event; sbOpen = true' v-if='chat' :user='cu' ></sn-chat-box>
+      </keep-alive>
     </sn-rdrawer>
 
     <sn-snackbar v-model='sbOpen'>

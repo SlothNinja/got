@@ -15,20 +15,20 @@ func (cl client) playCard(c *gin.Context) {
 
 	g, err := cl.getGame(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	cp, err := g.playCard(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	ks, es := g.cache()
 	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,7 +21,7 @@ func (cl client) show(c *gin.Context) {
 
 	g, err := cl.getGCommited(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -50,7 +49,7 @@ func (cl client) reset(c *gin.Context) {
 
 	gcommitted, err := cl.getGCommited(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -58,7 +57,7 @@ func (cl client) reset(c *gin.Context) {
 	g := gcommitted.game
 	_, err = cl.DS.Put(c, k, &g)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -72,13 +71,13 @@ func (cl client) undoOperations(c *gin.Context, action func(*sn.Stack) bool) {
 
 	undo, err := getStack(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	id, err := getID(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -86,12 +85,12 @@ func (cl client) undoOperations(c *gin.Context, action func(*sn.Stack) bool) {
 	g := newGame(id, undo.Current)
 	err = cl.DS.Get(c, g.Key, g)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	if undo.Committed != g.Undo.Committed {
-		jerr(c, fmt.Errorf("invalid game state"))
+		sn.JErr(c, fmt.Errorf("invalid game state"))
 		return
 	}
 
@@ -106,7 +105,7 @@ func (cl client) newInvitation(c *gin.Context) {
 
 	cu, err := user.FromSession(c)
 	if err != nil || cu == nil {
-		jerr(c, sn.ErrUserNotFound)
+		sn.JErr(c, sn.ErrUserNotFound)
 		return
 	}
 
@@ -121,20 +120,20 @@ func (cl client) create(c *gin.Context) {
 
 	cu, err := user.FromSession(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	inv := newInvitation(0)
 	err = inv.fromForm(c, cu)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	ks, err := cl.DS.AllocateIDs(c, []*datastore.Key{rootKey(0)})
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 	inv.Key = newInvitationKey(ks[0].ID)
@@ -148,7 +147,7 @@ func (cl client) create(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -206,13 +205,13 @@ func (cl client) accept(c *gin.Context) {
 
 	inv, err := cl.getInvitation(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	cu, err := user.FromSession(c)
 	if err != nil || cu == nil {
-		jerr(c, sn.ErrUserNotFound)
+		sn.JErr(c, sn.ErrUserNotFound)
 		return
 	}
 
@@ -222,23 +221,20 @@ func (cl client) accept(c *gin.Context) {
 
 	err = c.ShouldBind(&obj)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
-	log.Debugf("obj.Password: %s", obj.Password)
-	log.Debugf("inv.Password: %s", inv.Password)
-
 	start, err := inv.Accept(cu, []byte(obj.Password))
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	if !start {
 		_, err = cl.DS.Put(c, inv.Key, inv)
 		if err != nil {
-			jerr(c, err)
+			sn.JErr(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
@@ -263,7 +259,7 @@ func (cl client) accept(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -295,13 +291,13 @@ func (cl client) details(c *gin.Context) {
 
 	inv, err := cl.getInvitation(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	cu, err := user.FromSession(c)
 	if err != nil || cu == nil {
-		jerr(c, sn.ErrUserNotFound)
+		sn.JErr(c, sn.ErrUserNotFound)
 		return
 	}
 
@@ -320,9 +316,9 @@ func (cl client) details(c *gin.Context) {
 		ks = append(ks, cu.Key)
 	}
 
-	ratings, err := cl.Game.GetMulti(c, ks, inv.Type)
+	ratings, err := cl.SN.GetMulti(c, ks, inv.Type)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -353,19 +349,19 @@ func (cl client) drop(c *gin.Context) {
 
 	inv, err := cl.getInvitation(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	cu, err := user.FromSession(c)
 	if err != nil || cu == nil {
-		jerr(c, sn.ErrUserNotFound)
+		sn.JErr(c, sn.ErrUserNotFound)
 		return
 	}
 
 	err = inv.Drop(cu)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -375,7 +371,7 @@ func (cl client) drop(c *gin.Context) {
 
 	_, err = cl.DS.Put(c, inv.Key, inv)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -461,11 +457,11 @@ func (cl client) invitationsIndex(c *gin.Context) {
 
 	cu, err := user.FromSession(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 	}
 
 	if cu == nil {
-		jerr(c, sn.ErrUserNotFound)
+		sn.JErr(c, sn.ErrUserNotFound)
 		return
 	}
 
@@ -477,7 +473,7 @@ func (cl client) invitationsIndex(c *gin.Context) {
 	var es []*invitation
 	_, err = cl.DS.GetAll(c, q, &es)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -490,11 +486,11 @@ func (cl client) gamesIndex(c *gin.Context) {
 
 	cu, err := user.FromSession(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 	}
 
 	if cu == nil {
-		jerr(c, sn.ErrUserNotFound)
+		sn.JErr(c, sn.ErrUserNotFound)
 		return
 	}
 
@@ -507,7 +503,7 @@ func (cl client) gamesIndex(c *gin.Context) {
 	var es []*GHeader
 	_, err = cl.DS.GetAll(c, q, &es)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -527,11 +523,11 @@ func (cl client) current(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"cu": sn.ToUser(u.Key, u.Name, u.EmailHash)})
 }
 
-func jerr(c *gin.Context, err error) {
-	if errors.Is(err, sn.ErrValidation) {
-		c.JSON(http.StatusOK, gin.H{"message": err.Error()})
-		return
-	}
-	log.Debugf(err.Error())
-	c.JSON(http.StatusOK, gin.H{"message": sn.ErrUnexpected.Error()})
-}
+// func jerr(c *gin.Context, err error) {
+// 	if errors.Is(err, sn.ErrValidation) {
+// 		c.JSON(http.StatusOK, gin.H{"message": err.Error()})
+// 		return
+// 	}
+// 	log.Debugf(err.Error())
+// 	c.JSON(http.StatusOK, gin.H{"message": sn.ErrUnexpected.Error()})
+// }

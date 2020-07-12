@@ -21,20 +21,20 @@ func (cl client) moveThief(c *gin.Context) {
 
 	g, err := cl.getGame(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	err = g.moveThief(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	ks, es := g.cache()
 	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -163,24 +163,24 @@ func (cl client) moveThiefFinishTurn(c *gin.Context) {
 
 	g, err := cl.getGame(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	gcommited, err := cl.getGCommited(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	if gcommited.Undo.Committed != g.Undo.Committed {
-		jerr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
+		sn.JErr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
 		return
 	}
 
 	cp, send, err := g.moveThiefFinishTurn(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
@@ -193,7 +193,7 @@ func (cl client) moveThiefFinishTurn(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 

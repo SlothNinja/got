@@ -35,7 +35,7 @@ const (
 	moveThiefPath   = "move-thief/:" + idParam
 	passPath        = "pass/:" + idParam
 	playCardPath    = "play-card/:" + idParam
-	msgPath         = showPath + "/addmessage"
+	msgPath         = "/message/:" + idParam
 	gamePath        = "/game"
 	gamesPath       = gamePath + "s"
 	invitationPath  = "invitation"

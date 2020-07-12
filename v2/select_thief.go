@@ -15,20 +15,20 @@ func (cl client) selectThief(c *gin.Context) {
 
 	g, err := cl.getGame(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	cp, thiefArea, err := g.selectThief(c)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 
 	ks, es := g.cache()
 	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
-		jerr(c, err)
+		sn.JErr(c, err)
 		return
 	}
 

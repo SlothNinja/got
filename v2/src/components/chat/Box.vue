@@ -7,54 +7,19 @@
     >
       <span class='title'>Chat</span>
       <v-spacer></v-spacer>
-      <span class='font-weight-black'>{{messages.length}} of {{count}}</span>
+      <span class='font-weight-black'>{{messages.length}} messages</span>
     </v-system-bar>
 
-    <v-container>
-      <v-card class='mb-2'>
-        <v-card-text>
-
-          <v-textarea
-            auto-grow
-            color='green'
-            label='Message'
-            placeholder="Type Message.  Press 'Send' button."
-            v-model='message'
-            rows=1
-            clearable
-            autofocus
-          >
-          </v-textarea>
-
-          <div>
-            <v-btn
-              small
-              color='info'
-              class='white--text'
-              :disabled="(message === '')"
-              @click='send'
-            >
-              Send
-            </v-btn>
-          </div>
-
-        </v-card-text>
-      </v-card>
-    </v-container>
-
-    <v-divider></v-divider>
-
     <v-container
-      id='chatbox'
-      class='flex-grow-1'
+      ref='chatbox'
       style='overflow-y: auto'
-      v-scroll:#chatbox='onScroll'
     >
       <sn-message
         class='my-2'
-        v-for='message in messages'
-        :key='message.id'
+        v-for='(message, index) in messages'
+        :key='index'
         :message='message'
+        :id='msgId(index)'
       >
       </sn-message>
 
@@ -65,6 +30,31 @@
       >
       </v-progress-linear>
 
+      <div id='chat-bottom'></div>
+
+    </v-container>
+
+    <v-divider></v-divider>
+
+    <v-container>
+      <v-card class='mb-2'>
+        <v-card-text>
+
+          <v-textarea
+            auto-grow
+            color='green'
+            label='Message'
+            placeholder="Type Message.  Press 'Enter' Key To Send."
+            v-model='message'
+            rows=1
+            clearable
+            autofocus
+            v-on:keyup.enter='send'
+          >
+          </v-textarea>
+
+        </v-card-text>
+      </v-card>
     </v-container>
 
   </v-card>
@@ -80,9 +70,6 @@
   export default {
     data: function () {
       return {
-        offset: 5,
-        msgsPath: 'game/messages',
-        addMsgPath: 'game/add-message',
         count: 0,
         messages: [],
         message: '',
@@ -97,35 +84,38 @@
     created () {
       this.fetchData()
     },
-    methods: {
-      onScroll ({ target: { scrollTop, clientHeight, scrollHeight }}) {
-        if ((scrollTop + clientHeight >= scrollHeight) && (this.messages.length < this.count)) {
-          this.fetchData()
+    activated () {
+      this.scroll()
+    },
+    computed: {
+      msgsPath: function() {
+        var self = this
+        return `game/message/${self.$route.params.id}`
+      }
+    },
+    watch: {
+      loading: function (isLoading, wasLoading) {
+        var self = this
+        if (wasLoading && !isLoading) {
+          self.scroll()
         }
+      }
+    },
+    methods: {
+      msgId: function(index) {
+        return `msg-${index}`
       },
       fetchData: _.debounce(
         function () {
           var self = this
-          var offset = self.messages.length
           self.loading = true
-          axios.get(`${self.msgsPath}/${self.$route.params.id}/${offset}`)
+          axios.get(self.msgsPath)
             .then(function (response) {
-
-              var msg = _.get(response, 'data.message', false)
-              if (msg) {
-                self.$emit('message', msg)
-              }
-
+              console.log(`fetchData: ${JSON.stringify(response)}`)
               var msgs = _.get(response, 'data.messages', false)
               if (msgs) {
                 self.messages = self.messages.concat(msgs)
               }
-
-              var cnt = _.get(response, 'data.count', false)
-              if (cnt) {
-                  self.count = cnt
-              }
-
               self.loading = false
             })
             .catch(function () {
@@ -148,7 +138,7 @@
 
         self.loading = true
 
-        axios.put(`${self.addMsgPath}/${self.$route.params.id}`, obj)
+        axios.put(self.msgsPath+"/add", obj)
           .then(function (response) {
             var msg = _.get(response, 'data', false)
             if (msg) {
@@ -162,13 +152,25 @@
             self.$emit('message', 'Server Error.  Try refreshing page.')
           })
       },
+      // scrollHeight: function() {
+      //   var self = this
+      //   var height = self.$refs.chatbox.scrollHeight
+      //   console.log(`height: ${height}`)
+      //   return height
+      // },
+      scroll: function() {
+        var self = this
+        self.$nextTick(function () {
+          goTo('#chat-bottom', { container: self.$refs.chatbox })
+        })
+      },
       add: function (message) {
         var self = this
-        self.messages.unshift(message)
-        self.count += 1
-        self.$nextTick(function () {
-          goTo(`#msg-${self.count}`, { container: '#chatbox' })
-        })
+        var msg = _.get(message, 'message', false)
+        if (msg) {
+          self.messages.push(msg)
+          self.scroll()
+        }
       }
     }
   }
