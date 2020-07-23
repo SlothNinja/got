@@ -158,7 +158,6 @@
     },
     methods: {
       updateInvitation (data) {
-        console.log(`data: ${JSON.stringify(data)}`)
         var self = this
 
         var msg = _.get(data, 'data.message', false)
@@ -175,7 +174,6 @@
         var self = this
         axios.get(self.path)
           .then(function (response) {
-            console.log(`response: ${JSON.stringify(response)}`)
             self.updateInvitation(response)
             self.loading = false
           })
@@ -188,10 +186,8 @@
       putData () {
         var self = this
         self.loading = true
-        console.log(`sent: ${JSON.stringify(self.invitation)}`)
         axios.put(self.path, self.invitation)
           .then(function (response) {
-            console.log(`response: ${JSON.stringify(response)}`)
             self.updateInvitation(response)
             self.loading = false
           })

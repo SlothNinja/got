@@ -1,15 +1,6 @@
 <template>
   <v-card class='d-flex flex-column' style='height: 100vh'>
 
-    <v-system-bar
-      color='green'
-      class='white--text'
-    >
-      <span class='title'>Chat</span>
-      <v-spacer></v-spacer>
-      <span class='font-weight-black'>{{messages.length}} messages</span>
-    </v-system-bar>
-
     <v-container
       ref='chatbox'
       style='overflow-y: auto'
@@ -84,13 +75,19 @@
     created () {
       this.fetchData()
     },
-    activated () {
-      this.scroll()
+    activated: function () {
+      let self = this
+      self.scroll()
+      self.$emit('title', self.title)
     },
     computed: {
       msgsPath: function() {
         var self = this
         return `game/message/${self.$route.params.id}`
+      },
+      title: function () {
+        let self = this
+        return `Chat (${self.messages.length} messages)`
       }
     },
     watch: {
@@ -115,6 +112,7 @@
               var msgs = _.get(response, 'data.messages', false)
               if (msgs) {
                 self.messages = self.messages.concat(msgs)
+                self.$emit('title', self.title)
               }
               self.loading = false
             })
@@ -143,6 +141,7 @@
             var msg = _.get(response, 'data', false)
             if (msg) {
               self.add(msg)
+              self.$emit('title', self.title)
               self.clear()
             }
             self.loading = false
@@ -152,12 +151,6 @@
             self.$emit('message', 'Server Error.  Try refreshing page.')
           })
       },
-      // scrollHeight: function() {
-      //   var self = this
-      //   var height = self.$refs.chatbox.scrollHeight
-      //   console.log(`height: ${height}`)
-      //   return height
-      // },
       scroll: function() {
         var self = this
         self.$nextTick(function () {

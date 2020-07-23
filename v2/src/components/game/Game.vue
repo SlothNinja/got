@@ -8,21 +8,22 @@
 
           <v-tooltip bottom color='info'>
             <template v-slot:activator='{ on }'>
-              <v-btn v-on='on' icon @click.stop='history = !history'>
-                <v-icon>history</v-icon>
+              <v-btn v-show='!rdrawer' v-on='on' icon @click.stop='rdrawer = !rdrawer'>
+                <v-icon>mdi-arrow-expand-left</v-icon>
               </v-btn>
             </template>
-            <span>Game Log</span>
+            <span>Open Drawer</span>
           </v-tooltip>
 
           <v-tooltip bottom color='info'>
             <template v-slot:activator='{ on }'>
-              <v-btn v-on='on' icon @click.stop='chat = !chat'>
-                <v-icon>chat</v-icon>
+              <v-btn v-show='rdrawer' v-on='on' icon @click.stop='rdrawer = !rdrawer'>
+                <v-icon>mdi-arrow-expand-right</v-icon>
               </v-btn>
             </template>
-            <span>Chat</span>
+            <span>Close Drawer</span>
           </v-tooltip>
+
         </v-col>
 
         <v-col cols='7' class='d-flex justify-center'>
@@ -34,15 +35,7 @@
 
     <sn-nav-drawer v-model='nav' ></sn-nav-drawer>
 
-    <sn-rdrawer v-model='history' >
-      <sn-game-log @message='sbMessage = $event; sbOpen = true' v-if='history' :game='game' ></sn-game-log>
-    </sn-rdrawer>
-
-    <sn-rdrawer v-model='chat' >
-      <keep-alive>
-        <sn-chat-box @message='sbMessage = $event; sbOpen = true' v-if='chat' :user='cu' ></sn-chat-box>
-      </keep-alive>
-    </sn-rdrawer>
+    <sn-rdrawer v-model='rdrawer' :game='game' ></sn-rdrawer>
 
     <sn-snackbar v-model='sbOpen'>
       <div class='text-center'>{{sbMessage}}</div>
@@ -120,8 +113,8 @@
   import StatusPanel from '@/components/game/StatusPanel'
   import Panels from '@/components/player/Panels'
   import Messagebar from '@/components/game/Messagebar'
-  import ChatBox from '@/components/chat/Box'
-  import GameLog from '@/components/log/Box'
+  // import ChatBox from '@/components/chat/Box'
+  // import GameLog from '@/components/log/Box'
   import CurrentUser from '@/components/mixins/CurrentUser'
   import Player from '@/components/mixins/Player'
 
@@ -147,6 +140,7 @@
         path: '/game',
         cardbar: false,
         nav: false,
+        rdrawer: false,
         history: false,
         chat: false,
         sbOpen: false,
@@ -163,8 +157,8 @@
       'sn-card-bar': Bar,
       'sn-status-panel': StatusPanel,
       'sn-player-panels': Panels,
-      'sn-chat-box': ChatBox,
-      'sn-game-log': GameLog,
+      // 'sn-chat-box': ChatBox,
+      // 'sn-game-log': GameLog,
       'sn-messagebar': Messagebar,
       'sn-footer': Footer
     },

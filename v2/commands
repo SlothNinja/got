@@ -5,7 +5,7 @@ PORT=8085 HOST=http://lgot.slothninja.com:8083 DATASTORE_PROJECT_ID=got-slothnin
 
 start database
 ------------------------------
-gcloud beta emulators datastore start --data-dir /Volumes/Janice/datastore/got/ --host-port lgot.slothninja.com:8084
+gcloud beta emulators datastore start --data-dir /Volumes/Janice/datastore/got/v2 --host-port lgot.slothninja.com:8084
 
 watch frontend
 ------------------------------

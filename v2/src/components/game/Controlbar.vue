@@ -3,7 +3,7 @@
     <v-tooltip :disabled='!canReset' bottom color='info'>
       <template v-slot:activator="{ on }">
         <v-btn v-on="on" icon :disabled="!canReset" @click="$emit('action', { action: 'reset', data: { undo: game.undo }})" >
-          <v-icon>clear</v-icon>
+          <v-icon>mdi-close</v-icon>
         </v-btn>
       </template>
       <span>Reset</span>
@@ -11,7 +11,7 @@
     <v-tooltip :disabled='!canUndo' bottom color='info'>
       <template v-slot:activator="{ on }">
       <v-btn v-on='on' :disabled='!canUndo' icon @click="$emit('action', { action: 'undo', data: { undo: game.undo }})" >
-        <v-icon>undo</v-icon>
+        <v-icon>mdi-undo</v-icon>
       </v-btn>
       </template>
       <span>Undo</span>
@@ -19,7 +19,7 @@
     <v-tooltip :disabled='!canRedo' bottom color='info'>
       <template v-slot:activator='{ on }'>
       <v-btn v-on='on' icon :disabled='!canRedo' @click="$emit('action', { action: 'redo', data: { undo: game.undo }})" >
-        <v-icon>redo</v-icon>
+        <v-icon>mdi-redo</v-icon>
       </v-btn>
       </template>
       <span>Redo</span>
@@ -28,7 +28,7 @@
     <v-tooltip :disabled='!canFinish' bottom color='info'>
       <template v-slot:activator='{ on }'>
       <v-btn v-on='on' icon :disabled='!canFinish' @click="$emit('action', { action : finishAction, data: { undo: game.undo }})" >
-        <v-icon>done</v-icon>
+        <v-icon>mdi-check</v-icon>
       </v-btn>
       </template>
       <span>Finish</span>
@@ -37,7 +37,7 @@
     <v-tooltip bottom color='info'>
       <template v-slot:activator='{ on }'>
         <v-btn v-on='on' icon @click.native="$emit('action', { action : 'refresh' })" >
-          <v-icon>refresh</v-icon>
+          <v-icon>mdi-refresh</v-icon>
         </v-btn>
       </template>
       <span>Refresh</span>
