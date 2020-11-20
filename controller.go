@@ -51,7 +51,11 @@ func (client Client) show(prefix string) gin.HandlerFunc {
 		defer log.Debugf("Exiting")
 
 		g := gameFrom(c)
-		cu := user.CurrentFrom(c)
+		cu, err := user.CurrentFrom(c)
+		if err != nil {
+			log.Debugf(err.Error())
+		}
+
 		c.HTML(http.StatusOK, prefix+"/show", gin.H{
 			"Context":    c,
 			"VersionID":  sn.VersionID(),
@@ -130,7 +134,10 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 			mkey := g.UndoKey(c)
 			client.Cache.SetDefault(mkey, g)
 		case actionType == game.SaveAndStatUpdate:
-			cu := user.CurrentFrom(c)
+			cu, err := user.CurrentFrom(c)
+			if err != nil {
+				log.Debugf(err.Error())
+			}
 			st, err := client.Stats.ByUser(c, cu)
 			if err != nil {
 				log.Errorf("stat.ByUser error: %v", err)
@@ -167,7 +174,10 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 		case template == "":
 			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
 		default:
-			cu := user.CurrentFrom(c)
+			cu, err := user.CurrentFrom(c)
+			if err != nil {
+				log.Debugf(err.Error())
+			}
 			d := gin.H{
 				"Context":   c,
 				"VersionID": sn.VersionID(),
@@ -276,12 +286,16 @@ func (client Client) index(prefix string) gin.HandlerFunc {
 		defer log.Debugf("Exiting")
 
 		gs := game.GamersFrom(c)
+		cu, err := user.CurrentFrom(c)
+		if err != nil {
+			log.Debugf(err.Error())
+		}
 		switch status := game.StatusFrom(c); status {
 		case game.Recruiting:
 			c.HTML(http.StatusOK, "shared/invitation_index", gin.H{
 				"Context":   c,
 				"VersionID": sn.VersionID(),
-				"CUser":     user.CurrentFrom(c),
+				"CUser":     cu,
 				"Games":     gs,
 				"Type":      gtype.GOT.String(),
 			})
@@ -289,7 +303,7 @@ func (client Client) index(prefix string) gin.HandlerFunc {
 			c.HTML(http.StatusOK, "shared/games_index", gin.H{
 				"Context":   c,
 				"VersionID": sn.VersionID(),
-				"CUser":     user.CurrentFrom(c),
+				"CUser":     cu,
 				"Games":     gs,
 				"Type":      gtype.GOT.String(),
 				"Status":    status,
@@ -353,10 +367,14 @@ func (client Client) newAction(prefix string) gin.HandlerFunc {
 			return
 		}
 
+		cu, err := user.CurrentFrom(c)
+		if err != nil {
+			log.Debugf(err.Error())
+		}
 		c.HTML(http.StatusOK, prefix+"/new", gin.H{
 			"Context":   c,
 			"VersionID": sn.VersionID(),
-			"CUser":     user.CurrentFrom(c),
+			"CUser":     cu,
 			"Game":      g,
 		})
 	}
@@ -391,6 +409,7 @@ func (client Client) create(prefix string) gin.HandlerFunc {
 			return
 		}
 
+		log.Debugf("before client.DS.AllocateIDs")
 		ks, err := client.DS.AllocateIDs(c, []*datastore.Key{g.Header.Key})
 		if err != nil {
 			log.Errorf(err.Error())
@@ -399,6 +418,7 @@ func (client Client) create(prefix string) gin.HandlerFunc {
 		}
 		g.Header.Key = ks[0]
 
+		log.Debugf("before client.DS.RunInTransaction")
 		_, err = client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 			m := mlog.New(g.Header.Key.ID)
 			ks := []*datastore.Key{g.Header.Key, m.Key}
@@ -431,7 +451,10 @@ func (client Client) accept(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		u := user.CurrentFrom(c)
+		u, err := user.CurrentFrom(c)
+		if err != nil {
+			log.Debugf(err.Error())
+		}
 		start, err := g.Accept(c, u)
 		if err != nil {
 			log.Errorf(err.Error())
@@ -478,8 +501,11 @@ func (client Client) drop(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		u := user.CurrentFrom(c)
-		err := g.Drop(u)
+		u, err := user.CurrentFrom(c)
+		if err != nil {
+			log.Debugf(err.Error())
+		}
+		err = g.Drop(u)
 		if err != nil {
 			log.Errorf(err.Error())
 			restful.AddErrorf(c, err.Error())
@@ -523,7 +549,11 @@ func (client Client) fetch(c *gin.Context) {
 			return
 		}
 	default:
-		if user.CurrentFrom(c) != nil {
+		cu, err := user.CurrentFrom(c)
+		if err != nil {
+			log.Debugf(err.Error())
+		}
+		if cu != nil {
 			// pull from cache and return if successful; otherwise pull from datastore
 			err = client.mcGet(c, g)
 			if err == nil {
@@ -559,7 +589,11 @@ func (client Client) mcGet(c *gin.Context, g *Game) error {
 	g = g2
 
 	withGame(c, g)
-	cm := g.ColorMapFor(user.CurrentFrom(c))
+	cu, err := user.CurrentFrom(c)
+	if err != nil {
+		log.Debugf(err.Error())
+	}
+	cm := g.ColorMapFor(cu)
 	color.WithMap(c, cm)
 	return nil
 }
@@ -596,7 +630,11 @@ func (client Client) dsGet(c *gin.Context, g *Game) error {
 	}
 
 	withGame(c, g)
-	cm := g.ColorMapFor(user.CurrentFrom(c))
+	cu, err := user.CurrentFrom(c)
+	if err != nil {
+		log.Debugf(err.Error())
+	}
+	cm := g.ColorMapFor(cu)
 	color.WithMap(c, cm)
 	return nil
 }
