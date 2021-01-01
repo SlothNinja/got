@@ -7,6 +7,7 @@ import (
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,11 +15,11 @@ func init() {
 	gob.Register(new(passEntry))
 }
 
-func (g *Game) pass(c *gin.Context) (string, game.ActionType, error) {
+func (g *Game) pass(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if err := g.validatePass(c); err != nil {
+	if err := g.validatePass(c, cu); err != nil {
 		return "got/flash_notice", game.None, err
 	}
 
@@ -34,8 +35,8 @@ func (g *Game) pass(c *gin.Context) (string, game.ActionType, error) {
 	return "got/pass_update", game.Cache, nil
 }
 
-func (g *Game) validatePass(c *gin.Context) error {
-	if err := g.validatePlayerAction(c); err != nil {
+func (g *Game) validatePass(c *gin.Context, cu *user.User) error {
+	if err := g.validatePlayerAction(cu); err != nil {
 		return err
 	}
 	return nil

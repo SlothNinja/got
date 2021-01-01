@@ -7,6 +7,7 @@ import (
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,8 +21,8 @@ func (g *Game) startMoveThief(c *gin.Context) (string, error) {
 	return "got/select_thief_update", nil
 }
 
-func (g *Game) moveThief(c *gin.Context) (tmpl string, err error) {
-	if err = g.validateMoveThief(c); err != nil {
+func (g *Game) moveThief(c *gin.Context, cu *user.User) (tmpl string, err error) {
+	if err = g.validateMoveThief(c, cu); err != nil {
 		tmpl = "got/flash_notice"
 		return
 	}
@@ -46,13 +47,13 @@ func (g *Game) moveThief(c *gin.Context) (tmpl string, err error) {
 	return g.claimItem(c)
 }
 
-func (g *Game) validateMoveThief(c *gin.Context) error {
+func (g *Game) validateMoveThief(c *gin.Context, cu *user.User) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
 	a := g.SelectedArea()
 	g.ClickAreas = nil
-	err := g.validatePlayerAction(c)
+	err := g.validatePlayerAction(cu)
 	switch {
 	case err != nil:
 		return err

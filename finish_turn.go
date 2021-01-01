@@ -9,6 +9,7 @@ import (
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 	stats "github.com/SlothNinja/user-stats"
 	"github.com/gin-gonic/gin"
 )
@@ -19,17 +20,23 @@ func (client Client) finish(prefix string) gin.HandlerFunc {
 		defer log.Debugf("Exiting")
 
 		var (
-			ks  []*datastore.Key
-			es  []interface{}
-			err error
+			ks []*datastore.Key
+			es []interface{}
 		)
 
 		g := gameFrom(c)
+		cu, err := client.User.Current(c)
+		if err != nil {
+			log.Errorf(err.Error())
+			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+			return
+		}
+
 		switch g.Phase {
 		case placeThieves:
-			ks, es, err = g.placeThievesFinishTurn(c)
+			ks, es, err = g.placeThievesFinishTurn(c, cu)
 		case drawCard:
-			ks, es, err = client.moveThiefFinishTurn(c, g)
+			ks, es, err = client.moveThiefFinishTurn(c, g, cu)
 		}
 
 		// zero flags
@@ -50,7 +57,7 @@ func (client Client) finish(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		err = client.saveWith(c, g, ks, es)
+		err = client.saveWith(c, g, cu, ks, es)
 		if err != nil {
 			log.Errorf(err.Error())
 		}
@@ -62,13 +69,13 @@ func showPath(prefix string, sid string) string {
 	return fmt.Sprintf("/%s/game/show/%s", prefix, sid)
 }
 
-func (g *Game) validateFinishTurn(c *gin.Context) (*stats.Stats, error) {
+func (g *Game) validateFinishTurn(c *gin.Context, cu *user.User) (*stats.Stats, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 	switch cp, s := g.CurrentPlayer(), stats.Fetched(c); {
 	case s == nil:
 		return nil, sn.NewVError("missing stats for player.")
-	case !g.CUserIsCPlayerOrAdmin(c):
+	case !g.IsCurrentPlayer(cu):
 		return nil, sn.NewVError("Only the current player may finish a turn.")
 	case !cp.PerformedAction:
 		return nil, sn.NewVError("%s has yet to perform an action.", g.NameFor(cp))
@@ -95,7 +102,7 @@ func (g *Game) previousPlayer(ps ...game.Playerer) *Player {
 	return nil
 }
 
-func (g *Game) placeThievesNextPlayer(pers ...game.Playerer) (p *Player) {
+func (g *Game) placeThievesNextPlayer(cu *user.User, pers ...game.Playerer) (p *Player) {
 	numThieves := 3
 	if g.TwoThiefVariant {
 		numThieves = 2
@@ -112,16 +119,16 @@ func (g *Game) placeThievesNextPlayer(pers ...game.Playerer) (p *Player) {
 	return
 }
 
-func (g *Game) placeThievesFinishTurn(c *gin.Context) ([]*datastore.Key, []interface{}, error) {
+func (g *Game) placeThievesFinishTurn(c *gin.Context, cu *user.User) ([]*datastore.Key, []interface{}, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	s, err := g.validatePlaceThievesFinishTurn(c)
+	s, err := g.validatePlaceThievesFinishTurn(c, cu)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	oldCP := g.CurrentPlayer()
-	np := g.placeThievesNextPlayer()
+	np := g.placeThievesNextPlayer(cu)
 	if np == nil {
 		g.SetCurrentPlayerers(g.Players()[0])
 		g.CurrentPlayer().beginningOfTurnReset()
@@ -140,10 +147,10 @@ func (g *Game) placeThievesFinishTurn(c *gin.Context) ([]*datastore.Key, []inter
 	return []*datastore.Key{s.Key}, []interface{}{s}, nil
 }
 
-func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context) (*stats.Stats, error) {
+func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context, cu *user.User) (*stats.Stats, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	switch s, err := g.validateFinishTurn(c); {
+	switch s, err := g.validateFinishTurn(c, cu); {
 	case err != nil:
 		return nil, err
 	case g.Phase != placeThieves:
@@ -170,10 +177,10 @@ func (g *Game) moveThiefNextPlayer(pers ...game.Playerer) (np *Player) {
 	return
 }
 
-func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game) ([]*datastore.Key, []interface{}, error) {
+func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game, cu *user.User) ([]*datastore.Key, []interface{}, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	s, err := g.validateMoveThiefFinishTurn(c)
+	s, err := g.validateMoveThiefFinishTurn(c, cu)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -222,10 +229,10 @@ func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game) ([]*datastore.
 	return []*datastore.Key{s.Key}, []interface{}{s}, nil
 }
 
-func (g *Game) validateMoveThiefFinishTurn(c *gin.Context) (*stats.Stats, error) {
+func (g *Game) validateMoveThiefFinishTurn(c *gin.Context, cu *user.User) (*stats.Stats, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
-	switch s, err := g.validateFinishTurn(c); {
+	switch s, err := g.validateFinishTurn(c, cu); {
 	case err != nil:
 		return nil, err
 	case g.Phase != drawCard:

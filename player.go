@@ -239,7 +239,7 @@ func (p *Player) clearActions() {
 }
 
 // CanClick indicates whether a particular player can select an area.
-func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) bool {
+func (g *Game) CanClick(cu *user.User, p *Player, a *Area) bool {
 	cp := g.CurrentPlayer()
 	switch {
 	case g == nil:
@@ -249,9 +249,9 @@ func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) bool {
 	case a == nil:
 		return false
 	case g.Phase == placeThieves:
-		return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == noPID
+		return g.IsCurrentPlayer(cu) && !cp.PerformedAction && a.Thief == noPID
 	case g.Phase == selectThief:
-		return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && a.Thief == cp.ID()
+		return g.IsCurrentPlayer(cu) && !cp.PerformedAction && a.Thief == cp.ID()
 	case g.Phase == moveThief:
 		switch {
 		case p == nil:
@@ -261,19 +261,19 @@ func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) bool {
 		case g.PlayedCard == nil:
 			return false
 		case g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp:
-			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isLampArea(a)
+			return g.IsCurrentPlayer(cu) && !cp.PerformedAction && g.isLampArea(a)
 		case g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel:
-			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCamelArea(a)
+			return g.IsCurrentPlayer(cu) && !cp.PerformedAction && g.isCamelArea(a)
 		case g.PlayedCard.Type == sword:
-			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isSwordArea(a)
+			return g.IsCurrentPlayer(cu) && !cp.PerformedAction && g.isSwordArea(a)
 		case g.PlayedCard.Type == carpet:
-			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCarpetArea(a)
+			return g.IsCurrentPlayer(cu) && !cp.PerformedAction && g.isCarpetArea(a)
 		case g.PlayedCard.Type == turban && g.Stepped == 0:
-			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isTurban0Area(a)
+			return g.IsCurrentPlayer(cu) && !cp.PerformedAction && g.isTurban0Area(a)
 		case g.PlayedCard.Type == turban && g.Stepped == 1:
-			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isTurban1Area(a)
+			return g.IsCurrentPlayer(cu) && !cp.PerformedAction && g.isTurban1Area(a)
 		case g.PlayedCard.Type == coins:
-			return g.CUserIsCPlayerOrAdmin(c) && !cp.PerformedAction && g.isCoinsArea(a)
+			return g.IsCurrentPlayer(cu) && !cp.PerformedAction && g.isCoinsArea(a)
 		default:
 			return false
 		}
@@ -283,30 +283,30 @@ func (g *Game) CanClick(c *gin.Context, p *Player, a *Area) bool {
 }
 
 // CanPlaceThief indicates whether a particular player can place a thief.
-func (g *Game) CanPlaceThief(c *gin.Context, p *Player) bool {
+func (g *Game) CanPlaceThief(cu *user.User, p *Player) bool {
 	return g.Phase == placeThieves &&
-		g.CUserIsCPlayerOrAdmin(c) &&
+		g.IsCurrentPlayer(cu) &&
 		!p.PerformedAction
 }
 
 // CanSelectCard indicates whether a particular player can select a card to play.
-func (g *Game) CanSelectCard(c *gin.Context, p *Player) bool {
+func (g *Game) CanSelectCard(cu *user.User, p *Player) bool {
 	return g.Phase == playCard &&
-		g.CUserIsCPlayerOrAdmin(c) &&
+		g.IsCurrentPlayer(cu) &&
 		!p.PerformedAction
 }
 
 // CanSelectThief indicates whether a particular player can select a thief.
-func (g *Game) CanSelectThief(c *gin.Context, p *Player) bool {
+func (g *Game) CanSelectThief(cu *user.User, p *Player) bool {
 	return g.Phase == selectThief &&
-		g.CUserIsCPlayerOrAdmin(c) &&
+		g.IsCurrentPlayer(cu) &&
 		!p.PerformedAction
 }
 
 // CanMoveThief indicates whether a particular player can move a thief.
-func (g *Game) CanMoveThief(c *gin.Context, p *Player) bool {
+func (g *Game) CanMoveThief(cu *user.User, p *Player) bool {
 	return g.Phase == moveThief &&
-		g.CUserIsCPlayerOrAdmin(c) &&
+		g.IsCurrentPlayer(cu) &&
 		!p.PerformedAction &&
 		g.SelectedThiefArea() != nil
 }
@@ -323,19 +323,19 @@ func (g *Game) endOfTurnUpdateFor(p *Player) {
 
 var playerValues = sslice{"Player.Passed", "Player.PerformedAction", "Player.Score"}
 
-func (g *Game) adminPlayer(c *gin.Context) (string, game.ActionType, error) {
+func (g *Game) adminPlayer(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if err := g.adminUpdatePlayer(c, playerValues); err != nil {
+	if err := g.adminUpdatePlayer(c, cu, playerValues); err != nil {
 		return "got/flash_notice", game.None, err
 	}
 
 	return "", game.Save, nil
 }
 
-func (g *Game) adminUpdatePlayer(c *gin.Context, ss sslice) error {
-	if err := g.validateAdminAction(c); err != nil {
+func (g *Game) adminUpdatePlayer(c *gin.Context, cu *user.User, ss sslice) error {
+	if err := g.validateAdminAction(cu); err != nil {
 		return err
 	}
 
@@ -393,10 +393,10 @@ func (g *Game) PlayCardDisplayFor(p *Player) (s template.HTML) {
 }
 
 // DisplayHandFor outputs html for displaying a player's hand.
-func (g *Game) DisplayHandFor(c *gin.Context, p *Player) (s template.HTML) {
+func (g *Game) DisplayHandFor(cu *user.User, p *Player) (s template.HTML) {
 	s = restful.HTML("<div id='player-hand-%d'>", p.ID())
 	hm, faceDown := g.handMapFor(p)
-	if user.IsAdmin(c) || p.IsCurrentUser(c) || g.Phase == gameOver {
+	if (cu != nil && cu.Admin) || p.IsCurrentUser(cu) || g.Phase == gameOver {
 		for t, count := range hm {
 			if count > 0 {
 				name := t.IDString()

@@ -7,6 +7,7 @@ import (
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,7 +24,7 @@ func (g *Game) startCardPlay(c *gin.Context) (tmpl string, err error) {
 	return
 }
 
-func (g *Game) playCard(c *gin.Context) (tmpl string, err error) {
+func (g *Game) playCard(c *gin.Context, cu *user.User) (tmpl string, err error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
@@ -32,7 +33,7 @@ func (g *Game) playCard(c *gin.Context) (tmpl string, err error) {
 	g.JewelsPlayed = false
 	g.PlayedCard = nil
 
-	if err = g.validatePlayCard(c); err != nil {
+	if err = g.validatePlayCard(c, cu); err != nil {
 		tmpl = "got/flash_notice"
 		return
 	}
@@ -56,11 +57,11 @@ func (g *Game) playCard(c *gin.Context) (tmpl string, err error) {
 	return g.startSelectThief(c)
 }
 
-func (g *Game) validatePlayCard(c *gin.Context) error {
+func (g *Game) validatePlayCard(c *gin.Context, cu *user.User) error {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if err := g.validatePlayerAction(c); err != nil {
+	if err := g.validatePlayerAction(cu); err != nil {
 		return err
 	}
 

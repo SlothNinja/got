@@ -13,6 +13,7 @@ import (
 	"github.com/SlothNinja/schema"
 	"github.com/SlothNinja/sn"
 	gtype "github.com/SlothNinja/type"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -111,7 +112,7 @@ func (g *Game) setupPhase(c *gin.Context) error {
 	for _, p := range g.Players() {
 		g.newSetupEntryFor(p)
 	}
-	cp := g.previousPlayer(g.Players()[0])
+	cp := g.previousPlayer(nil, g.Players()[0])
 	g.setCurrentPlayers(cp)
 	g.beginningOfPhaseReset()
 	return g.start(c)
@@ -205,11 +206,11 @@ func (g *Game) PlayerByUserID(id int64) (player *Player) {
 //	return
 //}
 
-func (g *Game) undoTurn(c *gin.Context) (string, game.ActionType, error) {
+func (g *Game) undoTurn(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if !g.CUserIsCPlayerOrAdmin(c) {
+	if !g.IsCurrentPlayer(cu) {
 		return "", game.None, sn.NewVError("Only the current player may perform this action.")
 	}
 
@@ -220,11 +221,12 @@ func (g *Game) undoTurn(c *gin.Context) (string, game.ActionType, error) {
 }
 
 // CurrentPlayer returns the player whose turn it is.
-func (g *Game) CurrentPlayer() (player *Player) {
-	if p := g.CurrentPlayerer(); p != nil {
-		player = p.(*Player)
+func (g *Game) CurrentPlayer() *Player {
+	p := g.CurrentPlayerer()
+	if p != nil {
+		return p.(*Player)
 	}
-	return
+	return nil
 }
 
 // Convenience method for conditionally logging Debug information
@@ -259,7 +261,7 @@ var headerValues = sslice{
 	"Header.Status",
 }
 
-func (g *Game) adminHeader(c *gin.Context) (string, game.ActionType, error) {
+func (g *Game) adminHeader(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
@@ -275,8 +277,8 @@ func (g *Game) adminHeader(c *gin.Context) (string, game.ActionType, error) {
 	return "", game.Cache, nil
 }
 
-func (g *Game) adminUpdateHeader(c *gin.Context, ss sslice) error {
-	if err := g.validateAdminAction(c); err != nil {
+func (g *Game) adminUpdateHeader(c *gin.Context, cu *user.User, ss sslice) error {
+	if err := g.validateAdminAction(cu); err != nil {
 		return err
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,11 +23,11 @@ func (g *Game) placeThieves(c *gin.Context) error {
 	return nil
 }
 
-func (g *Game) placeThief(c *gin.Context) (tmpl string, err error) {
+func (g *Game) placeThief(c *gin.Context, cu *user.User) (tmpl string, err error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if err = g.validatePlaceThief(c); err != nil {
+	if err = g.validatePlaceThief(c, cu); err != nil {
 		tmpl = "got/flash_notice"
 		return
 	}
@@ -41,8 +42,8 @@ func (g *Game) placeThief(c *gin.Context) (tmpl string, err error) {
 	return "got/place_thief_update", nil
 }
 
-func (g *Game) validatePlaceThief(c *gin.Context) error {
-	if err := g.validatePlayerAction(c); err != nil {
+func (g *Game) validatePlaceThief(c *gin.Context, cu *user.User) error {
+	if err := g.validatePlayerAction(cu); err != nil {
 		return err
 	}
 

@@ -11,11 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) selectArea(c *gin.Context) (string, game.ActionType, error) {
+func (g *Game) selectArea(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
 	log.Debugf("Entering")
 	defer log.Debugf("Exiting")
 
-	if err := g.validateSelectArea(c); err != nil {
+	if err := g.validateSelectArea(c, cu); err != nil {
 		return "got/flash_notice", game.None, err
 	}
 
@@ -34,28 +34,28 @@ func (g *Game) selectArea(c *gin.Context) (string, game.ActionType, error) {
 	case g.Admin == "admin-player-row-3":
 		g.SelectedPlayerID = 3
 		return "got/admin/player_dialog", game.Cache, nil
-	case g.CanPlaceThief(c, cp):
-		template, err := g.placeThief(c)
+	case g.CanPlaceThief(cu, cp):
+		template, err := g.placeThief(c, cu)
 		return template, game.Cache, err
-	case g.CanSelectCard(c, cp):
-		template, err := g.playCard(c)
+	case g.CanSelectCard(cu, cp):
+		template, err := g.playCard(c, cu)
 		return template, game.Cache, err
-	case g.CanSelectThief(c, cp):
-		template, err := g.selectThief(c)
+	case g.CanSelectThief(cu, cp):
+		template, err := g.selectThief(c, cu)
 		return template, game.Cache, err
-	case g.CanMoveThief(c, cp):
-		template, err := g.moveThief(c)
+	case g.CanMoveThief(cu, cp):
+		template, err := g.moveThief(c, cu)
 		return template, game.Cache, err
 	default:
 		return "got/flash_notice", game.None, sn.NewVError("Can't find action for selection.")
 	}
 }
 
-func (g *Game) validateSelectArea(c *gin.Context) (err error) {
+func (g *Game) validateSelectArea(c *gin.Context, cu *user.User) (err error) {
 	cp := g.CurrentPlayer()
-	if !g.CUserIsCPlayerOrAdmin(c) {
+	if !g.IsCurrentPlayer(cu) {
 		err = sn.NewVError("Only the current player can perform an action.")
-	} else if !user.IsAdmin(c) && cp != nil && !g.CanPlaceThief(c, cp) && !g.CanSelectCard(c, cp) && !g.CanSelectThief(c, cp) && !g.CanMoveThief(c, cp) {
+	} else if (cu != nil && !cu.Admin) && cp != nil && !g.CanPlaceThief(cu, cp) && !g.CanSelectCard(cu, cp) && !g.CanSelectThief(cu, cp) && !g.CanMoveThief(cu, cp) {
 		err = sn.NewVError("You can't select an area right now.")
 	}
 
