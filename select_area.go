@@ -55,7 +55,7 @@ func (g *Game) validateSelectArea(c *gin.Context, cu *user.User) (err error) {
 	cp := g.CurrentPlayer()
 	if !g.IsCurrentPlayer(cu) {
 		err = sn.NewVError("Only the current player can perform an action.")
-	} else if (cu != nil && !cu.Admin) && cp != nil && !g.CanPlaceThief(cu, cp) && !g.CanSelectCard(cu, cp) && !g.CanSelectThief(cu, cp) && !g.CanMoveThief(cu, cp) {
+	} else if !cu.IsAdmin() && cp != nil && !g.CanPlaceThief(cu, cp) && !g.CanSelectCard(cu, cp) && !g.CanSelectThief(cu, cp) && !g.CanMoveThief(cu, cp) {
 		err = sn.NewVError("You can't select an area right now.")
 	}
 

@@ -396,7 +396,7 @@ func (g *Game) PlayCardDisplayFor(p *Player) (s template.HTML) {
 func (g *Game) DisplayHandFor(cu *user.User, p *Player) (s template.HTML) {
 	s = restful.HTML("<div id='player-hand-%d'>", p.ID())
 	hm, faceDown := g.handMapFor(p)
-	if (cu != nil && cu.Admin) || p.IsCurrentUser(cu) || g.Phase == gameOver {
+	if cu.IsAdmin() || p.IsCurrentUser(cu) || g.Phase == gameOver {
 		for t, count := range hm {
 			if count > 0 {
 				name := t.IDString()

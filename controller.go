@@ -61,7 +61,7 @@ func (client Client) show(prefix string) gin.HandlerFunc {
 			"VersionID":  sn.VersionID(),
 			"CUser":      cu,
 			"Game":       g,
-			"IsAdmin":    cu.Admin,
+			"IsAdmin":    cu.IsAdmin(),
 			"Admin":      game.AdminFrom(c),
 			"MessageLog": mlog.From(c),
 			"ColorMap":   color.MapFrom(c),
@@ -188,7 +188,7 @@ func (client Client) update(prefix string) gin.HandlerFunc {
 				"VersionID": sn.VersionID(),
 				"CUser":     cu,
 				"Game":      g,
-				"IsAdmin":   cu.Admin,
+				"IsAdmin":   cu.IsAdmin(),
 				"Notices":   restful.NoticesFrom(c),
 				"Errors":    restful.ErrorsFrom(c),
 			}

@@ -13,7 +13,7 @@ func (g *Game) validatePlayerAction(cu *user.User) error {
 }
 
 func (g *Game) validateAdminAction(cu *user.User) error {
-	if cu == nil || !cu.Admin {
+	if !cu.IsAdmin() {
 		return sn.NewVError("Only an admin can perform the selected action.")
 	}
 	return nil
