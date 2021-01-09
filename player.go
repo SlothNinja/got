@@ -2,6 +2,7 @@ package got
 
 import (
 	"encoding/gob"
+	"fmt"
 	"html/template"
 	"sort"
 
@@ -417,4 +418,15 @@ func (g *Game) DisplayHandFor(cu *user.User, p *Player) (s template.HTML) {
 	}
 	s += restful.HTML("</div>")
 	return
+}
+
+func (g *Game) Color(p *Player, cu *user.User) color.Color {
+	uid := g.UserIDS[p.ID()]
+	cm := g.ColorMapFor(cu)
+	return cm[int(uid)]
+}
+
+func (g *Game) GravatarFor(p *Player, cu *user.User) template.HTML {
+	return template.HTML(fmt.Sprintf(`<a href=%q ><img src=%q alt="Gravatar" class="%s-border" /> </a>`,
+		g.UserPathFor(p), user.GravatarURL(g.EmailFor(p), "80", g.GravTypeFor(p)), g.Color(p, cu)))
 }
