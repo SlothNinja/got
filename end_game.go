@@ -8,7 +8,6 @@ import (
 
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/send"
 	"github.com/gin-gonic/gin"
@@ -20,9 +19,9 @@ func init() {
 	gob.Register(new(announceWinnersEntry))
 }
 
-func (client Client) endGame(c *gin.Context, g *Game) (contest.Places, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) endGame(c *gin.Context, g *Game) ([]contest.ResultsMap, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
 	g.Phase = endGame
 	ps, err := client.determinePlaces(c, g)
@@ -91,9 +90,9 @@ type result struct {
 
 type results []result
 
-func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps contest.Places, cs contest.Contests) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) sendEndGameNotifications(c *gin.Context, g *Game, ps []contest.ResultsMap, cs []*contest.Contest) error {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
 	g.Phase = gameOver
 	g.Status = game.Completed
@@ -105,7 +104,7 @@ func (client Client) sendEndGameNotifications(c *gin.Context, g *Game, ps contes
 			p := g.PlayerByUserID(k.ID)
 			cr, nr, err := client.Rating.IncreaseFor(c, p.User(), g.Type, cs)
 			if err != nil {
-				log.Warningf(err.Error())
+				client.Log.Warningf(err.Error())
 			}
 			clo, nlo := cr.Rank().GLO(), nr.Rank().GLO()
 			inc := nlo - clo

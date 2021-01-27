@@ -4,32 +4,34 @@ import (
 	"encoding/gob"
 	"html/template"
 
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
-	"github.com/SlothNinja/user"
-	"github.com/gin-gonic/gin"
 )
 
 func init() {
 	gob.Register(new(moveThiefEntry))
 }
 
-func (g *Game) startMoveThief(c *gin.Context) (string, error) {
-	g.Phase = moveThief
-	g.ClickAreas = nil
-	return "got/select_thief_update", nil
+func (client *Client) startMoveThief() {
+	client.Game.Phase = moveThief
+	client.Game.ClickAreas = nil
+	client.html("got/select_thief_update")
 }
 
-func (g *Game) moveThief(c *gin.Context, cu *user.User) (tmpl string, err error) {
-	if err = g.validateMoveThief(c, cu); err != nil {
-		tmpl = "got/flash_notice"
+func (client *Client) moveThief() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	err := client.validateMoveThief()
+	if err != nil {
+		client.flashError(err)
 		return
 	}
 
+	g := client.Game
 	cp := g.CurrentPlayer()
 	e := g.newMoveThiefEntryFor(cp)
-	restful.AddNoticef(c, string(e.HTML(g)))
+	restful.AddNoticef(client.Context, string(e.HTML(g)))
 
 	switch {
 	case g.PlayedCard.Type == sword:
@@ -44,16 +46,18 @@ func (g *Game) moveThief(c *gin.Context, cu *user.User) (tmpl string, err error)
 	}
 	g.SelectedArea().Thief = cp.ID()
 	cp.Score += g.SelectedArea().Card.Value()
-	return g.claimItem(c)
+	client.claimItem()
 }
 
-func (g *Game) validateMoveThief(c *gin.Context, cu *user.User) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) validateMoveThief() error {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
+	g := client.Game
 	a := g.SelectedArea()
 	g.ClickAreas = nil
-	err := g.validatePlayerAction(cu)
+
+	err := client.validatePlayerAction()
 	switch {
 	case err != nil:
 		return err

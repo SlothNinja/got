@@ -7,7 +7,6 @@ import (
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
-	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,21 +15,24 @@ func init() {
 }
 
 func (g *Game) placeThieves(c *gin.Context) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	g.Phase = placeThieves
 	return nil
 }
 
-func (g *Game) placeThief(c *gin.Context, cu *user.User) (tmpl string, err error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) placeThief() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	if err = g.validatePlaceThief(c, cu); err != nil {
-		tmpl = "got/flash_notice"
+	err := client.validatePlaceThief()
+	if err != nil {
+		client.flashError(err)
 		return
 	}
+
+	g := client.Game
 	cp := g.CurrentPlayer()
 	cp.PerformedAction = true
 	cp.Score += g.SelectedArea().Card.Value()
@@ -38,18 +40,22 @@ func (g *Game) placeThief(c *gin.Context, cu *user.User) (tmpl string, err error
 
 	// Log placement
 	e := g.newPlaceThiefEntryFor(cp)
-	restful.AddNoticef(c, string(e.HTML(g)))
-	return "got/place_thief_update", nil
+	restful.AddNoticef(client.Context, string(e.HTML(g)))
+	client.html("got/place_thief_update")
 }
 
-func (g *Game) validatePlaceThief(c *gin.Context, cu *user.User) error {
-	if err := g.validatePlayerAction(cu); err != nil {
+func (client *Client) validatePlaceThief() error {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	err := client.validatePlayerAction()
+	if err != nil {
 		return err
 	}
 
 	//g.debugf("Place Thief Area: %#v", g.SelectedArea)
 
-	switch area := g.SelectedArea(); {
+	switch area := client.Game.SelectedArea(); {
 	case area == nil:
 		return sn.NewVError("You must select an area.")
 	case area.Card == nil:

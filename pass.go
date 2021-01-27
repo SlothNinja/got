@@ -4,25 +4,25 @@ import (
 	"encoding/gob"
 	"html/template"
 
-	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
-	"github.com/SlothNinja/user"
-	"github.com/gin-gonic/gin"
 )
 
 func init() {
 	gob.Register(new(passEntry))
 }
 
-func (g *Game) pass(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) pass() {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
-	if err := g.validatePass(c, cu); err != nil {
-		return "got/flash_notice", game.None, err
+	err := client.validatePass()
+	if err != nil {
+		client.flashError(err)
+		return
 	}
 
+	g := client.Game
 	cp := g.CurrentPlayer()
 	cp.Passed = true
 	cp.PerformedAction = true
@@ -30,16 +30,13 @@ func (g *Game) pass(c *gin.Context, cu *user.User) (string, game.ActionType, err
 
 	// Log Pass
 	e := g.newPassEntryFor(cp)
-	restful.AddNoticef(c, string(e.HTML(g)))
+	restful.AddNoticef(client.Context, string(e.HTML(g)))
 
-	return "got/pass_update", game.Cache, nil
+	client.html("got/pass_update")
 }
 
-func (g *Game) validatePass(c *gin.Context, cu *user.User) error {
-	if err := g.validatePlayerAction(cu); err != nil {
-		return err
-	}
-	return nil
+func (client *Client) validatePass() error {
+	return client.validatePlayerAction()
 }
 
 type passEntry struct {

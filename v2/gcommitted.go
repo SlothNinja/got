@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type gcommitted struct{ game }
+type gcommitted struct{ Game }
 
 func (g *gcommitted) id() int64 {
 	if g == nil || g.Key == nil {
@@ -17,18 +17,18 @@ func (g *gcommitted) id() int64 {
 }
 
 // newGCommited creates a new Guild of Thieves game.
-func newGCommited(id int64) *gcommitted { return &gcommitted{game{Key: newGCommittedKey(id)}} }
+func newGCommited(id int64) *gcommitted { return &gcommitted{Game{Key: newGCommittedKey(id)}} }
 
 func newGCommittedKey(id int64) *datastore.Key { return datastore.IDKey(gCommitedKind, id, rootKey(id)) }
 
-func (g *game) setCurrentPlayer(p *player) {
+func (g *Game) setCurrentPlayer(p *player) {
 	g.CPIDS = nil
 	if p != nil {
 		g.CPIDS = append(g.CPIDS, p.ID)
 	}
 }
 
-func (g *game) playerByID(id int) *player {
+func (g *Game) playerByID(id int) *player {
 	if id <= 0 {
 		return nil
 	}
@@ -41,7 +41,7 @@ func (g *game) playerByID(id int) *player {
 	return nil
 }
 
-func (g *game) playerByUserID(id int64) *player {
+func (g *Game) playerByUserID(id int64) *player {
 	if id <= 0 {
 		return nil
 	}
@@ -54,7 +54,7 @@ func (g *game) playerByUserID(id int64) *player {
 	return nil
 }
 
-func (g *game) playerByUserKey(key *datastore.Key) *player {
+func (g *Game) playerByUserKey(key *datastore.Key) *player {
 	if key == nil {
 		return nil
 	}
@@ -67,7 +67,7 @@ func (g *game) playerByUserKey(key *datastore.Key) *player {
 	return nil
 }
 
-func (g *game) undoTurn(c *gin.Context) error {
+func (g *Game) undoTurn(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -80,7 +80,7 @@ func (g *game) undoTurn(c *gin.Context) error {
 }
 
 // CurrentPlayer returns the player whose turn it is.
-func (g *game) currentPlayer() *player {
+func (g *Game) currentPlayer() *player {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

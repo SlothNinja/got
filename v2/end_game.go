@@ -7,17 +7,19 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/datastore"
+	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/log"
+	"github.com/SlothNinja/rating"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/send"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-type crmap map[*datastore.Key]*sn.CurrentRating
+type crmap map[*datastore.Key]*rating.CurrentRating
 
-func (cl client) endGame(c *gin.Context, g *game) {
+func (cl client) endGame(c *gin.Context, g *Game) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -89,7 +91,7 @@ func (cl client) endGame(c *gin.Context, g *game) {
 
 }
 
-func (g *game) setWinners(rmap sn.ResultsMap) {
+func (g *Game) setWinners(rmap contest.ResultsMap) {
 	g.Status = sn.Completed
 
 	g.setCurrentPlayer(nil)
@@ -107,7 +109,7 @@ type result struct {
 
 type results []result
 
-func (cl client) sendEndGameNotifications(c *gin.Context, g *game, ps sn.Places, crs, nrs crmap) error {
+func (cl client) sendEndGameNotifications(c *gin.Context, g *Game, ps contest.Places, crs, nrs crmap) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -193,7 +195,7 @@ func (cl client) sendEndGameNotifications(c *gin.Context, g *game, ps sn.Places,
 	return err
 }
 
-func (g *game) winners() Players {
+func (g *Game) winners() Players {
 	l := len(g.WinnerKeys)
 	if l == 0 {
 		return nil

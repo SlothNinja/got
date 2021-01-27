@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,7 +22,7 @@ type player struct {
 	Stats           stats      `json:"stats"`
 }
 
-func (g *game) pids() []int {
+func (g *Game) pids() []int {
 	pids := make([]int, len(g.players))
 	for i := range g.players {
 		pids[i] = g.players[i].ID
@@ -122,7 +122,7 @@ func (p *player) compareByCards(p2 *player) sn.Comparison {
 	return sn.EqualTo
 }
 
-func (cl client) determinePlaces(c *gin.Context, g *game) (sn.Places, error) {
+func (cl client) determinePlaces(c *gin.Context, g *Game) (sn.Places, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -171,7 +171,7 @@ func (cl client) determinePlaces(c *gin.Context, g *game) (sn.Places, error) {
 	return places, nil
 }
 
-func (g *game) newPlayer(i int) *player {
+func (g *Game) newPlayer(i int) *player {
 	return &player{
 		ID:          i + 1,
 		Colors:      defaultColors()[:g.NumPlayers],
@@ -186,7 +186,7 @@ func (p *player) beginningOfTurnReset() {
 	p.PerformedAction = false
 }
 
-func (g *game) endOfTurnUpdateFor(p *player) {
+func (g *Game) endOfTurnUpdateFor(p *player) {
 	if g.playedCard != nil {
 		g.jewels = *(g.playedCard)
 	}
@@ -197,7 +197,7 @@ func (g *game) endOfTurnUpdateFor(p *player) {
 }
 
 // IndexFor returns the index for the player and bool indicating whether player found.
-func (g *game) indexFor(p *player) (int, bool) {
+func (g *Game) indexFor(p *player) (int, bool) {
 	if p == nil {
 		return -1, false
 	}

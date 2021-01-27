@@ -4,12 +4,12 @@ import (
 	"encoding/gob"
 	"fmt"
 	"html/template"
+	"net/http"
 	"sort"
 
 	"github.com/SlothNinja/color"
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/schema"
 	"github.com/SlothNinja/user"
@@ -129,18 +129,18 @@ func (p *Player) compareByCards(p2 *Player) game.Comparison {
 	return game.EqualTo
 }
 
-func (client Client) determinePlaces(c *gin.Context, g *Game) (contest.Places, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) determinePlaces(c *gin.Context, g *Game) ([]contest.ResultsMap, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 	// sort players by score
 	players := g.Players()
 	sort.Sort(Reverse{ByScore{players}})
 	g.setPlayers(players)
 
-	places := make(contest.Places, 0)
+	places := make([]contest.ResultsMap, 0)
 	rmap := make(contest.ResultsMap, 0)
 	for i, p1 := range g.Players() {
-		results := make(contest.Results, 0)
+		results := make([]*contest.Result, 0)
 		tie := false
 		for j, p2 := range g.Players() {
 			r, err := client.Rating.For(c, p2.User(), g.Type)
@@ -324,26 +324,33 @@ func (g *Game) endOfTurnUpdateFor(p *Player) {
 
 var playerValues = sslice{"Player.Passed", "Player.PerformedAction", "Player.Score"}
 
-func (g *Game) adminPlayer(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) adminPlayer() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	if err := g.adminUpdatePlayer(c, cu, playerValues); err != nil {
-		return "got/flash_notice", game.None, err
+	err := client.adminUpdatePlayer(playerValues)
+	if err != nil {
+		client.flashError(err)
 	}
 
-	return "", game.Save, nil
+	err = client.save()
+	if err != nil {
+		restful.AddErrorf(client.Context, "Controller#Update Save Error: %s", err)
+	}
+
+	client.Context.Redirect(http.StatusSeeOther, showPath(client.Prefix, client.Context.Param("hid")))
 }
 
-func (g *Game) adminUpdatePlayer(c *gin.Context, cu *user.User, ss sslice) error {
-	if err := g.validateAdminAction(cu); err != nil {
+func (client *Client) adminUpdatePlayer(ss sslice) error {
+	err := client.validateAdminAction()
+	if err != nil {
 		return err
 	}
 
-	p := g.selectedPlayer()
+	p := client.Game.selectedPlayer()
 	values := make(map[string][]string)
 	for _, key := range ss {
-		if v := c.PostForm(key); v != "" {
+		if v := client.Context.PostForm(key); v != "" {
 			values[key] = []string{v}
 		}
 	}

@@ -101,7 +101,7 @@ type advStats struct {
 	FinishAvg  float32              `json:"finishAvg"`
 }
 
-func (stat ustatsPNum) update(g *game, ukey *datastore.Key) ustatsPNum {
+func (stat ustatsPNum) update(g *Game, ukey *datastore.Key) ustatsPNum {
 	stat.Played++
 	for _, key := range g.WinnerKeys {
 		if key.Equal(ukey) {
@@ -190,7 +190,7 @@ func (cl client) getUStats(c *gin.Context, ukeys ...*datastore.Key) ([]*ustats, 
 	return stats, nil
 }
 
-func (cl client) updateUStats(c *gin.Context, g *game) ([]*ustats, error) {
+func (cl client) updateUStats(c *gin.Context, g *Game) ([]*ustats, error) {
 	stats, err := cl.getUStats(c, g.UserKeys...)
 	if err != nil {
 		return nil, err

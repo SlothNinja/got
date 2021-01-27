@@ -28,31 +28,28 @@ func pk(c *gin.Context) *datastore.Key {
 	return datastore.NameKey(gtype.GOT.SString(), "root", game.GamesRoot(c))
 }
 
-func (client Client) init(c *gin.Context, g *Game) error {
-	err := client.Game.AfterLoad(c, g.Header)
-	if err != nil {
-		return err
+func (g *Game) init() {
+	g.Header.AfterLoad()
+
+	for _, p := range g.Players() {
+		p.init(g)
 	}
-	for _, player := range g.Players() {
-		player.init(g)
-	}
-	return nil
 }
 
-func (client Client) afterCache(c *gin.Context, g *Game) error {
-	return client.init(c, g)
+func (g *Game) afterCache() {
+	g.init()
 }
 
-func (g *Game) options() (s string) {
+func (g *Game) options() string {
 	if g.TwoThiefVariant {
-		s = "Two Thief Variant"
+		return "Two Thief Variant"
 	}
-	return
+	return ""
 }
 
 func (g *Game) fromForm(c *gin.Context) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	s := struct {
 		TwoThiefVariant bool `form:"two-thief-variant"`

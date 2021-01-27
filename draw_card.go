@@ -5,29 +5,32 @@ import (
 	"html/template"
 
 	"github.com/SlothNinja/restful"
-	"github.com/gin-gonic/gin"
 )
 
 func init() {
 	gob.Register(new(drawCardEntry))
 }
 
-func (g *Game) drawCard(c *gin.Context) (tmp string, err error) {
+func (client *Client) drawCard() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	g := client.Game
 	g.Phase = drawCard
 	cp := g.CurrentPlayer()
 
 	if g.Turn != 1 {
 		card, shuffle := cp.draw()
 		e := g.newDrawCardEntryFor(cp, card, shuffle)
-		restful.AddNoticef(c, string(e.HTML(g)))
+		restful.AddNoticef(client.Context, string(e.HTML(g)))
 		if g.PlayedCard.Type == coins {
 			card, shuffle := cp.draw()
 			e := g.newDrawCardEntryFor(cp, card, shuffle)
-			restful.AddNoticef(c, string(e.HTML(g)))
+			restful.AddNoticef(client.Context, string(e.HTML(g)))
 		}
 	}
 	cp.PerformedAction = true
-	return "got/move_thief_update", nil
+	client.html("got/move_thief_update")
 }
 
 type drawCardEntry struct {

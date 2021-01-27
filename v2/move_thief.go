@@ -7,11 +7,11 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
-func (g *game) startMoveThief(c *gin.Context) {
+func (g *Game) startMoveThief(c *gin.Context) {
 	g.Phase = moveThiefPhase
 }
 
@@ -41,7 +41,7 @@ func (cl client) moveThief(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *game) moveThief(c *gin.Context) error {
+func (g *Game) moveThief(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -90,7 +90,7 @@ func (g *game) moveThief(c *gin.Context) error {
 }
 
 // return current player, selected area, thief area, and error
-func (g *game) validateMoveThief(c *gin.Context) (*player, *Area, *Area, error) {
+func (g *Game) validateMoveThief(c *gin.Context) (*player, *Area, *Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -142,7 +142,7 @@ func (g *game) validateMoveThief(c *gin.Context) (*player, *Area, *Area, error) 
 	}
 }
 
-func (g *game) bumpedTo(from, to *Area) *Area {
+func (g *Game) bumpedTo(from, to *Area) *Area {
 	switch {
 	case from.Row > to.Row:
 		return g.getArea(areaID{to.Row - 1, from.Column})
@@ -208,7 +208,7 @@ func (cl client) moveThiefFinishTurn(c *gin.Context) {
 
 }
 
-func (g *game) moveThiefFinishTurn(c *gin.Context) (*player, bool, error) {
+func (g *Game) moveThiefFinishTurn(c *gin.Context) (*player, bool, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -227,7 +227,7 @@ func (g *game) moveThiefFinishTurn(c *gin.Context) (*player, bool, error) {
 	return np, np != cp, nil
 }
 
-func (g *game) validateMoveThiefFinishTurn(c *gin.Context) (*player, error) {
+func (g *Game) validateMoveThiefFinishTurn(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

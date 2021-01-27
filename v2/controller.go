@@ -8,9 +8,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
-	"github.com/SlothNinja/user/v2"
+	"github.com/SlothNinja/mlog"
+	"github.com/SlothNinja/sn"
+	gType "github.com/SlothNinja/type"
+	"github.com/SlothNinja/undo"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,13 +23,19 @@ func (cl client) show(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
+	cu, err := cl.User.Current(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
 	g, err := cl.getGCommited(c)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	g.updateClickablesFor(c, g.currentPlayer(), g.selectedThiefArea())
+	g.updateClickablesFor(cu, g.currentPlayer(), g.selectedThiefArea())
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
@@ -33,19 +43,25 @@ func (cl client) undo(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cl.undoOperations(c, (*sn.Stack).Undo)
+	cl.undoOperations(c, (*undo.Stack).Undo)
 }
 
 func (cl client) redo(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cl.undoOperations(c, (*sn.Stack).Redo)
+	cl.undoOperations(c, (*undo.Stack).Redo)
 }
 
 func (cl client) reset(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
+
+	cu, err := cl.User.Current(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
 
 	gcommitted, err := cl.getGCommited(c)
 	if err != nil {
@@ -54,20 +70,26 @@ func (cl client) reset(c *gin.Context) {
 	}
 
 	k := newGameKey(gcommitted.id(), gcommitted.Undo.Current)
-	g := gcommitted.game
+	g := gcommitted.Game
 	_, err = cl.DS.Put(c, k, &g)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	g.updateClickablesFor(c, g.currentPlayer(), g.selectedThiefArea())
+	g.updateClickablesFor(cu, g.currentPlayer(), g.selectedThiefArea())
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (cl client) undoOperations(c *gin.Context, action func(*sn.Stack) bool) {
+func (cl client) undoOperations(c *gin.Context, action func(*undo.Stack) bool) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
+
+	cu, err := cl.User.Current(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
 
 	undo, err := getStack(c)
 	if err != nil {
@@ -95,7 +117,7 @@ func (cl client) undoOperations(c *gin.Context, action func(*sn.Stack) bool) {
 	}
 
 	g.Undo = undo
-	g.updateClickablesFor(c, g.currentPlayer(), g.selectedThiefArea())
+	g.updateClickablesFor(cu, g.currentPlayer(), g.selectedThiefArea())
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
@@ -103,7 +125,7 @@ func (cl client) newInvitation(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cu, err := user.FromSession(c)
+	cu, err := cl.User.Current(c)
 	if err != nil || cu == nil {
 		sn.JErr(c, sn.ErrUserNotFound)
 		return
@@ -118,7 +140,7 @@ func (cl client) create(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cu, err := user.FromSession(c)
+	cu, err := cl.User.Current(c)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -139,7 +161,7 @@ func (cl client) create(c *gin.Context) {
 	inv.Key = newInvitationKey(ks[0].ID)
 
 	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		m := sn.NewMLog(inv.Key.ID)
+		m := mlog.New(inv.Key.ID)
 		ks := []*datastore.Key{inv.Key, m.Key}
 		es := []interface{}{inv, m}
 
@@ -189,13 +211,13 @@ func (inv *invitation) fromForm(c *gin.Context, cu *user.User) error {
 		if err != nil {
 			return err
 		}
-		inv.Password = hashed
+		inv.Password = string(hashed)
 	}
 	inv.AddCreator(cu)
 	inv.TwoThiefVariant = obj.TwoThiefVariant
 	inv.AddUser(cu)
-	inv.Status = sn.Recruiting
-	inv.Type = sn.GOT
+	inv.Status = game.Recruiting
+	inv.Type = gType.GOT
 	return nil
 }
 
@@ -209,7 +231,7 @@ func (cl client) accept(c *gin.Context) {
 		return
 	}
 
-	cu, err := user.FromSession(c)
+	cu, err := cl.User.Current(c)
 	if err != nil || cu == nil {
 		sn.JErr(c, sn.ErrUserNotFound)
 		return
@@ -330,11 +352,11 @@ func (cl client) details(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"details": details})
 }
 
-func (g *game) cache() (*datastore.Key, interface{}) {
+func (g *Game) cache() (*datastore.Key, interface{}) {
 	return newGameKey(g.id(), g.Undo.Current), g
 }
 
-func (g *game) save() ([]*datastore.Key, []interface{}) {
+func (g *Game) save() ([]*datastore.Key, []interface{}) {
 	gh := newGHeader(g.id())
 	gh.Header = g.Header
 
@@ -408,7 +430,7 @@ func (cl client) getGCommited(c *gin.Context) (*gcommitted, error) {
 	return g, err
 }
 
-func getStack(c *gin.Context) (sn.Stack, error) {
+func getStack(c *gin.Context) (undo.Stack, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

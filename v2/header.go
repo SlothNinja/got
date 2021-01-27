@@ -5,14 +5,15 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/game"
+	"github.com/SlothNinja/sn"
 )
 
 // Header provides game/invitation header data
 type Header struct {
 	TwoThiefVariant bool
 	Phase           phase
-	sn.Header
+	game.Header
 }
 
 // MarshalJSON implements json.Marshaler interface

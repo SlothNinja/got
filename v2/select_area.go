@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
-func (g *game) getAreaFrom(c *gin.Context) (*Area, error) {
+func (g *Game) getAreaFrom(c *gin.Context) (*Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

@@ -7,7 +7,7 @@ import (
 
 type glog []entry
 
-func (g *game) newEntry(m ...message) {
+func (g *Game) newEntry(m ...message) {
 	g.glog = append(g.glog, entry{
 		messages:  append([]message(nil), m...),
 		turn:      g.Turn,
@@ -16,7 +16,7 @@ func (g *game) newEntry(m ...message) {
 	})
 }
 
-func (g *game) newEntryFor(pid int, m ...message) {
+func (g *Game) newEntryFor(pid int, m ...message) {
 	g.glog = append(g.glog, entry{
 		messages:  append([]message(nil), m...),
 		pid:       pid,
@@ -66,7 +66,7 @@ func (e *entry) UnmarshalJSON(bs []byte) error {
 	return nil
 }
 
-func (g *game) appendEntry(m ...message) {
+func (g *Game) appendEntry(m ...message) {
 	l := len(g.glog)
 	if l == 0 {
 		return

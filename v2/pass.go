@@ -6,7 +6,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,7 +36,7 @@ func (cl client) pass(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *game) pass(c *gin.Context) error {
+func (g *Game) pass(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -54,7 +54,7 @@ func (g *game) pass(c *gin.Context) error {
 	return nil
 }
 
-func (g *game) validatePass(c *gin.Context) (*player, error) {
+func (g *Game) validatePass(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -117,7 +117,7 @@ func (cl client) passedFinishTurn(c *gin.Context) {
 
 func notPassed(p *player) bool { return !p.Passed }
 
-func (g *game) passedFinishTurn(c *gin.Context) (bool, error) {
+func (g *Game) passedFinishTurn(c *gin.Context) (bool, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -149,7 +149,7 @@ func (g *game) passedFinishTurn(c *gin.Context) (bool, error) {
 	return false, nil
 }
 
-func (g *game) validatePassedFinishTurn(c *gin.Context) (*player, error) {
+func (g *Game) validatePassedFinishTurn(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

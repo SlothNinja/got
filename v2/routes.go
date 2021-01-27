@@ -2,22 +2,21 @@ package main
 
 import (
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/sn/v2"
-	"github.com/SlothNinja/user/v2"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
 )
 
 type client struct {
 	DS    *datastore.Client
-	SN    sn.Client
+	User  user.Client
 	Cache *cache.Cache
 }
 
-func newClient(dsClient *datastore.Client, mcache *cache.Cache) client {
+func newClient(userClient user.Client, dsClient *datastore.Client, mcache *cache.Cache) client {
 	return client{
 		DS:    dsClient,
-		SN:    sn.NewClient(dsClient),
+		User:  userClient,
 		Cache: mcache,
 	}
 }

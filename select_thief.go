@@ -1,38 +1,37 @@
 package got
 
 import (
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
-	"github.com/SlothNinja/user"
-	"github.com/gin-gonic/gin"
 )
 
-func (g *Game) startSelectThief(c *gin.Context) (tmpl string, err error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) startSelectThief() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	g.Phase = selectThief
-	return "got/played_card_update", nil
+	client.Game.Phase = selectThief
 }
 
-func (g *Game) selectThief(c *gin.Context, cu *user.User) (string, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) selectThief() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	err := g.validateSelectThief(c, cu)
+	err := client.validateSelectThief()
 	if err != nil {
-		return "got/flash_notice", err
+		client.flashError(err)
+		return
 	}
 
-	g.SelectedThiefAreaF = g.SelectedArea()
-	return g.startMoveThief(c)
+	client.Game.SelectedThiefAreaF = client.Game.SelectedArea()
+	client.startMoveThief()
 }
 
-func (g *Game) validateSelectThief(c *gin.Context, cu *user.User) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) validateSelectThief() error {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	switch area, err := g.SelectedArea(), g.validatePlayerAction(cu); {
+	g := client.Game
+	area, err := g.SelectedArea(), client.validatePlayerAction()
+	switch {
 	case err != nil:
 		return err
 	case area == nil || area.Thief != g.CurrentPlayer().ID():

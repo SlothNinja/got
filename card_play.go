@@ -7,7 +7,6 @@ import (
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
-	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,25 +15,28 @@ func init() {
 }
 
 func (g *Game) startCardPlay(c *gin.Context) (tmpl string, err error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	g.Phase = playCard
 	g.Turn = 1
 	return
 }
 
-func (g *Game) playCard(c *gin.Context, cu *user.User) (tmpl string, err error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) playCard() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	g := client.Game
 
 	// reset card played related flags
 	g.Stepped = 0
 	g.JewelsPlayed = false
 	g.PlayedCard = nil
 
-	if err = g.validatePlayCard(c, cu); err != nil {
-		tmpl = "got/flash_notice"
+	err := client.validatePlayCard()
+	if err != nil {
+		client.flashError(err)
 		return
 	}
 
@@ -52,25 +54,26 @@ func (g *Game) playCard(c *gin.Context, cu *user.User) (tmpl string, err error) 
 
 	// Log placement
 	e := g.newPlayCardEntryFor(cp, card)
-	restful.AddNoticef(c, string(e.HTML(g)))
+	restful.AddNoticef(client.Context, string(e.HTML(g)))
 
-	return g.startSelectThief(c)
+	client.startSelectThief()
+	client.html("got/played_card_update")
 }
 
-func (g *Game) validatePlayCard(c *gin.Context, cu *user.User) error {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) validatePlayCard() error {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	if err := g.validatePlayerAction(cu); err != nil {
+	err := client.validatePlayerAction()
+	if err != nil {
 		return err
 	}
 
-	switch card := g.SelectedCard(); {
-	case card == nil:
+	card := client.Game.SelectedCard()
+	if card == nil {
 		return sn.NewVError("You must select a card.")
-	default:
-		return nil
 	}
+	return nil
 }
 
 type playCardEntry struct {

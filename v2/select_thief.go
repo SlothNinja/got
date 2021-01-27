@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,7 +36,7 @@ func (cl client) selectThief(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *game) selectThief(c *gin.Context) (*player, *Area, error) {
+func (g *Game) selectThief(c *gin.Context) (*player, *Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -56,7 +56,7 @@ func (g *game) selectThief(c *gin.Context) (*player, *Area, error) {
 	return cp, thiefArea, nil
 }
 
-func (g *game) validateSelectThief(c *gin.Context) (*player, *Area, error) {
+func (g *Game) validateSelectThief(c *gin.Context) (*player, *Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 

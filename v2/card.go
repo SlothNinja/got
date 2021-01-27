@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 )
 
 type cKind uint8

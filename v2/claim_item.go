@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (g *game) claimItem(cp *player, a *Area) {
+func (g *Game) claimItem(cp *player, a *Area) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -45,7 +45,7 @@ func (g *game) claimItem(cp *player, a *Area) {
 	}
 }
 
-func (g *game) finalClaim(c *gin.Context) {
+func (g *Game) finalClaim(c *gin.Context) {
 	for _, row := range g.grid {
 		for _, a := range row {
 			if p := g.playerByID(a.Thief); p != nil {

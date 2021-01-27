@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/log"
-	"github.com/gin-gonic/gin"
+	"github.com/SlothNinja/user"
 )
 
 type grid [][]*Area
@@ -78,11 +78,11 @@ type Area struct {
 }
 
 // selectedThiefArea returns the area corresponding to a previously selected thief.
-func (g *game) selectedThiefArea() *Area {
+func (g *Game) selectedThiefArea() *Area {
 	return g.getArea(g.thiefAreaID)
 }
 
-func (g *game) getArea(id areaID) *Area {
+func (g *Game) getArea(id areaID) *Area {
 	if id.Row < rowA || id.Row > g.lastRow() {
 		return nil
 	}
@@ -100,7 +100,7 @@ func newArea(id areaID, card *Card) *Area {
 	}
 }
 
-func (g *game) lastRow() aRow {
+func (g *Game) lastRow() aRow {
 	row := rowG
 	if g.NumPlayers == 2 {
 		row = rowF
@@ -108,7 +108,7 @@ func (g *game) lastRow() aRow {
 	return row
 }
 
-func (g *game) createGrid() {
+func (g *Game) createGrid() {
 	deck := newDeck()
 	g.grid = make(grid, g.lastRow())
 	for row := rowA; row <= g.lastRow(); row++ {
@@ -136,23 +136,23 @@ func hasArea(as []*Area, a2 *Area) bool {
 	return false
 }
 
-func (g *game) updateClickablesFor(c *gin.Context, p *player, ta *Area) {
+func (g *Game) updateClickablesFor(cu *user.User, p *player, ta *Area) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	canClick := g.canClick(c, p, ta)
+	canClick := g.canClick(cu, p, ta)
 	g.grid.each(func(a *Area) { a.Clickable = canClick(a) })
 }
 
 // canClick a function specialized by current game context to test whether a player can click on
 // a particular area in the grid.  The main benefit is the function provides a closure around area computions,
 // essentially caching the results.
-func (g *game) canClick(c *gin.Context, p *player, ta *Area) func(*Area) bool {
+func (g *Game) canClick(cu *user.User, p *player, ta *Area) func(*Area) bool {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
 	ff := func(a *Area) bool { return false }
-	cp, err := g.validatePlayerAction(c)
+	cp, err := g.validatePlayerAction(cu)
 	switch {
 	case g == nil:
 		return ff

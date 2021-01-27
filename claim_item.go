@@ -4,7 +4,6 @@ import (
 	"encoding/gob"
 	"html/template"
 
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/gin-gonic/gin"
 )
@@ -13,31 +12,33 @@ func init() {
 	gob.Register(new(claimItemEntry))
 }
 
-func (g *Game) claimItem(c *gin.Context) (tmpl string, err error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+func (client *Client) claimItem() {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
+	g := client.Game
 	cp := g.CurrentPlayer()
 	g.Phase = claimItem
 	e := g.newClaimItemEntryFor(cp)
-	restful.AddNoticef(c, string(e.HTML(g)))
+	restful.AddNoticef(client.Context, string(e.HTML(g)))
 
 	card := g.SelectedThiefArea().Card
 	g.SelectedThiefArea().Card = nil
 	g.SelectedThiefArea().Thief = noPID
+
 	switch {
 	case g.Turn == 1:
 		card.FaceUp = true
 		cp.Hand.append(card)
-		return g.drawCard(c)
+		client.drawCard()
 	case g.Stepped == 1:
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
 		g.SelectedThiefAreaF = g.SelectedAreaF
 		g.ClickAreas = nil
-		return g.startMoveThief(c)
+		client.startMoveThief()
 	default:
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
-		return g.drawCard(c)
+		client.drawCard()
 	}
 }
 

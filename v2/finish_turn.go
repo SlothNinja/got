@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
-func (g *game) validateFinishTurn(c *gin.Context) (*player, error) {
+func (g *Game) validateFinishTurn(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -27,7 +27,7 @@ type direction int
 
 // ps is an optional parameter.
 // If no player is provided, assume current player.
-func (g *game) nextPlayer(inc direction, p *player, tests ...func(*player) bool) *player {
+func (g *Game) nextPlayer(inc direction, p *player, tests ...func(*player) bool) *player {
 	i, found := g.indexFor(p)
 	if !found {
 		return nil
@@ -56,7 +56,7 @@ func (p *player) passed(tests ...func(*player) bool) bool {
 }
 
 // implements ring buffer where index can be negative
-func (g *game) playerByIndex(i int) *player {
+func (g *Game) playerByIndex(i int) *player {
 	l := len(g.players)
 	r := i % l
 	if r < 0 {
@@ -65,7 +65,7 @@ func (g *game) playerByIndex(i int) *player {
 	return g.players[r]
 }
 
-func (g *game) lastPlayer() *player {
+func (g *Game) lastPlayer() *player {
 	l := len(g.players)
 	if l == 0 {
 		return nil
@@ -73,7 +73,7 @@ func (g *game) lastPlayer() *player {
 	return g.players[l-1]
 }
 
-func (g *game) firstPlayer() *player {
+func (g *Game) firstPlayer() *player {
 	if len(g.players) == 0 {
 		return nil
 	}

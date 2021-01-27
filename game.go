@@ -11,7 +11,6 @@ import (
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/schema"
-	"github.com/SlothNinja/sn"
 	gtype "github.com/SlothNinja/type"
 	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
@@ -23,10 +22,10 @@ func init() {
 }
 
 // Register assigns a game type and routes.
-func (client Client) Register(t gtype.Type, r *gin.Engine) *gin.Engine {
+func (client *Client) register(t gtype.Type) *Client {
 	gob.Register(new(Game))
 	game.Register(t, newGamer, phaseNames, nil)
-	return client.addRoutes(t.Prefix(), r)
+	return client.addRoutes(t.Prefix())
 }
 
 //var ErrMustBeGame = errors.New("Resource must have type *Game.")
@@ -87,9 +86,6 @@ func (g *Game) setPlayers(ps Players) {
 		g.Playerers = pers
 	}
 }
-
-// Games is a slice of Guild of Thieves games.
-type Games []*Game
 
 // Start begins a Guild of Thieves game.
 func (g *Game) Start(c *gin.Context) error {
@@ -206,19 +202,26 @@ func (g *Game) PlayerByUserID(id int64) (player *Player) {
 //	return
 //}
 
-func (g *Game) undoTurn(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-
-	if !g.IsCurrentPlayer(cu) {
-		return "", game.None, sn.NewVError("Only the current player may perform this action.")
-	}
-
-	if cp := g.CurrentPlayer(); cp != nil {
-		restful.AddNoticef(c, "%s undid turn.", g.NameFor(cp))
-	}
-	return "", game.Undo, nil
-}
+// func (client *Client) undoTurn(c *gin.Context) {
+// 	client.Log.Debugf(msgEnter)
+// 	defer client.Log.Debugf(msgExit)
+//
+// 	path := showPath(client.Prefix, c.Param("hid"))
+//
+// 	if !client.Game.IsCurrentPlayer(client.CUser) {
+// 		restful.AddErrorf(c, "%v", sn.NewVError("only the current player may perform this action"))
+// 		c.Redirect(http.StatusSeeOther, path)
+// 	}
+//
+// 	cp := client.Game.CurrentPlayer()
+// 	if cp != nil {
+// 		restful.AddNoticef(c, "%s undid turn.", client.Game.NameFor(cp))
+// 	}
+//
+// 	client.Cache.Delete(clclient.CUser)
+//
+// 	c.Redirect(http.StatusSeeOther, path)
+// }
 
 // CurrentPlayer returns the player whose turn it is.
 func (g *Game) CurrentPlayer() *Player {
@@ -262,8 +265,8 @@ var headerValues = sslice{
 }
 
 func (g *Game) adminHeader(c *gin.Context, cu *user.User) (string, game.ActionType, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
 
 	g.Phase = selectThief
 	g.CurrentPlayer().PerformedAction = false
@@ -277,21 +280,22 @@ func (g *Game) adminHeader(c *gin.Context, cu *user.User) (string, game.ActionTy
 	return "", game.Cache, nil
 }
 
-func (g *Game) adminUpdateHeader(c *gin.Context, cu *user.User, ss sslice) error {
-	if err := g.validateAdminAction(cu); err != nil {
+func (client *Client) adminUpdateHeader(ss sslice) error {
+	err := client.validateAdminAction()
+	if err != nil {
 		return err
 	}
 
 	values := make(map[string][]string)
 	for _, key := range ss {
-		if v := c.PostForm(key); v != "" {
+		if v := client.Context.PostForm(key); v != "" {
 			values[key] = []string{v}
 		}
 	}
 
 	schema.RegisterConverter(game.Phase(0), convertPhase)
 	schema.RegisterConverter(game.Status(0), convertStatus)
-	return schema.Decode(g, values)
+	return schema.Decode(client.Game, values)
 }
 
 func convertPhase(value string) reflect.Value {

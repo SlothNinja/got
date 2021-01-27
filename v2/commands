@@ -1,11 +1,13 @@
 start backend
 ----------------------------
-PORT=8085 HOST=http://lgot.slothninja.com:8083 DATASTORE_PROJECT_ID=got-slothninja-games DATASTORE_EMULATOR_HOST=lgot.slothninja.com:8084 DEV=true gin -p 3005 -a 8085 -i -t ../ -d . run main.go
-
+LOGIN_HOST="http://user.fake-slothninja.com:8087" PORT=8085 HOST=http://got.fake-slothninja.com:8083 DATASTORE_PROJECT_ID=got-slothninja-games DATASTORE_EMULATOR_HOST=got.fake-slothninja.com:8084 DEV=true gin -p 3005 -a 8085 -i -t ../ -d . run main.go
 
 start database
 ------------------------------
-gcloud beta emulators datastore start --data-dir /Volumes/Janice/datastore/got/v2 --host-port lgot.slothninja.com:8084
+// gcloud beta emulators datastore start --data-dir /Volumes/Janice/datastore/got/v2 --host-port got.fake-slothninja.com:8084
+
+DATASTORE_PROJECT_ID=got-slothninja-games gcloud beta emulators datastore start --data-dir /home/jeff/projects/datastore/got --host-port got.fake-slothninja.com:8084
+
 
 watch frontend
 ------------------------------

@@ -4,39 +4,58 @@ import (
 	"fmt"
 	"net/http"
 
-	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
 	"github.com/SlothNinja/user"
-	stats "github.com/SlothNinja/user-stats"
 	"github.com/gin-gonic/gin"
 )
 
-func (client Client) finish(prefix string) gin.HandlerFunc {
+func (client *Client) finish(prefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Debugf("Entering")
-		defer log.Debugf("Exiting")
+		client.Log.Debugf(msgEnter)
+		defer client.Log.Debugf(msgExit)
 
-		var (
-			ks []*datastore.Key
-			es []interface{}
-		)
+		client.Prefix, client.Context = prefix, c
+		g, cu := client.Game, client.CUser
 
-		g := gameFrom(c)
+		path := showPath(prefix, c.Param("hid"))
 		cu, err := client.User.Current(c)
 		if err != nil {
-			log.Errorf(err.Error())
-			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+			client.Log.Errorf(err.Error())
+			c.Redirect(http.StatusSeeOther, path)
 			return
 		}
 
+		s, err := client.User.StatsFor(c, cu)
+		if err != nil {
+			client.Log.Errorf(err.Error())
+			c.Redirect(http.StatusSeeOther, path)
+			return
+		}
+
+		id, err := getID(c)
+		if err != nil {
+			client.Log.Errorf(err.Error())
+			c.Redirect(http.StatusSeeOther, path)
+			return
+		}
+
+		err = client.getGameFor(id)
+		if err != nil {
+			client.Log.Errorf(err.Error())
+			c.Redirect(http.StatusSeeOther, path)
+			return
+		}
+
+		var cs []*contest.Contest
+
 		switch g.Phase {
 		case placeThieves:
-			ks, es, err = g.placeThievesFinishTurn(c, cu)
+			err = g.placeThievesFinishTurn(c, cu)
 		case drawCard:
-			ks, es, err = client.moveThiefFinishTurn(c, g, cu)
+			cs, err = client.moveThiefFinishTurn(c, g, cu)
 		}
 
 		// zero flags
@@ -52,16 +71,16 @@ func (client Client) finish(prefix string) gin.HandlerFunc {
 		g.Admin = ""
 
 		if err != nil {
-			log.Errorf(err.Error())
-			c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+			client.Log.Errorf(err.Error())
+			c.Redirect(http.StatusSeeOther, path)
 			return
 		}
 
-		err = client.saveWith(c, g, cu, ks, es)
+		err = client.saveWith(c, g, cu, s, cs)
 		if err != nil {
-			log.Errorf(err.Error())
+			client.Log.Errorf(err.Error())
 		}
-		c.Redirect(http.StatusSeeOther, showPath(prefix, c.Param("hid")))
+		c.Redirect(http.StatusSeeOther, path)
 	}
 }
 
@@ -69,18 +88,18 @@ func showPath(prefix string, sid string) string {
 	return fmt.Sprintf("/%s/game/show/%s", prefix, sid)
 }
 
-func (g *Game) validateFinishTurn(c *gin.Context, cu *user.User) (*stats.Stats, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-	switch cp, s := g.CurrentPlayer(), stats.Fetched(c); {
-	case s == nil:
-		return nil, sn.NewVError("missing stats for player.")
+func (g *Game) validateFinishTurn(c *gin.Context, cu *user.User) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	cp := g.CurrentPlayer()
+	switch {
 	case !g.IsCurrentPlayer(cu):
-		return nil, sn.NewVError("Only the current player may finish a turn.")
+		return sn.NewVError("Only the current player may finish a turn.")
 	case !cp.PerformedAction:
-		return nil, sn.NewVError("%s has yet to perform an action.", g.NameFor(cp))
+		return sn.NewVError("%s has yet to perform an action.", g.NameFor(cp))
 	default:
-		return s, nil
+		return nil
 	}
 }
 
@@ -119,12 +138,13 @@ func (g *Game) placeThievesNextPlayer(cu *user.User, pers ...game.Playerer) (p *
 	return
 }
 
-func (g *Game) placeThievesFinishTurn(c *gin.Context, cu *user.User) ([]*datastore.Key, []interface{}, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-	s, err := g.validatePlaceThievesFinishTurn(c, cu)
+func (g *Game) placeThievesFinishTurn(c *gin.Context, cu *user.User) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	err := g.validatePlaceThievesFinishTurn(c, cu)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	oldCP := g.CurrentPlayer()
@@ -143,20 +163,21 @@ func (g *Game) placeThievesFinishTurn(c *gin.Context, cu *user.User) ([]*datasto
 		g.SendTurnNotificationsTo(c, newCP)
 	}
 
-	s = s.GetUpdate(c, g.UpdatedAt)
-	return []*datastore.Key{s.Key}, []interface{}{s}, nil
+	return nil
 }
 
-func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context, cu *user.User) (*stats.Stats, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-	switch s, err := g.validateFinishTurn(c, cu); {
+func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context, cu *user.User) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	err := g.validateFinishTurn(c, cu)
+	switch {
 	case err != nil:
-		return nil, err
+		return err
 	case g.Phase != placeThieves:
-		return nil, sn.NewVError("Expected %q phase but have %q phase.", placeThieves, g.Phase)
+		return sn.NewVError("Expected %q phase but have %q phase.", placeThieves, g.Phase)
 	default:
-		return s, nil
+		return nil
 	}
 }
 
@@ -177,12 +198,13 @@ func (g *Game) moveThiefNextPlayer(pers ...game.Playerer) (np *Player) {
 	return
 }
 
-func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game, cu *user.User) ([]*datastore.Key, []interface{}, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-	s, err := g.validateMoveThiefFinishTurn(c, cu)
+func (client *Client) moveThiefFinishTurn(c *gin.Context, g *Game, cu *user.User) ([]*contest.Contest, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
+
+	err := g.validateMoveThiefFinishTurn(c, cu)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	oldCP := g.CurrentPlayer()
@@ -202,12 +224,10 @@ func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game, cu *user.User)
 		err = client.sendEndGameNotifications(c, g, ps, cs)
 		if err != nil {
 			// log but otherwise ignore send errors
-			log.Warningf(err.Error())
+			client.Log.Warningf(err.Error())
 		}
 
-		s = s.GetUpdate(c, g.UpdatedAt)
-		ks, es := wrap(s, cs)
-		return ks, es, nil
+		return cs, nil
 	}
 
 	// Otherwise, select next player and continue moving theives.
@@ -222,22 +242,23 @@ func (client Client) moveThiefFinishTurn(c *gin.Context, g *Game, cu *user.User)
 		err = g.SendTurnNotificationsTo(c, newCP)
 		if err != nil {
 			// log but otherwise ignore send errors.
-			log.Warningf(err.Error())
+			client.Log.Warningf(err.Error())
 		}
 	}
-	s = s.GetUpdate(c, g.UpdatedAt)
-	return []*datastore.Key{s.Key}, []interface{}{s}, nil
+	return nil, nil
 }
 
-func (g *Game) validateMoveThiefFinishTurn(c *gin.Context, cu *user.User) (*stats.Stats, error) {
-	log.Debugf("Entering")
-	defer log.Debugf("Exiting")
-	switch s, err := g.validateFinishTurn(c, cu); {
+func (g *Game) validateMoveThiefFinishTurn(c *gin.Context, cu *user.User) error {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	err := g.validateFinishTurn(c, cu)
+	switch {
 	case err != nil:
-		return nil, err
+		return err
 	case g.Phase != drawCard:
-		return nil, sn.NewVError(`Expected "Draw Card" phase but have %q phase.`, g.Phase)
+		return sn.NewVError(`Expected "Draw Card" phase but have %q phase.`, g.Phase)
 	default:
-		return s, nil
+		return nil
 	}
 }

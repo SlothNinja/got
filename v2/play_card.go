@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,7 +36,7 @@ func (cl client) playCard(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *game) playCard(c *gin.Context) (*player, error) {
+func (g *Game) playCard(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -71,7 +71,7 @@ func (g *game) playCard(c *gin.Context) (*player, error) {
 	return cp, nil
 }
 
-func (g *game) validatePlayCard(c *gin.Context) (*player, *Card, error) {
+func (g *Game) validatePlayCard(c *gin.Context) (*player, *Card, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -94,7 +94,7 @@ func (g *game) validatePlayCard(c *gin.Context) (*player, *Card, error) {
 	}
 }
 
-func (g *game) getCardFrom(c *gin.Context, cp *player) (*Card, error) {
+func (g *Game) getCardFrom(c *gin.Context, cp *player) (*Card, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -114,7 +114,7 @@ func (g *game) getCardFrom(c *gin.Context, cp *player) (*Card, error) {
 	return cp.Hand[i], nil
 }
 
-func (g *game) lampAreas(thiefArea *Area) []*Area {
+func (g *Game) lampAreas(thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -172,7 +172,7 @@ func (g *game) lampAreas(thiefArea *Area) []*Area {
 }
 
 // camelAreas returns areas from thief area ta reachable via a camel card.
-func (g *game) camelAreas(ta *Area) []*Area {
+func (g *Game) camelAreas(ta *Area) []*Area {
 	var as []*Area
 
 	// Move Three Left?
@@ -367,7 +367,7 @@ func canMoveTo(as ...*Area) bool {
 	return true
 }
 
-func (g *game) swordAreas(cp *player, thiefArea *Area) []*Area {
+func (g *Game) swordAreas(cp *player, thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -450,14 +450,14 @@ func (p *player) anotherThiefIn(a *Area) bool {
 	return a.hasThief() && a.Thief != p.ID
 }
 
-func (g *game) isCarpetArea(a *Area) bool {
+func (g *Game) isCarpetArea(a *Area) bool {
 	if g.selectedThiefArea() != nil {
 		return hasArea(g.carpetAreas(), a)
 	}
 	return false
 }
 
-func (g *game) carpetAreas() []*Area {
+func (g *Game) carpetAreas() []*Area {
 	as := make([]*Area, 0)
 	a1 := g.selectedThiefArea()
 
@@ -536,7 +536,7 @@ MoveDown:
 	return as
 }
 
-func (g *game) turban0Areas(thiefArea *Area) []*Area {
+func (g *Game) turban0Areas(thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -614,7 +614,7 @@ func (g *game) turban0Areas(thiefArea *Area) []*Area {
 	return as
 }
 
-func (g *game) turban1Areas(thiefArea *Area) []*Area {
+func (g *Game) turban1Areas(thiefArea *Area) []*Area {
 	var as []*Area
 
 	// Move Left
@@ -640,6 +640,6 @@ func (g *game) turban1Areas(thiefArea *Area) []*Area {
 	return as
 }
 
-func (g *game) coinsAreas(thiefArea *Area) []*Area {
+func (g *Game) coinsAreas(thiefArea *Area) []*Area {
 	return g.turban1Areas(thiefArea)
 }

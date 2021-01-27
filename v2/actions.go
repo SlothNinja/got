@@ -4,16 +4,15 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
-	"github.com/SlothNinja/user/v2"
-	"github.com/gin-gonic/gin"
+	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 )
 
-func (g *game) validatePlayerAction(c *gin.Context) (*player, error) {
+func (g *Game) validatePlayerAction(cu *user.User) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cp, err := g.validateCPorAdmin(c)
+	cp, err := g.validateCPorAdmin(cu)
 	switch {
 	case err != nil:
 		return nil, err
@@ -24,19 +23,19 @@ func (g *game) validatePlayerAction(c *gin.Context) (*player, error) {
 	}
 }
 
-func (g *game) validateCPorAdmin(c *gin.Context) (*player, error) {
+func (g *Game) validateCPorAdmin(cu *user.User) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cu, err := g.validateAdmin(c)
+	err := g.validateAdmin(cu)
 	if err == nil {
 		return g.currentPlayer(), nil
 	}
 
-	return g.validateCurrentPlayer(c, cu)
+	return g.validateCurrentPlayer(cu)
 }
 
-func (g *game) validateCurrentPlayer(c *gin.Context, cu *user.User) (*player, error) {
+func (g *Game) validateCurrentPlayer(cu *user.User) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -53,19 +52,12 @@ func (g *game) validateCurrentPlayer(c *gin.Context, cu *user.User) (*player, er
 	}
 }
 
-func (g *game) validateAdmin(c *gin.Context) (*user.User, error) {
+func (g *Game) validateAdmin(cu *user.User) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cu, err := user.FromSession(c)
-	switch {
-	case err != nil:
-		return cu, err
-	case cu == nil:
-		return cu, sn.ErrUserNotFound
-	case !cu.Admin:
-		return cu, sn.ErrNotAdmin
-	default:
-		return cu, nil
+	if !cu.IsAdmin() {
+		return sn.ErrNotAdmin
 	}
+	return nil
 }

@@ -7,7 +7,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,7 +37,7 @@ func (cl client) placeThief(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *game) placeThief(c *gin.Context) error {
+func (g *Game) placeThief(c *gin.Context) error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -60,7 +60,7 @@ func (g *game) placeThief(c *gin.Context) error {
 	return nil
 }
 
-func (g *game) validatePlaceThief(c *gin.Context) (*player, *Area, error) {
+func (g *Game) validatePlaceThief(c *gin.Context) (*player, *Area, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -86,7 +86,7 @@ func (g *game) validatePlaceThief(c *gin.Context) (*player, *Area, error) {
 	}
 }
 
-func (g *game) placeThievesNextPlayer(p *player) *player {
+func (g *Game) placeThievesNextPlayer(p *player) *player {
 	numThieves := 3
 	if g.TwoThiefVariant {
 		numThieves = 2
@@ -141,7 +141,7 @@ func (cl client) placeThievesFinishTurn(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (g *game) placeThievesFinishTurn(c *gin.Context) (*player, error) {
+func (g *Game) placeThievesFinishTurn(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -168,7 +168,7 @@ func (g *game) placeThievesFinishTurn(c *gin.Context) (*player, error) {
 	return cp, nil
 }
 
-func (g *game) validatePlaceThievesFinishTurn(c *gin.Context) (*player, error) {
+func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context) (*player, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
