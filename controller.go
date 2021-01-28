@@ -730,7 +730,7 @@ func (client *Client) getGameFor(id int64) error {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g, cu := client.Game, client.CUser
+	g := client.Game
 
 	err := client.mcGetFor(id)
 	if err == nil {
@@ -741,7 +741,6 @@ func (client *Client) getGameFor(id int64) error {
 	if err != nil {
 		return err
 	}
-	client.Cache.SetDefault(g.UndoKey(cu), g)
 	client.Cache.SetDefault(g.Key.Encode(), g)
 	return nil
 }

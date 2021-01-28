@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	cloud.google.com/go/datastore v1.4.0
+	cloud.google.com/go/logging v1.2.0 // indirect
 	github.com/SlothNinja/codec v1.0.0
 	github.com/SlothNinja/color v1.0.0
 	github.com/SlothNinja/contest v1.0.1
