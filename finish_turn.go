@@ -18,17 +18,17 @@ func (client *Client) finish(prefix string) gin.HandlerFunc {
 		defer client.Log.Debugf(msgExit)
 
 		client.Prefix, client.Context = prefix, c
-		g, cu := client.Game, client.CUser
-
 		path := showPath(prefix, c.Param("hid"))
-		cu, err := client.User.Current(c)
+
+		var err error
+		client.CUser, err = client.User.Current(c)
 		if err != nil {
 			client.Log.Errorf(err.Error())
 			c.Redirect(http.StatusSeeOther, path)
 			return
 		}
 
-		s, err := client.User.StatsFor(c, cu)
+		s, err := client.User.StatsFor(c, client.CUser)
 		if err != nil {
 			client.Log.Errorf(err.Error())
 			c.Redirect(http.StatusSeeOther, path)
@@ -51,24 +51,24 @@ func (client *Client) finish(prefix string) gin.HandlerFunc {
 
 		var cs []*contest.Contest
 
-		switch g.Phase {
+		switch client.Game.Phase {
 		case placeThieves:
-			err = g.placeThievesFinishTurn(c, cu)
+			err = client.placeThievesFinishTurn()
 		case drawCard:
-			cs, err = client.moveThiefFinishTurn(c, g, cu)
+			cs, err = client.moveThiefFinishTurn(c, client.Game, client.CUser)
 		}
 
 		// zero flags
-		g.SelectedPlayerID = 0
-		g.BumpedPlayerID = 0
-		g.SelectedAreaF = nil
-		g.SelectedCardIndex = 0
-		g.Stepped = 0
-		g.PlayedCard = nil
-		g.JewelsPlayed = false
-		g.SelectedThiefAreaF = nil
-		g.ClickAreas = nil
-		g.Admin = ""
+		client.Game.SelectedPlayerID = 0
+		client.Game.BumpedPlayerID = 0
+		client.Game.SelectedAreaF = nil
+		client.Game.SelectedCardIndex = 0
+		client.Game.Stepped = 0
+		client.Game.PlayedCard = nil
+		client.Game.JewelsPlayed = false
+		client.Game.SelectedThiefAreaF = nil
+		client.Game.ClickAreas = nil
+		client.Game.Admin = ""
 
 		if err != nil {
 			client.Log.Errorf(err.Error())
@@ -76,7 +76,7 @@ func (client *Client) finish(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		err = client.saveWith(c, g, cu, s, cs)
+		err = client.saveWith(c, client.Game, client.CUser, s, cs)
 		if err != nil {
 			client.Log.Errorf(err.Error())
 		}
@@ -88,16 +88,16 @@ func showPath(prefix string, sid string) string {
 	return fmt.Sprintf("/%s/game/show/%s", prefix, sid)
 }
 
-func (g *Game) validateFinishTurn(c *gin.Context, cu *user.User) error {
+func (client *Client) validateFinishTurn() error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cp := g.CurrentPlayer()
+	cp := client.Game.CurrentPlayer()
 	switch {
-	case !g.IsCurrentPlayer(cu):
+	case !client.Game.IsCurrentPlayer(client.CUser):
 		return sn.NewVError("Only the current player may finish a turn.")
 	case !cp.PerformedAction:
-		return sn.NewVError("%s has yet to perform an action.", g.NameFor(cp))
+		return sn.NewVError("%s has yet to perform an action.", client.Game.NameFor(cp))
 	default:
 		return nil
 	}
@@ -105,8 +105,9 @@ func (g *Game) validateFinishTurn(c *gin.Context, cu *user.User) error {
 
 // ps is an optional parameter.
 // If no player is provided, assume current player.
-func (g *Game) nextPlayer(ps ...game.Playerer) *Player {
-	if nper := g.NextPlayerer(ps...); nper != nil {
+func (client *Client) nextPlayer(ps ...game.Playerer) *Player {
+	nper := client.Game.NextPlayerer(ps...)
+	if nper != nil {
 		return nper.(*Player)
 	}
 	return nil
@@ -114,105 +115,108 @@ func (g *Game) nextPlayer(ps ...game.Playerer) *Player {
 
 // ps is an optional parameter.
 // If no player is provided, assume current player.
-func (g *Game) previousPlayer(ps ...game.Playerer) *Player {
-	if nper := g.PreviousPlayerer(ps...); nper != nil {
+func (client *Client) previousPlayer(ps ...game.Playerer) *Player {
+	nper := client.Game.PreviousPlayerer(ps...)
+	if nper != nil {
 		return nper.(*Player)
 	}
 	return nil
 }
 
-func (g *Game) placeThievesNextPlayer(cu *user.User, pers ...game.Playerer) (p *Player) {
+func (client *Client) placeThievesNextPlayer(pers ...game.Playerer) *Player {
 	numThieves := 3
-	if g.TwoThiefVariant {
+	if client.Game.TwoThiefVariant {
 		numThieves = 2
 	}
 
-	p = g.previousPlayer(pers...)
+	p := client.previousPlayer(pers...)
 
-	if g.Round >= numThieves {
-		p = nil
-	} else if p.Equal(g.Players()[0]) {
-		g.Round++
+	if client.Game.Round >= numThieves {
+		return nil
+
+	}
+
+	if p.Equal(client.Game.Players()[0]) {
+		client.Game.Round++
 		p.beginningOfTurnReset()
 	}
-	return
+	return p
 }
 
-func (g *Game) placeThievesFinishTurn(c *gin.Context, cu *user.User) error {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (client *Client) placeThievesFinishTurn() error {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	err := g.validatePlaceThievesFinishTurn(c, cu)
+	err := client.validatePlaceThievesFinishTurn()
 	if err != nil {
 		return err
 	}
 
-	oldCP := g.CurrentPlayer()
-	np := g.placeThievesNextPlayer(cu)
+	oldCP := client.Game.CurrentPlayer()
+	np := client.placeThievesNextPlayer()
 	if np == nil {
-		g.SetCurrentPlayerers(g.Players()[0])
-		g.CurrentPlayer().beginningOfTurnReset()
-		g.startCardPlay(c)
+		client.Game.SetCurrentPlayerers(client.Game.Players()[0])
+		client.Game.CurrentPlayer().beginningOfTurnReset()
+		client.startCardPlay()
 	} else {
-		g.SetCurrentPlayerers(np)
+		client.Game.SetCurrentPlayerers(np)
 		np.beginningOfTurnReset()
 	}
 
-	newCP := g.CurrentPlayer()
+	newCP := client.Game.CurrentPlayer()
 	if newCP != nil && oldCP.ID() != newCP.ID() {
-		g.SendTurnNotificationsTo(c, newCP)
+		client.Game.SendTurnNotificationsTo(client.Context, newCP)
 	}
 
 	return nil
 }
 
-func (g *Game) validatePlaceThievesFinishTurn(c *gin.Context, cu *user.User) error {
+func (client *Client) validatePlaceThievesFinishTurn() error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	err := g.validateFinishTurn(c, cu)
+	err := client.validateFinishTurn()
 	switch {
 	case err != nil:
 		return err
-	case g.Phase != placeThieves:
-		return sn.NewVError("Expected %q phase but have %q phase.", placeThieves, g.Phase)
+	case client.Game.Phase != placeThieves:
+		return sn.NewVError("Expected %q phase but have %q phase.", placeThieves, client.Game.Phase)
 	default:
 		return nil
 	}
 }
 
-func (g *Game) moveThiefNextPlayer(pers ...game.Playerer) (np *Player) {
-	cp := g.CurrentPlayer()
-	g.endOfTurnUpdateFor(cp)
-	ps := g.Players()
-	np = g.nextPlayer(pers...)
-	for !ps.allPassed() {
+func (client *Client) moveThiefNextPlayer(pers ...game.Playerer) *Player {
+	cp := client.Game.CurrentPlayer()
+	client.endOfTurnUpdateFor(cp)
+	ps := client.Game.Players()
+	np := client.nextPlayer(pers...)
+	for !allPassed(ps) {
 		if np.Passed {
-			np = g.nextPlayer(np)
-		} else {
-			np.beginningOfTurnReset()
-			return
+			np = client.nextPlayer(np)
+			continue
 		}
+		np.beginningOfTurnReset()
+		return np
 	}
-	np = nil
-	return
+	return nil
 }
 
 func (client *Client) moveThiefFinishTurn(c *gin.Context, g *Game, cu *user.User) ([]*contest.Contest, error) {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	err := g.validateMoveThiefFinishTurn(c, cu)
+	err := client.validateMoveThiefFinishTurn()
 	if err != nil {
 		return nil, err
 	}
 
 	oldCP := g.CurrentPlayer()
-	np := g.moveThiefNextPlayer()
+	np := client.moveThiefNextPlayer()
 
 	// If no next player, end game
 	if np == nil {
-		g.finalClaim(c)
+		client.finalClaim()
 		ps, err := client.endGame(c, g)
 		cs := contest.GenContests(c, ps)
 		g.Status = game.Completed
@@ -248,16 +252,16 @@ func (client *Client) moveThiefFinishTurn(c *gin.Context, g *Game, cu *user.User
 	return nil, nil
 }
 
-func (g *Game) validateMoveThiefFinishTurn(c *gin.Context, cu *user.User) error {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (client *Client) validateMoveThiefFinishTurn() error {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	err := g.validateFinishTurn(c, cu)
+	err := client.validateFinishTurn()
 	switch {
 	case err != nil:
 		return err
-	case g.Phase != drawCard:
-		return sn.NewVError(`Expected "Draw Card" phase but have %q phase.`, g.Phase)
+	case client.Game.Phase != drawCard:
+		return sn.NewVError(`Expected "Draw Card" phase but have %q phase.`, client.Game.Phase)
 	default:
 		return nil
 	}

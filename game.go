@@ -64,16 +64,17 @@ func (g *Game) GetPlayerers() game.Playerers {
 }
 
 // Players returns a slice of player structs that store various information about each player.
-func (g *Game) Players() (ps Players) {
+func (g *Game) Players() []*Player {
 	pers := g.GetPlayerers()
 	length := len(pers)
-	if length > 0 {
-		ps = make(Players, length)
-		for i, p := range pers {
-			ps[i] = p.(*Player)
-		}
+	if length == 0 {
+		return nil
 	}
-	return
+	ps := make([]*Player, length)
+	for i, p := range pers {
+		ps[i] = p.(*Player)
+	}
+	return ps
 }
 
 func (g *Game) setPlayers(ps Players) {
@@ -88,9 +89,9 @@ func (g *Game) setPlayers(ps Players) {
 }
 
 // Start begins a Guild of Thieves game.
-func (g *Game) Start(c *gin.Context) error {
-	g.Status = game.Running
-	return g.setupPhase(c)
+func (client *Client) Start() {
+	client.Game.Status = game.Running
+	client.setupPhase()
 }
 
 func (g *Game) addNewPlayers() {
@@ -99,51 +100,51 @@ func (g *Game) addNewPlayers() {
 	}
 }
 
-func (g *Game) setupPhase(c *gin.Context) error {
-	g.Turn = 0
-	g.Phase = setup
-	g.addNewPlayers()
-	g.RandomTurnOrder()
-	g.createGrid()
-	for _, p := range g.Players() {
-		g.newSetupEntryFor(p)
+func (client *Client) setupPhase() {
+	client.Game.Turn = 0
+	client.Game.Phase = setup
+	client.Game.addNewPlayers()
+	client.Game.RandomTurnOrder()
+	client.Game.createGrid()
+	for _, p := range client.Game.Players() {
+		client.newSetupEntryFor(p)
 	}
-	cp := g.previousPlayer(nil, g.Players()[0])
-	g.setCurrentPlayers(cp)
-	g.beginningOfPhaseReset()
-	return g.start(c)
+	cp := client.previousPlayer(client.Game.Players()[0])
+	client.setCurrentPlayers(cp)
+	client.beginningOfPhaseReset()
+	client.start()
 }
 
 type setupEntry struct {
 	*Entry
 }
 
-func (g *Game) newSetupEntryFor(p *Player) (e *setupEntry) {
-	e = new(setupEntry)
-	e.Entry = g.newEntryFor(p)
+func (client *Client) newSetupEntryFor(p *Player) *setupEntry {
+	e := new(setupEntry)
+	e.Entry = client.newEntryFor(p)
 	p.Log = append(p.Log, e)
-	g.Log = append(g.Log, e)
-	return
+	client.Game.Log = append(client.Game.Log, e)
+	return e
 }
 
 func (e *setupEntry) HTML(g *Game) template.HTML {
 	return restful.HTML("%s received 2 lamps and 1 camel.", g.NameByPID(e.PlayerID))
 }
 
-func (g *Game) start(c *gin.Context) error {
-	g.Phase = startGame
-	g.newStartEntry()
-	return g.placeThieves(c)
+func (client *Client) start() {
+	client.Game.Phase = startGame
+	client.newStartEntry()
+	client.placeThieves()
 }
 
 type startEntry struct {
 	*Entry
 }
 
-func (g *Game) newStartEntry() *startEntry {
+func (client *Client) newStartEntry() *startEntry {
 	e := new(startEntry)
-	e.Entry = g.newEntry()
-	g.Log = append(g.Log, e)
+	e.Entry = client.newEntry()
+	client.Game.Log = append(client.Game.Log, e)
 	return e
 }
 
@@ -155,7 +156,7 @@ func (e *startEntry) HTML(g *Game) template.HTML {
 	return restful.HTML("Good luck %s.  Have fun.", restful.ToSentence(names))
 }
 
-func (g *Game) setCurrentPlayers(ps ...*Player) {
+func (client *Client) setCurrentPlayers(ps ...*Player) {
 	var pers game.Playerers
 
 	switch length := len(ps); {
@@ -169,7 +170,7 @@ func (g *Game) setCurrentPlayers(ps ...*Player) {
 			pers[i] = player
 		}
 	}
-	g.SetCurrentPlayerers(pers...)
+	client.Game.SetCurrentPlayerers(pers...)
 }
 
 // PlayerByID returns the player having the provided player id.

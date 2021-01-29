@@ -28,24 +28,23 @@ func (client *Client) moveThief() {
 		return
 	}
 
-	g := client.Game
-	cp := g.CurrentPlayer()
-	e := g.newMoveThiefEntryFor(cp)
-	restful.AddNoticef(client.Context, string(e.HTML(g)))
+	cp := client.Game.CurrentPlayer()
+	e := client.newMoveThiefEntryFor(cp)
+	restful.AddNoticef(client.Context, string(e.HTML(client.Game)))
 
 	switch {
-	case g.PlayedCard.Type == sword:
-		g.BumpedPlayerID = g.SelectedArea().Thief
-		bumpedTo := g.bumpedTo(g.SelectedThiefArea(), g.SelectedArea())
-		bumpedTo.Thief = g.BumpedPlayerID
-		g.BumpedPlayer().Score += bumpedTo.Card.Value() - g.SelectedArea().Card.Value()
-	case g.PlayedCard.Type == turban && g.Stepped == 0:
-		g.Stepped = 1
-	case g.PlayedCard.Type == turban && g.Stepped == 1:
-		g.Stepped = 2
+	case client.Game.PlayedCard.Type == sword:
+		client.Game.BumpedPlayerID = client.Game.SelectedArea().Thief
+		bumpedTo := client.Game.bumpedTo(client.Game.SelectedThiefArea(), client.Game.SelectedArea())
+		bumpedTo.Thief = client.Game.BumpedPlayerID
+		client.Game.BumpedPlayer().Score += bumpedTo.Card.Value() - client.Game.SelectedArea().Card.Value()
+	case client.Game.PlayedCard.Type == turban && client.Game.Stepped == 0:
+		client.Game.Stepped = 1
+	case client.Game.PlayedCard.Type == turban && client.Game.Stepped == 1:
+		client.Game.Stepped = 2
 	}
-	g.SelectedArea().Thief = cp.ID()
-	cp.Score += g.SelectedArea().Card.Value()
+	client.Game.SelectedArea().Thief = cp.ID()
+	cp.Score += client.Game.SelectedArea().Card.Value()
 	client.claimItem()
 }
 
@@ -53,9 +52,8 @@ func (client *Client) validateMoveThief() error {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g := client.Game
-	a := g.SelectedArea()
-	g.ClickAreas = nil
+	a := client.Game.SelectedArea()
+	client.Game.ClickAreas = nil
 
 	err := client.validatePlayerAction()
 	switch {
@@ -63,23 +61,23 @@ func (client *Client) validateMoveThief() error {
 		return err
 	case a == nil:
 		return sn.NewVError("You must select a space which to move your thief.")
-	case g.SelectedThiefArea() != nil && g.SelectedThiefArea().Thief != g.CurrentPlayer().ID():
+	case client.Game.SelectedThiefArea() != nil && client.Game.SelectedThiefArea().Thief != client.Game.CurrentPlayer().ID():
 		return sn.NewVError("You must first select one of your thieves.")
-	case (g.PlayedCard.Type == lamp || g.PlayedCard.Type == sLamp) && !g.isLampArea(a):
+	case (client.Game.PlayedCard.Type == lamp || client.Game.PlayedCard.Type == sLamp) && !client.Game.isLampArea(a):
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case (g.PlayedCard.Type == camel || g.PlayedCard.Type == sCamel) && !g.isCamelArea(a):
+	case (client.Game.PlayedCard.Type == camel || client.Game.PlayedCard.Type == sCamel) && !client.Game.isCamelArea(a):
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == coins && !g.isCoinsArea(a):
+	case client.Game.PlayedCard.Type == coins && !client.Game.isCoinsArea(a):
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == sword && !g.isSwordArea(a):
+	case client.Game.PlayedCard.Type == sword && !client.Game.isSwordArea(a):
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == carpet && !g.isCarpetArea(a):
+	case client.Game.PlayedCard.Type == carpet && !client.Game.isCarpetArea(a):
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == turban && g.Stepped == 0 && !g.isTurban0Area(a):
+	case client.Game.PlayedCard.Type == turban && client.Game.Stepped == 0 && !client.Game.isTurban0Area(a):
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == turban && g.Stepped == 1 && !g.isTurban1Area(a):
+	case client.Game.PlayedCard.Type == turban && client.Game.Stepped == 1 && !client.Game.isTurban1Area(a):
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
-	case g.PlayedCard.Type == guard:
+	case client.Game.PlayedCard.Type == guard:
 		return sn.NewVError("You can't move the selected thief to area %d%d", a.Row, a.Column)
 	default:
 		return nil
@@ -93,19 +91,19 @@ type moveThiefEntry struct {
 	To   Area
 }
 
-func (g *Game) newMoveThiefEntryFor(p *Player) (e *moveThiefEntry) {
-	e = &moveThiefEntry{
-		Entry: g.newEntryFor(p),
-		Card:  *(g.PlayedCard),
-		From:  *(g.SelectedThiefArea()),
-		To:    *(g.SelectedArea()),
+func (client *Client) newMoveThiefEntryFor(p *Player) *moveThiefEntry {
+	e := &moveThiefEntry{
+		Entry: client.newEntryFor(p),
+		Card:  *(client.Game.PlayedCard),
+		From:  *(client.Game.SelectedThiefArea()),
+		To:    *(client.Game.SelectedArea()),
 	}
-	if g.JewelsPlayed {
+	if client.Game.JewelsPlayed {
 		e.Card = *(newCard(jewels, true))
 	}
 	p.Log = append(p.Log, e)
-	g.Log = append(g.Log, e)
-	return
+	client.Game.Log = append(client.Game.Log, e)
+	return e
 }
 
 func (e *moveThiefEntry) HTML(g *Game) (t template.HTML) {

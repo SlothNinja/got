@@ -22,15 +22,14 @@ func (client *Client) pass() {
 		return
 	}
 
-	g := client.Game
-	cp := g.CurrentPlayer()
+	cp := client.Game.CurrentPlayer()
 	cp.Passed = true
 	cp.PerformedAction = true
-	g.Phase = drawCard
+	client.Game.Phase = drawCard
 
 	// Log Pass
-	e := g.newPassEntryFor(cp)
-	restful.AddNoticef(client.Context, string(e.HTML(g)))
+	e := client.newPassEntryFor(cp)
+	restful.AddNoticef(client.Context, string(e.HTML(client.Game)))
 
 	client.html("got/pass_update")
 }
@@ -43,13 +42,13 @@ type passEntry struct {
 	*Entry
 }
 
-func (g *Game) newPassEntryFor(p *Player) (e *passEntry) {
-	e = &passEntry{
-		Entry: g.newEntryFor(p),
+func (client *Client) newPassEntryFor(p *Player) *passEntry {
+	e := &passEntry{
+		Entry: client.newEntryFor(p),
 	}
 	p.Log = append(p.Log, e)
-	g.Log = append(g.Log, e)
-	return
+	client.Game.Log = append(client.Game.Log, e)
+	return e
 }
 
 func (e *passEntry) HTML(g *Game) template.HTML {

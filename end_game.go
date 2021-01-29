@@ -28,8 +28,8 @@ func (client *Client) endGame(c *gin.Context, g *Game) ([]contest.ResultsMap, er
 	if err != nil {
 		return nil, err
 	}
-	g.setWinners(ps[0])
-	g.newEndGameEntry()
+	client.setWinners(ps[0])
+	client.newEndGameEntry()
 	return ps, nil
 }
 
@@ -47,11 +47,11 @@ type endGameEntry struct {
 	*Entry
 }
 
-func (g *Game) newEndGameEntry() {
+func (client *Client) newEndGameEntry() {
 	e := &endGameEntry{
-		Entry: g.newEntry(),
+		Entry: client.newEntry(),
 	}
-	g.Log = append(g.Log, e)
+	client.Game.Log = append(client.Game.Log, e)
 }
 
 func (e *endGameEntry) HTML(g *Game) (s template.HTML) {
@@ -69,18 +69,18 @@ func (e *endGameEntry) HTML(g *Game) (s template.HTML) {
 	return
 }
 
-func (g *Game) setWinners(rmap contest.ResultsMap) {
-	g.Phase = announceWinners
-	g.Status = game.Completed
+func (client *Client) setWinners(rmap contest.ResultsMap) {
+	client.Game.Phase = announceWinners
+	client.Game.Status = game.Completed
 
-	g.setCurrentPlayers()
-	g.WinnerIDS = nil
+	client.setCurrentPlayers()
+	client.Game.WinnerIDS = nil
 	for key := range rmap {
-		p := g.PlayerByUserID(key.ID)
-		g.WinnerIDS = append(g.WinnerIDS, p.ID())
+		p := client.Game.PlayerByUserID(key.ID)
+		client.Game.WinnerIDS = append(client.Game.WinnerIDS, p.ID())
 	}
 
-	g.newAnnounceWinnersEntry()
+	client.newAnnounceWinnersEntry()
 }
 
 type result struct {
@@ -136,7 +136,7 @@ func (client *Client) sendEndGameNotifications(c *gin.Context, g *Game, ps []con
 		return err
 	}
 
-	ms := make([]mailjet.InfoMessagesV31, len(g.Players()))
+	ms := make([]mailjet.InfoMessagesV31, len(client.Game.Players()))
 	subject := fmt.Sprintf("SlothNinja Games: Guild of Thieves #%d Has Ended", g.ID)
 	body := buf.String()
 	for i, p := range g.Players() {
@@ -164,11 +164,11 @@ type announceWinnersEntry struct {
 	*Entry
 }
 
-func (g *Game) newAnnounceWinnersEntry() *announceWinnersEntry {
+func (client *Client) newAnnounceWinnersEntry() *announceWinnersEntry {
 	e := &announceWinnersEntry{
-		Entry: g.newEntry(),
+		Entry: client.newEntry(),
 	}
-	g.Log = append(g.Log, e)
+	client.Game.Log = append(client.Game.Log, e)
 	return e
 }
 

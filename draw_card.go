@@ -15,18 +15,17 @@ func (client *Client) drawCard() {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g := client.Game
-	g.Phase = drawCard
-	cp := g.CurrentPlayer()
+	client.Game.Phase = drawCard
+	cp := client.Game.CurrentPlayer()
 
-	if g.Turn != 1 {
+	if client.Game.Turn != 1 {
 		card, shuffle := cp.draw()
-		e := g.newDrawCardEntryFor(cp, card, shuffle)
-		restful.AddNoticef(client.Context, string(e.HTML(g)))
-		if g.PlayedCard.Type == coins {
+		e := client.newDrawCardEntryFor(cp, card, shuffle)
+		restful.AddNoticef(client.Context, string(e.HTML(client.Game)))
+		if client.Game.PlayedCard.Type == coins {
 			card, shuffle := cp.draw()
-			e := g.newDrawCardEntryFor(cp, card, shuffle)
-			restful.AddNoticef(client.Context, string(e.HTML(g)))
+			e := client.newDrawCardEntryFor(cp, card, shuffle)
+			restful.AddNoticef(client.Context, string(e.HTML(client.Game)))
 		}
 	}
 	cp.PerformedAction = true
@@ -39,14 +38,14 @@ type drawCardEntry struct {
 	Shuffle bool
 }
 
-func (g *Game) newDrawCardEntryFor(p *Player, c *Card, shuffle bool) *drawCardEntry {
+func (client *Client) newDrawCardEntryFor(p *Player, c *Card, shuffle bool) *drawCardEntry {
 	e := &drawCardEntry{
-		Entry:   g.newEntryFor(p),
+		Entry:   client.newEntryFor(p),
 		Card:    *c,
 		Shuffle: shuffle,
 	}
 	p.Log = append(p.Log, e)
-	g.Log = append(g.Log, e)
+	client.Game.Log = append(client.Game.Log, e)
 	return e
 }
 

@@ -18,8 +18,7 @@ func (client *Client) selectArea(c *gin.Context) {
 		return
 	}
 
-	g, cu := client.Game, client.CUser
-	cp := g.CurrentPlayer()
+	cp := client.Game.CurrentPlayer()
 	switch {
 	// case g.Admin == "admin-header":
 	// 	return "got/admin/header_dialog", game.Cache, nil
@@ -35,13 +34,13 @@ func (client *Client) selectArea(c *gin.Context) {
 	// case g.Admin == "admin-player-row-3":
 	// 	g.SelectedPlayerID = 3
 	// 	return "got/admin/player_dialog", game.Cache, nil
-	case g.CanPlaceThief(cu, cp):
+	case client.Game.CanPlaceThief(client.CUser, cp):
 		client.placeThief()
-	case g.CanSelectCard(cu, cp):
+	case client.Game.CanSelectCard(client.CUser, cp):
 		client.playCard()
-	case g.CanSelectThief(cu, cp):
+	case client.Game.CanSelectThief(client.CUser, cp):
 		client.selectThief()
-	case g.CanMoveThief(cu, cp):
+	case client.Game.CanMoveThief(client.CUser, cp):
 		client.moveThief()
 	default:
 		client.flashError(sn.NewVError("can't find action for selection"))
@@ -52,21 +51,20 @@ func (client *Client) validateSelectArea() error {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g, cu := client.Game, client.CUser
-	cp := g.CurrentPlayer()
-	if !g.IsCurrentPlayer(cu) {
+	cp := client.Game.CurrentPlayer()
+	if !client.Game.IsCurrentPlayer(client.CUser) {
 		return sn.NewVError("only the current player can perform an action")
 	}
 
-	if !cu.IsAdmin() && cp != nil && !g.CanPlaceThief(cu, cp) && !g.CanSelectCard(cu, cp) && !g.CanSelectThief(cu, cp) && !g.CanMoveThief(cu, cp) {
+	if !client.CUser.IsAdmin() && cp != nil && !client.Game.CanPlaceThief(client.CUser, cp) && !client.Game.CanSelectCard(client.CUser, cp) && !client.Game.CanSelectThief(client.CUser, cp) && !client.Game.CanMoveThief(client.CUser, cp) {
 		return sn.NewVError("you can't select an area right now")
 	}
 
-	g.Admin = ""
+	client.Game.Admin = ""
 	areaID := client.Context.PostForm("area")
 	switch splits := strings.Split(areaID, "-"); splits[0] {
 	case "admin":
-		g.Admin = areaID
+		client.Game.Admin = areaID
 		return nil
 	case "area":
 		var row, col int
@@ -82,14 +80,14 @@ func (client *Client) validateSelectArea() error {
 			return sn.NewVError("Row too small")
 		case row > rowG:
 			return sn.NewVError("Row too large")
-		case g.NumPlayers == 2 && row > rowF:
+		case client.Game.NumPlayers == 2 && row > rowF:
 			return sn.NewVError("Row too large")
 		case col < col1:
 			return sn.NewVError("Column too small")
 		case col > col8:
 			return sn.NewVError("Column too large")
 		default:
-			g.SelectedAreaF = g.Grid[row][col]
+			client.Game.SelectedAreaF = client.Game.Grid[row][col]
 			return nil
 		}
 	case "card":
@@ -99,7 +97,7 @@ func (client *Client) validateSelectArea() error {
 		}
 		for i, card := range cp.Hand {
 			if card.Type == cardType {
-				g.SelectedCardIndex = i
+				client.Game.SelectedCardIndex = i
 				return nil
 			}
 		}

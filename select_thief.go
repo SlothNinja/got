@@ -29,12 +29,11 @@ func (client *Client) validateSelectThief() error {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g := client.Game
-	area, err := g.SelectedArea(), client.validatePlayerAction()
+	area, err := client.Game.SelectedArea(), client.validatePlayerAction()
 	switch {
 	case err != nil:
 		return err
-	case area == nil || area.Thief != g.CurrentPlayer().ID():
+	case area == nil || area.Thief != client.Game.CurrentPlayer().ID():
 		return sn.NewVError("You must select one of your thieves.")
 	default:
 		return nil

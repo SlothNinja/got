@@ -4,23 +4,21 @@ import (
 	"encoding/gob"
 	"html/template"
 
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/sn"
-	"github.com/gin-gonic/gin"
 )
 
 func init() {
 	gob.Register(new(playCardEntry))
 }
 
-func (g *Game) startCardPlay(c *gin.Context) (tmpl string, err error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (client *Client) startCardPlay() (string, error) {
+	client.Log.Debugf(msgEnter)
+	defer client.Log.Debugf(msgExit)
 
-	g.Phase = playCard
-	g.Turn = 1
-	return
+	client.Game.Phase = playCard
+	client.Game.Turn = 1
+	return "", nil
 }
 
 func (client *Client) playCard() {
@@ -53,7 +51,7 @@ func (client *Client) playCard() {
 	}
 
 	// Log placement
-	e := g.newPlayCardEntryFor(cp, card)
+	e := client.newPlayCardEntryFor(cp, card)
 	restful.AddNoticef(client.Context, string(e.HTML(g)))
 
 	client.startSelectThief()
@@ -81,13 +79,13 @@ type playCardEntry struct {
 	Type cType
 }
 
-func (g *Game) newPlayCardEntryFor(p *Player, c *Card) *playCardEntry {
+func (client *Client) newPlayCardEntryFor(p *Player, c *Card) *playCardEntry {
 	e := &playCardEntry{
-		Entry: g.newEntryFor(p),
+		Entry: client.newEntryFor(p),
 		Type:  c.Type,
 	}
 	p.Log = append(p.Log, e)
-	g.Log = append(g.Log, e)
+	client.Game.Log = append(client.Game.Log, e)
 	return e
 }
 

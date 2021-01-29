@@ -99,7 +99,6 @@ func (client *Client) addMessage(prefix string) gin.HandlerFunc {
 		defer client.Log.Debugf(msgExit)
 
 		client.Prefix, client.Context = prefix, c
-		g, cu := client.Game, client.CUser
 
 		id, err := getID(c)
 		if err != nil {
@@ -107,7 +106,7 @@ func (client *Client) addMessage(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		cu, err = client.User.Current(c)
+		client.CUser, err = client.User.Current(c)
 		if err != nil {
 			client.Log.Debugf(err.Error())
 			return
@@ -125,7 +124,7 @@ func (client *Client) addMessage(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		m := ml.AddMessage(cu, c.PostForm("message"))
+		m := ml.AddMessage(client.CUser, c.PostForm("message"))
 
 		_, err = client.MLog.Put(c, id, ml)
 		if err != nil {
@@ -136,8 +135,8 @@ func (client *Client) addMessage(prefix string) gin.HandlerFunc {
 		c.HTML(http.StatusOK, "shared/message", gin.H{
 			"message": m,
 			"ctx":     c,
-			"map":     g.ColorMapFor(cu),
-			"link":    cu.Link(),
+			"map":     client.Game.ColorMapFor(client.CUser),
+			"link":    client.CUser.Link(),
 		})
 	}
 }
@@ -167,7 +166,6 @@ func (client *Client) undo(prefix string) gin.HandlerFunc {
 		defer client.Log.Debugf(msgExit)
 
 		client.Prefix, client.Context = prefix, c
-		g, cu := client.Game, client.CUser
 
 		path := showPath(prefix, c.Param("hid"))
 
@@ -192,8 +190,8 @@ func (client *Client) undo(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		client.Cache.Delete(g.UndoKey(cu))
-		client.Cache.Delete(g.Key.Encode())
+		client.Cache.Delete(client.Game.UndoKey(cu))
+		client.Cache.Delete(client.Game.Key.Encode())
 		c.Redirect(http.StatusSeeOther, path)
 	}
 }
@@ -258,29 +256,27 @@ func (client *Client) save() error {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g, c, cu := client.Game, client.Context, client.CUser
-
-	oldG := New(c, g.ID())
-	err := client.DS.Get(c, oldG.Header.Key, oldG.Header)
+	oldG := New(client.Context, client.Game.ID())
+	err := client.DS.Get(client.Context, oldG.Header.Key, oldG.Header)
 	if err != nil {
 		return err
 	}
 
-	if oldG.UpdatedAt != g.UpdatedAt {
+	if oldG.UpdatedAt != client.Game.UpdatedAt {
 		return fmt.Errorf("game state changed unexpectantly -- try again")
 	}
 
-	err = g.encode(c)
+	err = client.Game.encode(client.Context)
 	if err != nil {
 		return err
 	}
 
-	_, err = client.DS.Put(c, g.Key, g.Header)
+	_, err = client.DS.Put(client.Context, client.Game.Key, client.Game.Header)
 	if err != nil {
 		return err
 	}
 
-	client.Cache.Delete(g.UndoKey(cu))
+	client.Cache.Delete(client.Game.UndoKey(client.CUser))
 	return nil
 }
 
@@ -541,7 +537,6 @@ func (client *Client) accept(prefix string) gin.HandlerFunc {
 		defer client.Log.Debugf(msgExit)
 
 		client.Prefix, client.Context = prefix, c
-		g, cu := client.Game, client.CUser
 
 		path := recruitingPath(prefix)
 
@@ -569,7 +564,7 @@ func (client *Client) accept(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		start, err := g.Accept(c, cu)
+		start, err := client.Game.Accept(c, cu)
 		if err != nil {
 			client.Log.Errorf(err.Error())
 			restful.AddErrorf(c, err.Error())
@@ -578,13 +573,7 @@ func (client *Client) accept(prefix string) gin.HandlerFunc {
 		}
 
 		if start {
-			err = g.Start(c)
-			if err != nil {
-				client.Log.Errorf(err.Error())
-				restful.AddErrorf(c, err.Error())
-				c.Redirect(http.StatusSeeOther, path)
-				return
-			}
+			client.Start()
 		}
 
 		err = client.save()
@@ -596,7 +585,7 @@ func (client *Client) accept(prefix string) gin.HandlerFunc {
 		}
 
 		if start {
-			err = g.SendTurnNotificationsTo(c, g.CurrentPlayer())
+			err = client.Game.SendTurnNotificationsTo(client.Context, client.Game.CurrentPlayer())
 			if err != nil {
 				restful.AddErrorf(c, err.Error())
 				client.Log.Errorf(err.Error())
@@ -612,11 +601,11 @@ func (client *Client) drop(prefix string) gin.HandlerFunc {
 		defer client.Log.Debugf(msgExit)
 
 		client.Prefix, client.Context = prefix, c
-		g, cu := client.Game, client.CUser
 
 		path := recruitingPath(prefix)
 
-		cu, err := client.User.Current(c)
+		var err error
+		client.CUser, err = client.User.Current(c)
 		if err != nil {
 			client.Log.Errorf(err.Error())
 			restful.AddErrorf(c, err.Error())
@@ -637,7 +626,7 @@ func (client *Client) drop(prefix string) gin.HandlerFunc {
 			c.Redirect(http.StatusSeeOther, path)
 		}
 
-		err = g.Drop(cu)
+		err = client.Game.Drop(client.CUser)
 		if err != nil {
 			client.Log.Errorf(err.Error())
 			restful.AddErrorf(c, err.Error())
@@ -730,8 +719,6 @@ func (client *Client) getGameFor(id int64) error {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g := client.Game
-
 	err := client.mcGetFor(id)
 	if err == nil {
 		return nil
@@ -741,7 +728,7 @@ func (client *Client) getGameFor(id int64) error {
 	if err != nil {
 		return err
 	}
-	client.Cache.SetDefault(g.Key.Encode(), g)
+	client.Cache.SetDefault(client.Game.Key.Encode(), client.Game)
 	return nil
 }
 
@@ -750,18 +737,17 @@ func (client *Client) mcGetFor(id int64) error {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g, cu, c := client.Game, client.CUser, client.Context
 	err := client.mcGet(id)
 
 	switch {
-	case cu == nil:
+	case client.CUser == nil:
 		return err
-	case err == nil && !g.IsCurrentPlayer(cu):
+	case err == nil && !client.Game.IsCurrentPlayer(client.CUser):
 		return nil
 	}
 
-	g1 := New(c, id)
-	mkey := g1.UndoKey(cu)
+	g1 := New(client.Context, id)
+	mkey := g1.UndoKey(client.CUser)
 	item, found := client.Cache.Get(mkey)
 	if !found {
 		if err == nil {
@@ -778,7 +764,7 @@ func (client *Client) mcGetFor(id int64) error {
 		}
 		return ErrInvalidCache
 	}
-	g2.SetCTX(c)
+	g2.SetCTX(client.Context)
 
 	client.Game = g2
 	return nil

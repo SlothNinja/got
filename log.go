@@ -25,22 +25,22 @@ type Entryer interface {
 	HTML(g *Game) template.HTML
 }
 
-func (g *Game) newEntry() (e *Entry) {
-	e = new(Entry)
+func (client *Client) newEntry() *Entry {
+	e := new(Entry)
 	e.PlayerID = game.NoPlayerID
 	e.OtherPlayerID = game.NoPlayerID
-	e.TurnF = g.Turn
-	e.PhaseF = g.Phase
-	e.SubPhaseF = g.SubPhase
-	e.RoundF = g.Round
+	e.TurnF = client.Game.Turn
+	e.PhaseF = client.Game.Phase
+	e.SubPhaseF = client.Game.SubPhase
+	e.RoundF = client.Game.Round
 	e.CreatedAtF = time.Now()
-	return
+	return e
 }
 
-func (g *Game) newEntryFor(p *Player) (e *Entry) {
-	e = g.newEntry()
+func (client *Client) newEntryFor(p *Player) *Entry {
+	e := client.newEntry()
 	e.PlayerID = p.ID()
-	return
+	return e
 }
 
 // PhaseName displays the turn and phase in an entry of the game log.

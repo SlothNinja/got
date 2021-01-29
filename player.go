@@ -32,7 +32,7 @@ type Player struct {
 // Players is a slice of players of the game.
 type Players []*Player
 
-func (ps Players) allPassed() bool {
+func allPassed(ps []*Player) bool {
 	for _, p := range ps {
 		if !p.Passed {
 			return false
@@ -227,8 +227,8 @@ func (p *Player) beginningOfTurnReset() {
 	p.clearActions()
 }
 
-func (g *Game) beginningOfPhaseReset() {
-	for _, p := range g.Players() {
+func (client *Client) beginningOfPhaseReset() {
+	for _, p := range client.Game.Players() {
 		p.clearActions()
 		p.Passed = false
 	}
@@ -312,9 +312,9 @@ func (g *Game) CanMoveThief(cu *user.User, p *Player) bool {
 		g.SelectedThiefArea() != nil
 }
 
-func (g *Game) endOfTurnUpdateFor(p *Player) {
-	if g.PlayedCard != nil {
-		g.Jewels = *(g.PlayedCard)
+func (client *Client) endOfTurnUpdateFor(p *Player) {
+	if client.Game.PlayedCard != nil {
+		client.Game.Jewels = *(client.Game.PlayedCard)
 	}
 
 	for _, card := range p.Hand {

@@ -5,7 +5,6 @@ import (
 	"html/template"
 
 	"github.com/SlothNinja/restful"
-	"github.com/gin-gonic/gin"
 )
 
 func init() {
@@ -16,25 +15,24 @@ func (client *Client) claimItem() {
 	client.Log.Debugf(msgEnter)
 	defer client.Log.Debugf(msgExit)
 
-	g := client.Game
-	cp := g.CurrentPlayer()
-	g.Phase = claimItem
-	e := g.newClaimItemEntryFor(cp)
-	restful.AddNoticef(client.Context, string(e.HTML(g)))
+	cp := client.Game.CurrentPlayer()
+	client.Game.Phase = claimItem
+	e := client.newClaimItemEntryFor(cp)
+	restful.AddNoticef(client.Context, string(e.HTML(client.Game)))
 
-	card := g.SelectedThiefArea().Card
-	g.SelectedThiefArea().Card = nil
-	g.SelectedThiefArea().Thief = noPID
+	card := client.Game.SelectedThiefArea().Card
+	client.Game.SelectedThiefArea().Card = nil
+	client.Game.SelectedThiefArea().Thief = noPID
 
 	switch {
-	case g.Turn == 1:
+	case client.Game.Turn == 1:
 		card.FaceUp = true
 		cp.Hand.append(card)
 		client.drawCard()
-	case g.Stepped == 1:
+	case client.Game.Stepped == 1:
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
-		g.SelectedThiefAreaF = g.SelectedAreaF
-		g.ClickAreas = nil
+		client.Game.SelectedThiefAreaF = client.Game.SelectedAreaF
+		client.Game.ClickAreas = nil
 		client.startMoveThief()
 	default:
 		cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
@@ -47,13 +45,13 @@ type claimItemEntry struct {
 	Area Area
 }
 
-func (g *Game) newClaimItemEntryFor(p *Player) *claimItemEntry {
+func (client *Client) newClaimItemEntryFor(p *Player) *claimItemEntry {
 	e := &claimItemEntry{
-		Entry: g.newEntryFor(p),
-		Area:  *(g.SelectedThiefArea()),
+		Entry: client.newEntryFor(p),
+		Area:  *(client.Game.SelectedThiefArea()),
 	}
 	p.Log = append(p.Log, e)
-	g.Log = append(g.Log, e)
+	client.Game.Log = append(client.Game.Log, e)
 	return e
 }
 
@@ -62,19 +60,19 @@ func (e *claimItemEntry) HTML(g *Game) template.HTML {
 		g.NameByPID(e.PlayerID), e.Area.Card.Type, e.Area.RowString(), e.Area.ColString())
 }
 
-func (g *Game) finalClaim(c *gin.Context) {
-	g.Phase = finalClaim
-	for _, row := range g.Grid {
-		for _, g.SelectedThiefAreaF = range row {
-			if p := g.PlayerByID(g.SelectedThiefAreaF.Thief); p != nil {
-				card := g.SelectedThiefAreaF.Card
-				g.SelectedThiefAreaF.Card = nil
-				g.SelectedThiefAreaF.Thief = noPID
+func (client *Client) finalClaim() {
+	client.Game.Phase = finalClaim
+	for _, row := range client.Game.Grid {
+		for _, client.Game.SelectedThiefAreaF = range row {
+			if p := client.Game.PlayerByID(client.Game.SelectedThiefAreaF.Thief); p != nil {
+				card := client.Game.SelectedThiefAreaF.Card
+				client.Game.SelectedThiefAreaF.Card = nil
+				client.Game.SelectedThiefAreaF.Thief = noPID
 				p.DiscardPile = append(Cards{card}, p.DiscardPile...)
 			}
 		}
 	}
-	for _, p := range g.Players() {
+	for _, p := range client.Game.Players() {
 		p.Hand.append(p.DiscardPile...)
 		p.Hand.append(p.DrawPile...)
 		for _, card := range p.Hand {
