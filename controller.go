@@ -276,28 +276,29 @@ func (client *Client) save() error {
 		return err
 	}
 
+	client.Cache.Delete(client.Game.Key.Encode())
 	client.Cache.Delete(client.Game.UndoKey(client.CUser))
 	return nil
 }
 
-func (client *Client) saveWith(c *gin.Context, g *Game, cu *user.User, s *user.Stats, cs []*contest.Contest) error {
-	_, err := client.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		oldG := New(c, g.ID())
+func (client *Client) saveWith(s *user.Stats, cs []*contest.Contest) error {
+	_, err := client.DS.RunInTransaction(client.Context, func(tx *datastore.Transaction) error {
+		oldG := New(client.Context, client.Game.ID())
 		err := tx.Get(oldG.Header.Key, oldG.Header)
 		if err != nil {
 			return err
 		}
 
-		if oldG.UpdatedAt != g.UpdatedAt {
+		if oldG.UpdatedAt != client.Game.UpdatedAt {
 			return fmt.Errorf("game state changed unexpectantly -- try again")
 		}
 
-		err = g.encode(c)
+		err = client.Game.encode(client.Context)
 		if err != nil {
 			return err
 		}
 
-		_, err = client.User.StatsUpdate(c, s, g.UpdatedAt)
+		_, err = client.User.StatsUpdate(client.Context, s, client.Game.UpdatedAt)
 		if err != nil {
 			return err
 		}
@@ -305,7 +306,7 @@ func (client *Client) saveWith(c *gin.Context, g *Game, cu *user.User, s *user.S
 		l := len(cs) + 1
 		ks := make([]*datastore.Key, l)
 		es := make([]interface{}, l)
-		ks[0], es[0] = g.Key, g.Header
+		ks[0], es[0] = client.Game.Key, client.Game.Header
 		for i, contest := range cs {
 			ks[i+1], es[i+1] = contest.Key, contest
 		}
@@ -315,7 +316,8 @@ func (client *Client) saveWith(c *gin.Context, g *Game, cu *user.User, s *user.S
 			return err
 		}
 
-		client.Cache.Delete(g.UndoKey(cu))
+		client.Cache.Delete(client.Game.Key.Encode())
+		client.Cache.Delete(client.Game.UndoKey(client.CUser))
 		return nil
 	})
 	return err

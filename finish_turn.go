@@ -76,7 +76,7 @@ func (client *Client) finish(prefix string) gin.HandlerFunc {
 			return
 		}
 
-		err = client.saveWith(c, client.Game, client.CUser, s, cs)
+		err = client.saveWith(s, cs)
 		if err != nil {
 			client.Log.Errorf(err.Error())
 		}
