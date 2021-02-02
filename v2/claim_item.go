@@ -2,10 +2,9 @@ package main
 
 import (
 	"github.com/SlothNinja/log"
-	"github.com/gin-gonic/gin"
 )
 
-func (g *game) claimItem(cp *player, a *Area) {
+func (g *Game) claimItem(cp *player, a *Area) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -45,10 +44,10 @@ func (g *game) claimItem(cp *player, a *Area) {
 	}
 }
 
-func (g *game) finalClaim(c *gin.Context) {
-	for _, row := range g.grid {
+func (cl *client) finalClaim() {
+	for _, row := range cl.g.grid {
 		for _, a := range row {
-			if p := g.playerByID(a.Thief); p != nil {
+			if p := cl.playerByID(a.Thief); p != nil {
 				card := a.Card
 				a.Card = nil
 				a.Thief = noPID
@@ -57,7 +56,7 @@ func (g *game) finalClaim(c *gin.Context) {
 			}
 		}
 	}
-	for _, p := range g.players {
+	for _, p := range cl.g.players {
 		p.Hand.append(p.DiscardPile...)
 		p.Hand.append(p.DrawPile...)
 		for _, card := range p.Hand {

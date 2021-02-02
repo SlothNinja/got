@@ -5,14 +5,15 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/game"
+	"github.com/SlothNinja/restful"
 )
 
 // Header provides game/invitation header data
 type Header struct {
 	TwoThiefVariant bool
 	Phase           phase
-	sn.Header
+	game.Header
 }
 
 // MarshalJSON implements json.Marshaler interface
@@ -62,7 +63,7 @@ func (gh GHeader) MarshalJSON() ([]byte, error) {
 
 	data["key"] = gh.Key
 	data["id"] = gh.id()
-	data["lastUpdated"] = sn.LastUpdated(gh.UpdatedAt)
+	data["lastUpdated"] = restful.LastUpdated(gh.UpdatedAt)
 	data["public"] = len(gh.Password) == 0
 
 	return json.Marshal(data)

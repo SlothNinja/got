@@ -2,110 +2,124 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
-	"github.com/SlothNinja/user/v2"
+	"github.com/SlothNinja/mlog"
+	"github.com/SlothNinja/sn"
+	gtype "github.com/SlothNinja/type"
+	"github.com/SlothNinja/undo"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (cl client) show(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) show(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	g, err := cl.getGCommited(c)
+	cl.ctx = c
+
+	var err error
+	err = cl.getGCommited()
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	g.updateClickablesFor(c, g.currentPlayer(), g.selectedThiefArea())
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	cl.updateClickablesFor(cl.currentPlayer(), cl.selectedThiefArea())
+	c.JSON(http.StatusOK, gin.H{"game": cl.g})
 }
 
-func (cl client) undo(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) undo(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cl.undoOperations(c, (*sn.Stack).Undo)
+	cl.ctx = c
+	cl.undoOperations((*undo.Stack).Undo)
 }
 
-func (cl client) redo(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) redo(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cl.undoOperations(c, (*sn.Stack).Redo)
+	cl.ctx = c
+	cl.undoOperations((*undo.Stack).Redo)
 }
 
-func (cl client) reset(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) reset(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	gcommitted, err := cl.getGCommited(c)
+	cl.ctx = c
+
+	err := cl.getGCommited()
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	k := newGameKey(gcommitted.id(), gcommitted.Undo.Current)
-	g := gcommitted.game
-	_, err = cl.DS.Put(c, k, &g)
+	k := newGameKey(cl.gc.id(), cl.gc.Undo.Current)
+	cl.g = cl.gc.Game
+	_, err = cl.DS.Put(c, k, cl.g)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	g.updateClickablesFor(c, g.currentPlayer(), g.selectedThiefArea())
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	cl.updateClickablesFor(cl.currentPlayer(), cl.selectedThiefArea())
+	c.JSON(http.StatusOK, gin.H{"game": cl.g})
 }
 
-func (cl client) undoOperations(c *gin.Context, action func(*sn.Stack) bool) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) undoOperations(action func(*undo.Stack) bool) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	undo, err := getStack(c)
+	undo, err := cl.getStack()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	id, err := getID(c)
+	id, err := cl.getID()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	action(&undo)
-	g := newGame(id, undo.Current)
-	err = cl.DS.Get(c, g.Key, g)
+	action(undo)
+	cl.g = newGame(id, undo.Current)
+	err = cl.DS.Get(cl.ctx, cl.g.Key, cl.g)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	if undo.Committed != g.Undo.Committed {
-		sn.JErr(c, fmt.Errorf("invalid game state"))
+	if undo.Committed != cl.g.Undo.Committed {
+		cl.jerr(fmt.Errorf("invalid game state"))
 		return
 	}
 
-	g.Undo = undo
-	g.updateClickablesFor(c, g.currentPlayer(), g.selectedThiefArea())
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	cl.g.Undo = undo
+	cl.updateClickablesFor(cl.currentPlayer(), cl.selectedThiefArea())
+	cl.ctx.JSON(http.StatusOK, gin.H{"game": cl.g})
 }
 
-func (cl client) newInvitation(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) newInvitationHandler(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cu, err := user.FromSession(c)
-	if err != nil || cu == nil {
-		sn.JErr(c, sn.ErrUserNotFound)
+	cl.ctx = c
+
+	cl.CUser()
+	if cl.cu == nil {
+		cl.jerr(user.ErrNotFound)
 		return
 	}
 
@@ -114,32 +128,34 @@ func (cl client) newInvitation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"invitation": inv})
 }
 
-func (cl client) create(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) createHandler(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cu, err := user.FromSession(c)
-	if err != nil {
-		sn.JErr(c, err)
+	cl.ctx = c
+
+	cl.CUser()
+	if cl.cu == nil {
+		cl.jerr(user.ErrNotFound)
 		return
 	}
 
 	inv := newInvitation(0)
-	err = inv.fromForm(c, cu)
+	err := inv.fromForm(c, cl.cu)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
 	ks, err := cl.DS.AllocateIDs(c, []*datastore.Key{rootKey(0)})
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 	inv.Key = newInvitationKey(ks[0].ID)
 
 	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		m := sn.NewMLog(inv.Key.ID)
+		m := mlog.New(inv.Key.ID)
 		ks := []*datastore.Key{inv.Key, m.Key}
 		es := []interface{}{inv, m}
 
@@ -147,14 +163,14 @@ func (cl client) create(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
 	inv2 := defaultInvitation()
 	c.JSON(http.StatusOK, gin.H{
 		"invitation": inv2,
-		"message":    fmt.Sprintf("%s created game %q", cu.Name, inv.Title),
+		"message":    fmt.Sprintf("%s created game %q", cl.cu.Name, inv.Title),
 	})
 }
 
@@ -189,29 +205,31 @@ func (inv *invitation) fromForm(c *gin.Context, cu *user.User) error {
 		if err != nil {
 			return err
 		}
-		inv.Password = hashed
+		inv.PasswordHash = hashed
 	}
 	inv.AddCreator(cu)
 	inv.TwoThiefVariant = obj.TwoThiefVariant
 	inv.AddUser(cu)
-	inv.Status = sn.Recruiting
-	inv.Type = sn.GOT
+	inv.Status = game.Recruiting
+	inv.Type = gtype.GOT
 	return nil
 }
 
-func (cl client) accept(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) accept(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	inv, err := cl.getInvitation(c)
+	cl.ctx = c
+
+	inv, err := cl.getInvitation()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	cu, err := user.FromSession(c)
-	if err != nil || cu == nil {
-		sn.JErr(c, sn.ErrUserNotFound)
+	cu := cl.CUser()
+	if cu == nil {
+		cl.jerr(user.ErrNotFound)
 		return
 	}
 
@@ -221,20 +239,20 @@ func (cl client) accept(c *gin.Context) {
 
 	err = c.ShouldBind(&obj)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	start, err := inv.Accept(cu, []byte(obj.Password))
+	start, err := inv.AcceptWith(cu, []byte(obj.Password))
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
 	if !start {
 		_, err = cl.DS.Put(c, inv.Key, inv)
 		if err != nil {
-			sn.JErr(c, err)
+			cl.jerr(err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
@@ -246,7 +264,7 @@ func (cl client) accept(c *gin.Context) {
 
 	g := newGame(inv.Key.ID, 0)
 	g.Header = inv.Header
-	g.start()
+	cl.start()
 
 	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		err = tx.Delete(inv.Key)
@@ -259,12 +277,11 @@ func (cl client) accept(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	cp := g.currentPlayer()
-	err = g.SendTurnNotificationsTo(c, cp)
+	err = cl.sendTurnNotificationsTo(cl.cp)
 	if err != nil {
 		log.Warningf(err.Error())
 	}
@@ -276,7 +293,7 @@ func (cl client) accept(c *gin.Context) {
 			`<div>Game: %d has started.</div>
 			<div></div>
 			<div><strong>%s</strong> is start player.</div>`,
-			inv.ID(), cp.User.Name),
+			inv.ID(), cl.nameFor(cl.cp)),
 	})
 }
 
@@ -285,19 +302,21 @@ type detail struct {
 	GLO int   `json:"glo"`
 }
 
-func (cl client) details(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) details(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	inv, err := cl.getInvitation(c)
+	cl.ctx = c
+
+	inv, err := cl.getInvitation()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	cu, err := user.FromSession(c)
-	if err != nil || cu == nil {
-		sn.JErr(c, sn.ErrUserNotFound)
+	cu := cl.CUser()
+	if cu == nil {
+		cl.jerr(user.ErrNotFound)
 		return
 	}
 
@@ -316,9 +335,9 @@ func (cl client) details(c *gin.Context) {
 		ks = append(ks, cu.Key)
 	}
 
-	ratings, err := cl.SN.GetMulti(c, ks, inv.Type)
+	ratings, err := cl.Rating.GetMulti(c, ks, gtype.Type(inv.Type))
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
@@ -330,11 +349,11 @@ func (cl client) details(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"details": details})
 }
 
-func (g *game) cache() (*datastore.Key, interface{}) {
+func (g *Game) cache() (*datastore.Key, interface{}) {
 	return newGameKey(g.id(), g.Undo.Current), g
 }
 
-func (g *game) save() ([]*datastore.Key, []interface{}) {
+func (g *Game) save() ([]*datastore.Key, []interface{}) {
 	gh := newGHeader(g.id())
 	gh.Header = g.Header
 
@@ -343,35 +362,37 @@ func (g *game) save() ([]*datastore.Key, []interface{}) {
 	return ks, es
 }
 
-func (cl client) drop(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) drop(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	inv, err := cl.getInvitation(c)
+	cl.ctx = c
+
+	inv, err := cl.getInvitation()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	cu, err := user.FromSession(c)
-	if err != nil || cu == nil {
-		sn.JErr(c, sn.ErrUserNotFound)
+	cu := cl.CUser()
+	if cu == nil {
+		cl.jerr(user.ErrNotFound)
 		return
 	}
 
 	err = inv.Drop(cu)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
 	if len(inv.UserKeys) == 0 {
-		inv.Status = sn.Aborted
+		inv.Status = game.Aborted
 	}
 
 	_, err = cl.DS.Put(c, inv.Key, inv)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -380,56 +401,52 @@ func (cl client) drop(c *gin.Context) {
 	})
 }
 
-func (cl client) getInvitation(c *gin.Context) (*invitation, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) getInvitation() (*invitation, error) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	id, err := getID(c)
+	id, err := cl.getID()
 	if err != nil {
 		return nil, err
 	}
 
 	inv := newInvitation(id)
-	err = cl.DS.Get(c, inv.Key, inv)
+	err = cl.DS.Get(cl.ctx, inv.Key, inv)
 	return inv, err
 }
 
-func (cl client) getGCommited(c *gin.Context) (*gcommitted, error) {
+func (cl *client) getGCommited() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
+	id, err := cl.getID()
+	if err != nil {
+		return err
+	}
+
+	cl.gc = newGCommited(id)
+	return cl.DS.Get(cl.ctx, cl.gc.Key, cl.gc)
+}
+
+func (cl *client) getStack() (*undo.Stack, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	id, err := getID(c)
+	bodyBytes, err := copyBody(cl.ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	g := newGCommited(id)
-	err = cl.DS.Get(c, g.Key, g)
-	return g, err
-}
-
-func getStack(c *gin.Context) (sn.Stack, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	var emptyStack sn.Stack
-
-	bodyBytes, err := copyBody(c)
-	if err != nil {
-		return emptyStack, err
-	}
-
 	obj := struct {
-		sn.Stack `json:"undo"`
+		*undo.Stack `json:"undo"`
 	}{}
-	err = c.ShouldBind(&obj)
-	log.Debugf("err: %v\nobj: %#v", err, obj)
+	err = cl.ctx.ShouldBind(&obj)
 	if err != nil {
-		return sn.Stack{}, err
+		return nil, err
 	}
 
 	// Restore the io.ReadCloser to its original state
-	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	cl.ctx.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	return obj.Stack, nil
 }
 
@@ -451,27 +468,23 @@ func copyBody(c *gin.Context) ([]byte, error) {
 	return cpBytes, nil
 }
 
-func (cl client) invitationsIndex(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) invitationsIndex(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cu, err := user.FromSession(c)
-	if err != nil {
-		sn.JErr(c, err)
-	}
-
+	cu := cl.CUser()
 	if cu == nil {
-		sn.JErr(c, sn.ErrUserNotFound)
+		sn.JErr(c, user.ErrNotFound)
 		return
 	}
 
 	q := datastore.
 		NewQuery(invitationKind).
-		Filter("Status=", int(sn.Recruiting)).
+		Filter("Status=", int(game.Recruiting)).
 		Order("-UpdatedAt")
 
 	var es []*invitation
-	_, err = cl.DS.GetAll(c, q, &es)
+	_, err := cl.DS.GetAll(c, q, &es)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -480,28 +493,24 @@ func (cl client) invitationsIndex(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"invitations": es, "cu": cu})
 }
 
-func (cl client) gamesIndex(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) gamesIndex(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cu, err := user.FromSession(c)
-	if err != nil {
-		sn.JErr(c, err)
-	}
-
+	cu := cl.CUser()
 	if cu == nil {
-		sn.JErr(c, sn.ErrUserNotFound)
+		sn.JErr(c, user.ErrNotFound)
 		return
 	}
 
-	status := sn.ToStatus[c.Param("status")]
+	status := game.ToStatus[c.Param("status")]
 	q := datastore.
 		NewQuery(headerKind).
 		Filter("Status=", int(status)).
 		Order("-UpdatedAt")
 
 	var es []*GHeader
-	_, err = cl.DS.GetAll(c, q, &es)
+	_, err := cl.DS.GetAll(c, q, &es)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -510,17 +519,19 @@ func (cl client) gamesIndex(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"gheaders": es, "cu": cu})
 }
 
-func (cl client) current(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) cuHandler(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	u, err := user.FromSession(c)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+	cl.ctx = c
+
+	cl.CUser()
+	if cl.cu == nil {
+		cl.jerr(user.ErrNotFound)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"cu": sn.ToUser(u.Key, u.Name, u.EmailHash)})
+	c.JSON(http.StatusOK, gin.H{"cu": cl.cu})
 }
 
 // func jerr(c *gin.Context, err error) {
@@ -531,3 +542,12 @@ func (cl client) current(c *gin.Context) {
 // 	log.Debugf(err.Error())
 // 	c.JSON(http.StatusOK, gin.H{"message": sn.ErrUnexpected.Error()})
 // }
+
+func (cl *client) jerr(err error) {
+	if errors.Is(err, sn.ErrValidation) {
+		cl.ctx.JSON(http.StatusOK, gin.H{"message": err.Error()})
+		return
+	}
+	cl.Log.Errorf(err.Error())
+	cl.ctx.JSON(http.StatusOK, gin.H{"message": sn.ErrUnexpected.Error()})
+}

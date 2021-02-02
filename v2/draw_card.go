@@ -1,6 +1,6 @@
 package main
 
-func (g *game) drawCard(cp *player) {
+func (g *Game) drawCard(cp *player) {
 	if g.Turn != 1 {
 		_, shuffle := cp.draw()
 		g.appendEntry(message{

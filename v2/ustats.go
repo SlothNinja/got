@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/gin-gonic/gin"
 )
 
 type ustats struct {
@@ -101,9 +100,9 @@ type advStats struct {
 	FinishAvg  float32              `json:"finishAvg"`
 }
 
-func (stat ustatsPNum) update(g *game, ukey *datastore.Key) ustatsPNum {
+func (cl *client) updatePNum(stat ustatsPNum, ukey *datastore.Key) ustatsPNum {
 	stat.Played++
-	for _, key := range g.WinnerKeys {
+	for _, key := range cl.g.WinnerKeys {
 		if key.Equal(ukey) {
 			stat.Won++
 			break
@@ -114,7 +113,7 @@ func (stat ustatsPNum) update(g *game, ukey *datastore.Key) ustatsPNum {
 		stat.WinPercentage = float32(stat.Won) / float32(stat.Played)
 	}
 
-	p := g.playerByUserKey(ukey)
+	p := cl.playerByUserKey(ukey)
 	if p == nil {
 		return stat
 	}
@@ -164,7 +163,10 @@ func newUStatsKey(ukey *datastore.Key) *datastore.Key {
 	return datastore.NameKey(ustatsKind, "singleton", ukey)
 }
 
-func (cl client) getUStats(c *gin.Context, ukeys ...*datastore.Key) ([]*ustats, error) {
+func (cl *client) getUStats(ukeys ...*datastore.Key) ([]*ustats, error) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
 	l := len(ukeys)
 	stats := make([]*ustats, l)
 	ks := make([]*datastore.Key, l)
@@ -173,7 +175,7 @@ func (cl client) getUStats(c *gin.Context, ukeys ...*datastore.Key) ([]*ustats, 
 		ks[i] = stats[i].Key
 	}
 
-	err := cl.DS.GetMulti(c, ks, stats)
+	err := cl.DS.GetMulti(cl.ctx, ks, stats)
 	if err == nil {
 		return stats, nil
 	}
@@ -190,20 +192,20 @@ func (cl client) getUStats(c *gin.Context, ukeys ...*datastore.Key) ([]*ustats, 
 	return stats, nil
 }
 
-func (cl client) updateUStats(c *gin.Context, g *game) ([]*ustats, error) {
-	stats, err := cl.getUStats(c, g.UserKeys...)
+func (cl *client) updateUStats() ([]*ustats, error) {
+	stats, err := cl.getUStats(cl.g.UserKeys...)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range stats {
-		switch g.NumPlayers {
+		switch cl.g.NumPlayers {
 		case 2:
-			stats[i].stats2P.update(g, g.UserKeys[i])
+			cl.updatePNum(stats[i].stats2P, cl.g.UserKeys[i])
 		case 3:
-			stats[i].stats3P.update(g, g.UserKeys[i])
+			cl.updatePNum(stats[i].stats3P, cl.g.UserKeys[i])
 		case 4:
-			stats[i].stats4P.update(g, g.UserKeys[i])
+			cl.updatePNum(stats[i].stats4P, cl.g.UserKeys[i])
 		default:
 			return nil, fmt.Errorf("invalid number of players")
 		}

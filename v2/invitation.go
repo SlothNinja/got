@@ -7,8 +7,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/Pallinder/go-randomdata"
-	"github.com/SlothNinja/sn/v2"
-	"github.com/gin-gonic/gin"
+	"github.com/SlothNinja/restful"
 )
 
 type invitation struct {
@@ -30,7 +29,7 @@ func (inv invitation) MarshalJSON() ([]byte, error) {
 
 	data["key"] = inv.Key
 	data["id"] = inv.ID()
-	data["lastUpdated"] = sn.LastUpdated(inv.UpdatedAt)
+	data["lastUpdated"] = restful.LastUpdated(inv.UpdatedAt)
 	data["public"] = len(inv.Password) == 0
 
 	return json.Marshal(data)
@@ -79,8 +78,8 @@ func defaultInvitation() *invitation {
 	return inv
 }
 
-func getID(c *gin.Context) (int64, error) {
-	return strconv.ParseInt(c.Param(idParam), 10, 64)
+func (cl *client) getID() (int64, error) {
+	return strconv.ParseInt(cl.ctx.Param(idParam), 10, 64)
 }
 
 // type omit *struct{}

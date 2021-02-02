@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/SlothNinja/log"
-	"github.com/gin-gonic/gin"
 )
 
 type grid [][]*Area
@@ -78,18 +75,18 @@ type Area struct {
 }
 
 // selectedThiefArea returns the area corresponding to a previously selected thief.
-func (g *game) selectedThiefArea() *Area {
-	return g.getArea(g.thiefAreaID)
+func (cl *client) selectedThiefArea() *Area {
+	return cl.area(cl.g.thiefAreaID)
 }
 
-func (g *game) getArea(id areaID) *Area {
-	if id.Row < rowA || id.Row > g.lastRow() {
+func (cl *client) area(id areaID) *Area {
+	if id.Row < rowA || id.Row > cl.lastRow() {
 		return nil
 	}
 	if id.Column < col1 || id.Column > col8 {
 		return nil
 	}
-	return g.grid[id.Row-1][id.Column-1]
+	return cl.g.grid[id.Row-1][id.Column-1]
 }
 
 func newArea(id areaID, card *Card) *Area {
@@ -100,21 +97,21 @@ func newArea(id areaID, card *Card) *Area {
 	}
 }
 
-func (g *game) lastRow() aRow {
+func (cl *client) lastRow() aRow {
 	row := rowG
-	if g.NumPlayers == 2 {
+	if cl.g.NumPlayers == 2 {
 		row = rowF
 	}
 	return row
 }
 
-func (g *game) createGrid() {
+func (cl *client) createGrid() {
 	deck := newDeck()
-	g.grid = make(grid, g.lastRow())
-	for row := rowA; row <= g.lastRow(); row++ {
-		g.grid[row-1] = make([]*Area, 8)
+	cl.g.grid = make(grid, cl.lastRow())
+	for row := rowA; row <= cl.lastRow(); row++ {
+		cl.g.grid[row-1] = make([]*Area, 8)
 		for col := col1; col <= col8; col++ {
-			g.grid[row-1][col-1] = newArea(areaID{row, col}, deck.draw())
+			cl.g.grid[row-1][col-1] = newArea(areaID{row, col}, deck.draw())
 		}
 	}
 }
@@ -136,62 +133,62 @@ func hasArea(as []*Area, a2 *Area) bool {
 	return false
 }
 
-func (g *game) updateClickablesFor(c *gin.Context, p *player, ta *Area) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) updateClickablesFor(p *player, ta *Area) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	canClick := g.canClick(c, p, ta)
-	g.grid.each(func(a *Area) { a.Clickable = canClick(a) })
+	canClick := cl.canClick(p, ta)
+	cl.g.grid.each(func(a *Area) { a.Clickable = canClick(a) })
 }
 
 // canClick a function specialized by current game context to test whether a player can click on
 // a particular area in the grid.  The main benefit is the function provides a closure around area computions,
 // essentially caching the results.
-func (g *game) canClick(c *gin.Context, p *player, ta *Area) func(*Area) bool {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) canClick(p *player, ta *Area) func(*Area) bool {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
 	ff := func(a *Area) bool { return false }
-	cp, err := g.validatePlayerAction(c)
+	err := cl.validatePlayerAction()
 	switch {
-	case g == nil:
+	case cl.g == nil:
 		return ff
 	case err != nil:
 		return ff
-	case g.Phase == placeThievesPhase:
+	case cl.g.Phase == placeThievesPhase:
 		return func(a *Area) bool { return a.Thief == noPID }
-	case g.Phase == selectThiefPhase:
-		return func(a *Area) bool { return a.Thief == cp.ID }
-	case g.Phase == moveThiefPhase:
+	case cl.g.Phase == selectThiefPhase:
+		return func(a *Area) bool { return a.Thief == cl.cp.ID }
+	case cl.g.Phase == moveThiefPhase:
 		switch {
 		case p == nil:
 			return ff
-		case p.ID != cp.ID:
+		case p.ID != cl.cp.ID:
 			return ff
-		case g.playedCard == nil:
+		case cl.g.playedCard == nil:
 			return ff
 		case ta == nil:
 			return ff
-		case g.playedCard.Kind == lampCard || g.playedCard.Kind == sLampCard:
-			as := g.lampAreas(ta)
+		case cl.g.playedCard.Kind == lampCard || cl.g.playedCard.Kind == sLampCard:
+			as := cl.lampAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.playedCard.Kind == camelCard || g.playedCard.Kind == sCamelCard:
-			as := g.camelAreas(ta)
+		case cl.g.playedCard.Kind == camelCard || cl.g.playedCard.Kind == sCamelCard:
+			as := cl.camelAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.playedCard.Kind == swordCard:
-			as := g.swordAreas(cp, ta)
+		case cl.g.playedCard.Kind == swordCard:
+			as := cl.swordAreas(cl.cp, ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.playedCard.Kind == carpetCard:
-			as := g.carpetAreas()
+		case cl.g.playedCard.Kind == carpetCard:
+			as := cl.carpetAreas()
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.playedCard.Kind == turbanCard && g.stepped == 0:
-			as := g.turban0Areas(ta)
+		case cl.g.playedCard.Kind == turbanCard && cl.g.stepped == 0:
+			as := cl.turban0Areas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.playedCard.Kind == turbanCard && g.stepped == 1:
-			as := g.turban1Areas(ta)
+		case cl.g.playedCard.Kind == turbanCard && cl.g.stepped == 1:
+			as := cl.turban1Areas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
-		case g.playedCard.Kind == coinsCard:
-			as := g.coinsAreas(ta)
+		case cl.g.playedCard.Kind == coinsCard:
+			as := cl.coinsAreas(ta)
 			return func(a *Area) bool { return hasArea(as, a) }
 		default:
 			return ff

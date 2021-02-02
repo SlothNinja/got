@@ -4,22 +4,21 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
-	"github.com/gin-gonic/gin"
+	"github.com/SlothNinja/sn"
 )
 
-func (g *game) validateFinishTurn(c *gin.Context) (*player, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) validateFinishTurn() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp, err := g.validateCPorAdmin(c)
+	err := cl.validateCPorAdmin()
 	switch {
 	case err != nil:
-		return nil, err
-	case !cp.PerformedAction:
-		return nil, fmt.Errorf("%s has yet to perform an action: %w", cp.User.Name, sn.ErrValidation)
+		return err
+	case !cl.cp.PerformedAction:
+		return fmt.Errorf("%s has yet to perform an action: %w", cl.cp.User.Name, sn.ErrValidation)
 	default:
-		return cp, nil
+		return nil
 	}
 }
 
@@ -27,18 +26,18 @@ type direction int
 
 // ps is an optional parameter.
 // If no player is provided, assume current player.
-func (g *game) nextPlayer(inc direction, p *player, tests ...func(*player) bool) *player {
-	i, found := g.indexFor(p)
+func (cl *client) nextPlayer(inc direction, p *player, tests ...func(*player) bool) *player {
+	i, found := cl.g.indexFor(p)
 	if !found {
 		return nil
 	}
 
-	for range g.players {
+	for range cl.g.players {
 		i += int(inc)
-		np := g.playerByIndex(i)
+		np := cl.playerByIndex(i)
 		if np.passed(tests...) {
-			if i < 0 || i >= len(g.players) {
-				g.Turn++
+			if i < 0 || i >= len(cl.g.players) {
+				cl.g.Turn++
 			}
 			return np
 		}
@@ -56,26 +55,43 @@ func (p *player) passed(tests ...func(*player) bool) bool {
 }
 
 // implements ring buffer where index can be negative
-func (g *game) playerByIndex(i int) *player {
-	l := len(g.players)
+func (cl *client) playerByIndex(i int) *player {
+	if cl.g == nil {
+		log.Warningf("cl.g is nil")
+		return nil
+	}
+
+	l := len(cl.g.players)
 	r := i % l
 	if r < 0 {
-		return g.players[l+r]
+		return cl.g.players[l+r]
 	}
-	return g.players[r]
+	return cl.g.players[r]
 }
 
-func (g *game) lastPlayer() *player {
-	l := len(g.players)
+func (cl *client) lastPlayer() *player {
+	if cl.g == nil {
+		log.Warningf("cl.g is nil")
+		return nil
+	}
+
+	l := len(cl.g.players)
 	if l == 0 {
 		return nil
 	}
-	return g.players[l-1]
+
+	return cl.g.players[l-1]
 }
 
-func (g *game) firstPlayer() *player {
-	if len(g.players) == 0 {
+func (cl *client) firstPlayer() *player {
+	if cl.g == nil {
+		log.Warningf("cl.g is nil")
 		return nil
 	}
-	return g.players[0]
+
+	if len(cl.g.players) == 0 {
+		return nil
+	}
+
+	return cl.g.players[0]
 }

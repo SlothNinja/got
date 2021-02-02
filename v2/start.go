@@ -3,40 +3,40 @@ package main
 import (
 	"math/rand"
 
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/game"
 )
 
 // Start begins a Guild of Thieves game.
-func (g *game) start() {
-	g.Status = sn.Running
-	g.setupPhase()
+func (cl *client) start() {
+	cl.g.Status = game.Running
+	cl.setupPhase()
 
-	g.Phase = placeThievesPhase
+	cl.g.Phase = placeThievesPhase
 }
 
-func (g *game) addNewPlayers() {
-	g.players = make([]*player, g.NumPlayers)
-	for i := range g.players {
-		g.players[i] = g.newPlayer(i)
+func (cl *client) addNewPlayers() {
+	cl.g.players = make([]*player, cl.g.NumPlayers)
+	for i := range cl.g.players {
+		cl.g.players[i] = cl.newPlayer(i)
 	}
 }
 
-func (g *game) setupPhase() {
-	g.addNewPlayers()
-	g.randomTurnOrder()
-	g.createGrid()
-	cp := g.nextPlayer(backward, g.players[0])
-	g.setCurrentPlayer(cp)
+func (cl *client) setupPhase() {
+	cl.addNewPlayers()
+	cl.randomTurnOrder()
+	cl.createGrid()
+	cp := cl.nextPlayer(backward, cl.g.players[0])
+	cl.setCurrentPlayer(cp)
 
-	g.newEntry(message{
+	cl.g.newEntry(message{
 		"template": "start-game",
-		"pids":     g.pids(),
+		"pids":     cl.pids(),
 	})
-	g.Turn = 1
+	cl.g.Turn = 1
 }
 
-func (g *game) randomTurnOrder() {
-	rand.Shuffle(len(g.players), func(i, j int) {
-		g.players[i], g.players[j] = g.players[j], g.players[i]
+func (cl *client) randomTurnOrder() {
+	rand.Shuffle(len(cl.g.players), func(i, j int) {
+		cl.g.players[i], cl.g.players[j] = cl.g.players[j], cl.g.players[i]
 	})
 }

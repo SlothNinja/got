@@ -7,179 +7,185 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 )
 
-func (cl client) placeThief(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) placeThiefHandler(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	g, err := cl.getGame(c, 0)
+	err := cl.getGame(0)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	err = g.placeThief(c)
+	err = cl.placeThief()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	ks, es := g.cache()
+	ks, es := cl.g.cache()
 	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	c.JSON(http.StatusOK, gin.H{"game": cl.g})
 }
 
-func (g *game) placeThief(c *gin.Context) error {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) placeThief() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp, a, err := g.validatePlaceThief(c)
+	a, err := cl.validatePlaceThief()
 	if err != nil {
 		return err
 	}
 
-	cp.PerformedAction = true
-	cp.Score += a.Card.value()
-	cp.Stats.Placed[g.Turn-1].inc(a.Card.Kind)
-	a.Thief = cp.ID
+	cl.cp.PerformedAction = true
+	cl.cp.Score += a.Card.value()
+	cl.cp.Stats.Placed[cl.g.Turn-1].inc(a.Card.Kind)
+	a.Thief = cl.cp.ID
 
-	g.Undo.Update()
+	cl.g.Undo.Update()
 
-	g.newEntryFor(cp.ID, message{
+	cl.g.newEntryFor(cl.cp.ID, message{
 		"template": "place-thief",
 		"area":     *a,
 	})
 	return nil
 }
 
-func (g *game) validatePlaceThief(c *gin.Context) (*player, *Area, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) validatePlaceThief() (*Area, error) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp, err := g.validatePlayerAction(c)
+	err := cl.validatePlayerAction()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	a, err := g.getAreaFrom(c)
+	a, err := cl.getArea()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	switch {
 	case a == nil:
-		return nil, nil, fmt.Errorf("you must select an area: %w", sn.ErrValidation)
+		return nil, fmt.Errorf("you must select an area: %w", sn.ErrValidation)
 	case a.Card == nil:
-		return nil, nil, fmt.Errorf("you must select an area with a card: %w", sn.ErrValidation)
+		return nil, fmt.Errorf("you must select an area with a card: %w", sn.ErrValidation)
 	case a.Thief != noPID:
-		return nil, nil, fmt.Errorf("you must select an area without a thief: %w", sn.ErrValidation)
+		return nil, fmt.Errorf("you must select an area without a thief: %w", sn.ErrValidation)
 	default:
-		return cp, a, nil
+		return a, nil
 	}
 }
 
-func (g *game) placeThievesNextPlayer(p *player) *player {
+func (cl *client) placeThievesNextPlayer(p *player) *player {
+	if cl.g == nil {
+		cl.Log.Warningf("cl.g is nil")
+		return nil
+	}
+
 	numThieves := 3
-	if g.TwoThiefVariant {
+	if cl.g.TwoThiefVariant {
 		numThieves = 2
 	}
 
-	p = g.nextPlayer(backward, p)
-	if g.Turn > numThieves {
+	p = cl.nextPlayer(backward, p)
+	if cl.g.Turn > numThieves {
 		return nil
 	}
 	return p
 }
 
-func (cl client) placeThievesFinishTurn(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) placeThievesFinishTurnHandler(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	g, err := cl.getGame(c)
+	cl.ctx = c
+
+	err := cl.getGame()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	gcommitted, err := cl.getGCommited(c)
+	err = cl.getGCommited()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	if gcommitted.Undo.Committed != g.Undo.Committed {
-		sn.JErr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
+	if cl.gc.Undo.Committed != cl.g.Undo.Committed {
+		cl.jerr(fmt.Errorf("invalid commit: %w", sn.ErrValidation))
 		return
 	}
 
-	cp, err := g.placeThievesFinishTurn(c)
+	err = cl.placeThievesFinishTurn()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	cp.Stats.Moves++
-	cp.Stats.Think += time.Since(gcommitted.UpdatedAt)
+	cl.cp.Stats.Moves++
+	cl.cp.Stats.Think += time.Since(cl.gc.UpdatedAt)
 
 	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		g.Undo.Commit()
-		_, err := tx.PutMulti(g.save())
+		cl.g.Undo.Commit()
+		_, err := tx.PutMulti(cl.g.save())
 		return err
 	})
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	c.JSON(http.StatusOK, gin.H{"game": cl.g})
 }
 
-func (g *game) placeThievesFinishTurn(c *gin.Context) (*player, error) {
+func (cl *client) placeThievesFinishTurn() error {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	cp, err := g.validatePlaceThievesFinishTurn(c)
+	err := cl.validatePlaceThievesFinishTurn()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	np := g.placeThievesNextPlayer(cp)
+	np := cl.placeThievesNextPlayer(cl.cp)
 	if np == nil {
-		cp = g.firstPlayer()
+		cp := cl.firstPlayer()
 		cp.beginningOfTurnReset()
-		g.setCurrentPlayer(cp)
-		g.Phase = playCardPhase
-		return cp, nil
+		cl.setCurrentPlayer(cp)
+		cl.g.Phase = playCardPhase
+		return nil
 	}
 
-	g.setCurrentPlayer(np)
 	np.beginningOfTurnReset()
-	if np != cp {
-		g.SendTurnNotificationsTo(c, np)
+	if np != cl.cp {
+		cl.setCurrentPlayer(np)
+		cl.sendTurnNotificationsTo(np)
 	}
 
-	return cp, nil
+	return nil
 }
 
-func (g *game) validatePlaceThievesFinishTurn(c *gin.Context) (*player, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) validatePlaceThievesFinishTurn() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp, err := g.validateFinishTurn(c)
+	err := cl.validateFinishTurn()
 	switch {
 	case err != nil:
-		return nil, err
-	case g.Phase != placeThievesPhase:
-		return nil, fmt.Errorf("expected %q phase but have %q phase: %w",
-			placeThievesPhase, g.Phase, sn.ErrValidation)
+		return err
+	case cl.g.Phase != placeThievesPhase:
+		return fmt.Errorf("expected %q phase but have %q phase: %w", placeThievesPhase, cl.g.Phase, sn.ErrValidation)
 	default:
-		return cp, nil
+		return nil
 	}
 }

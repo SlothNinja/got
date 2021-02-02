@@ -6,28 +6,33 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/sn/v2"
+	"github.com/SlothNinja/cookie"
+	"github.com/SlothNinja/log"
+	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/securecookie"
 	"github.com/patrickmn/go-cache"
 )
 
 const (
-	nodeEnv        = "NODE_ENV"
-	production     = "production"
-	userPrefix     = "user"
-	gamesPrefix    = "games"
-	ratingPrefix   = "rating"
-	mailPrefix     = "mail"
-	rootPath       = "/"
-	hashKeyLength  = 64
-	blockKeyLength = 32
-	sessionName    = "sng-oauth"
+	nodeEnv            = "NODE_ENV"
+	production         = "production"
+	userPrefix         = "user"
+	gamesPrefix        = "games"
+	ratingPrefix       = "rating"
+	mailPrefix         = "mail"
+	rootPath           = "/"
+	hashKeyLength      = 64
+	blockKeyLength     = 32
+	sessionName        = "sng-oauth"
+	LOGIN_HOST         = "LOGIN_HOST"
+	googleCloudProject = "GOOGLE_CLOUD_PROJECT"
 )
 
 func main() {
@@ -49,58 +54,41 @@ func main() {
 
 	mcache := cache.New(30*time.Minute, 10*time.Minute)
 
-	s, err := getSecrets()
-	if err != nil {
-		panic(err.Error())
-	}
+	// s, err := getSecrets()
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
 
-	store := cookie.NewStore(s.HashKey, s.BlockKey)
-	store.Options(sessions.Options{Domain: "slothninja.com"})
-	// store := sessions.NewCookieStore([]byte("secret123"))
+	// store := cookie.NewStore(s.HashKey, s.BlockKey)
+	// store.Options(sessions.Options{Domain: "slothninja.com"})
+	// // store := sessions.NewCookieStore([]byte("secret123"))
+	logClient := newLogClient()
+	defer logClient.Close()
+
+	logger := logClient.Logger("got")
+	store, err := cookie.NewClient(logger, mcache).NewStore()
+	if err != nil {
+		logger.Panicf("unable create cookie store: %v", err)
+	}
 
 	r := gin.Default()
 	// renderer := restful.ParseTemplates("templates/", ".tmpl")
 	// r.HTMLRender = renderer
 
-	r.Use(
-		sessions.Sessions(sessionName, store),
-	//	restful.AddTemplates(renderer.Templates),
-	//	user.GetCUserHandler(userClient),
-	)
+	r.Use(sessions.Sessions(sessionName, store))
 
-	// Welcome Page (index.html) route
-	// welcome.AddRoutes(r)
-
-	// Games Routes
-	// r = game.NewClient(db).AddRoutes(gamesPrefix, r)
-
-	// User Routes
-	// r = user_controller.NewClient(db).AddRoutes(userPrefix, r)
-
-	// Rating Routes
-	// r = rating.NewClient(db).AddRoutes(ratingPrefix, r)
-
-	// After The Flood
-	// r = atf.NewClient(db, mcache).Register(ATF, r)
+	userClient := user.NewClient(logger, mcache)
 
 	// Guild of Thieves
-	r = newClient(db, mcache).addRoutes(r)
-
-	// Tammany Hall
-	// r = tammany.NewClient(db, mcache).Register(Tammany, r)
-
-	// Indonesia
-	// r = indonesia.NewClient(db, mcache).Register(Indonesia, r)
-
-	// Confucius
-	// r = confucius.NewClient(db, mcache).Register(Confucius, r)
+	r = newClient(db, userClient, logger, mcache, r).addRoutes(r)
 
 	// warmup
 	r.GET("_ah/warmup", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
 
-	r = staticRoutes(r)
+	// login
+	r.GET("login", login)
 
 	r.Run()
 }
@@ -165,15 +153,62 @@ func (s *secrets) LoadKey(k *datastore.Key) error {
 
 // staticHandler for local development since app.yaml is ignored
 // static files are handled via app.yaml routes when deployed
-func staticRoutes(r *gin.Engine) *gin.Engine {
+// func staticRoutes(r *gin.Engine) *gin.Engine {
+// 	if sn.IsProduction() {
+// 		return r
+// 	}
+// 	r.StaticFile("/", "dist/index.html")
+// 	r.StaticFile("/app.js", "dist/app.js")
+// 	r.StaticFile("/favicon.ico", "dist/favicon.ico")
+// 	r.Static("/img", "dist/img")
+// 	r.Static("/js", "dist/js")
+// 	r.Static("/css", "dist/css")
+// 	return r
+// }
+
+func (cl *client) staticRoutes() *client {
 	if sn.IsProduction() {
-		return r
+		return cl
 	}
-	r.StaticFile("/", "dist/index.html")
-	r.StaticFile("/app.js", "dist/app.js")
-	r.StaticFile("/favicon.ico", "dist/favicon.ico")
-	r.Static("/img", "dist/img")
-	r.Static("/js", "dist/js")
-	r.Static("/css", "dist/css")
-	return r
+	// cl.Router.StaticFile("/favicon.ico", "public/favicon.ico")
+	// cl.Router.Static("/images", "public/images")
+	// cl.Router.Static("/javascripts", "public/javascripts")
+	// cl.Router.Static("/js", "public/js")
+	// cl.Router.Static("/stylesheets", "public/stylesheets")
+	// cl.Router.Static("/rules", "public/rules")
+	// cl.Router.StaticFile("/", "dist/index.html")
+	cl.Router.StaticFile("/", "dist/index.html")
+	cl.Router.StaticFile("/app.js", "dist/app.js")
+	cl.Router.StaticFile("/favicon.ico", "dist/favicon.ico")
+	cl.Router.Static("/img", "dist/img")
+	cl.Router.Static("/js", "dist/js")
+	cl.Router.Static("/css", "dist/css")
+	return cl
+}
+
+func getLoginHost() string {
+	return os.Getenv(LOGIN_HOST)
+}
+
+func login(c *gin.Context) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	referer := c.Request.Referer()
+	encodedReferer := base64.StdEncoding.EncodeToString([]byte(referer))
+
+	log.Debugf("redirect: %v", getLoginHost()+"/login?redirect="+encodedReferer)
+	c.Redirect(http.StatusSeeOther, getLoginHost()+"/login?redirect="+encodedReferer)
+}
+
+func getProjectID() string {
+	return os.Getenv(googleCloudProject)
+}
+
+func newLogClient() *log.Client {
+	client, err := log.NewClient(getProjectID())
+	if err != nil {
+		log.Panicf("unable to create logging client: %v", err)
+	}
+	return client
 }

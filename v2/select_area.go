@@ -3,25 +3,23 @@ package main
 import (
 	"fmt"
 
-	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/sn/v2"
-	"github.com/gin-gonic/gin"
+	"github.com/SlothNinja/sn"
 )
 
-func (g *game) getAreaFrom(c *gin.Context) (*Area, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) getArea() (*Area, error) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
 	obj := struct {
 		ID areaID `json:"areaID"`
 	}{}
 
-	err := c.ShouldBind(&obj)
+	err := cl.ctx.ShouldBind(&obj)
 	if err != nil {
 		return nil, err
 	}
 
-	a := g.getArea(obj.ID)
+	a := cl.area(obj.ID)
 	if a == nil {
 		return nil, fmt.Errorf("unable to find area: %w", sn.ErrValidation)
 	}
