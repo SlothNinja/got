@@ -9,7 +9,6 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
-	"github.com/gin-gonic/gin"
 )
 
 type Game struct {
@@ -52,31 +51,31 @@ func (g Game) rev() int64 {
 	return rev
 }
 
-func (cl client) getGame(c *gin.Context, inc ...int64) (*Game, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) getGame(inc ...int64) error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	id, err := getID(c)
+	id, err := cl.getID()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	undo, err := getStack(c)
+	undo, err := cl.getStack()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(inc) == 1 {
 		undo.Current += inc[0]
 	}
 
-	g := newGame(id, undo.Current)
-	err = cl.DS.Get(c, g.Key, g)
+	cl.g = newGame(id, undo.Current)
+	err = cl.DS.Get(cl.ctx, cl.g.Key, cl.g)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	g.Undo = undo
-	return g, nil
+	cl.g.Undo = undo
+	return nil
 }
 
 func (g *Game) Load(ps []datastore.Property) error {

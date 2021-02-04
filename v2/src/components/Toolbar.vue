@@ -58,7 +58,8 @@
     props: [ 'value' ],
     computed: {
       loginPath: function () {
-        return `/login/?redirect=${window.btoa(window.location.href)}`
+        return "/login"
+        // return `http://lwww.slothninja.com:8083/user/login/?redirect=${window.btoa(window.location.href)}`
       }
     }
   }

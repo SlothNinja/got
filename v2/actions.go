@@ -1,63 +1,69 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
 	"github.com/SlothNinja/user"
 )
 
-func (g *Game) validatePlayerAction(cu *user.User) (*player, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) validatePlayerAction() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp, err := g.validateCPorAdmin(cu)
+	err := cl.validateCPorAdmin()
 	switch {
 	case err != nil:
-		return nil, err
-	case cp.PerformedAction:
-		return nil, fmt.Errorf("current player already performed action: %w", sn.ErrValidation)
+		return err
+	case cl.cp.PerformedAction:
+		return fmt.Errorf("current player already performed action: %w", sn.ErrValidation)
 	default:
-		return cp, nil
+		return nil
 	}
 }
 
-func (g *Game) validateCPorAdmin(cu *user.User) (*player, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) validateCPorAdmin() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	err := g.validateAdmin(cu)
+	err := cl.validateAdmin()
 	if err == nil {
-		return g.currentPlayer(), nil
+		cl.currentPlayer()
+		return nil
 	}
 
-	return g.validateCurrentPlayer(cu)
+	return cl.validateCurrentPlayer()
 }
 
-func (g *Game) validateCurrentPlayer(cu *user.User) (*player, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) validateCurrentPlayer() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp := g.currentPlayer()
+	cp := cl.currentPlayer()
+	switch {
+	case cl.cu == nil:
+		return user.ErrNotFound
+	case cp == nil:
+		return sn.ErrPlayerNotFound
+	case cp.User.ID() != cl.cu.ID():
+		return sn.ErrNotCurrentPlayer
+	default:
+		return nil
+	}
+}
+
+func (cl *client) validateAdmin() error {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
+	cu := cl.CUser()
 	switch {
 	case cu == nil:
-		return nil, sn.ErrUserNotFound
-	case cp == nil:
-		return nil, sn.ErrPlayerNotFound
-	case cp.User.ID() != cu.ID():
-		return nil, sn.ErrNotCurrentPlayer
+		return user.ErrNotFound
+	case !cu.Admin:
+		return errors.New("not admin")
 	default:
-		return cp, nil
+		return nil
 	}
-}
-
-func (g *Game) validateAdmin(cu *user.User) error {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	if !cu.IsAdmin() {
-		return sn.ErrNotAdmin
-	}
-	return nil
 }

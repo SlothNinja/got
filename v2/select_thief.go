@@ -9,71 +9,73 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (cl client) selectThief(c *gin.Context) {
+func (cl client) selectThiefHandler(c *gin.Context) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
-	g, err := cl.getGame(c)
+	cl.ctx = c
+
+	err := cl.getGame()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	cp, thiefArea, err := g.selectThief(c)
+	thiefArea, err := cl.selectThief()
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	ks, es := g.cache()
+	ks, es := cl.g.cache()
 	_, err = cl.DS.Put(c, ks, es)
 	if err != nil {
-		sn.JErr(c, err)
+		cl.jerr(err)
 		return
 	}
 
-	g.updateClickablesFor(c, cp, thiefArea)
-	c.JSON(http.StatusOK, gin.H{"game": g})
+	cl.updateClickablesFor(cl.cp, thiefArea)
+	c.JSON(http.StatusOK, gin.H{"game": cl.g})
 }
 
-func (g *Game) selectThief(c *gin.Context) (*player, *Area, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) selectThief() (*Area, error) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp, thiefArea, err := g.validateSelectThief(c)
+	thiefArea, err := cl.validateSelectThief()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	g.thiefAreaID = thiefArea.areaID
-	g.Phase = moveThiefPhase
-	g.Undo.Update()
+	cl.g.thiefAreaID = thiefArea.areaID
+	cl.g.Phase = moveThiefPhase
+	cl.g.Undo.Update()
 
-	g.appendEntry(message{
+	cl.g.appendEntry(message{
 		"template": "select-thief",
 		"area":     *thiefArea,
 	})
-	return cp, thiefArea, nil
+	return thiefArea, nil
 }
 
-func (g *Game) validateSelectThief(c *gin.Context) (*player, *Area, error) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
+func (cl *client) validateSelectThief() (*Area, error) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
 
-	cp, err := g.validatePlayerAction(c)
+	err := cl.validatePlayerAction()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	a, err := g.getAreaFrom(c)
+	a, err := cl.getArea()
 	switch {
 	case err != nil:
-		return nil, nil, err
+		return nil, err
 	case a == nil:
-		return nil, nil, fmt.Errorf("you must select an area: %w", sn.ErrValidation)
-	case a.Thief != cp.ID:
-		return nil, nil, fmt.Errorf("you must select one of your thieves: %w", sn.ErrValidation)
+		return nil, fmt.Errorf("you must select an area: %w", sn.ErrValidation)
+	case a.Thief != cl.cp.ID:
+		return nil, fmt.Errorf("you must select one of your thieves: %w", sn.ErrValidation)
 	default:
-		return cp, a, nil
+		return a, nil
 	}
 }

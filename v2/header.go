@@ -6,7 +6,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/game"
-	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/restful"
 )
 
 // Header provides game/invitation header data
@@ -63,7 +63,7 @@ func (gh GHeader) MarshalJSON() ([]byte, error) {
 
 	data["key"] = gh.Key
 	data["id"] = gh.id()
-	data["lastUpdated"] = sn.LastUpdated(gh.UpdatedAt)
+	data["lastUpdated"] = restful.LastUpdated(gh.UpdatedAt)
 	data["public"] = len(gh.Password) == 0
 
 	return json.Marshal(data)
