@@ -56,7 +56,7 @@
             <v-list-item-title>Play</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-        <v-list-item @click='logout'>
+        <v-list-item :to="{ name: 'logout'}" >
           <v-list-item-icon>
             <v-icon>mdi-logout</v-icon>
           </v-list-item-icon>
@@ -79,15 +79,8 @@
     methods: {
       logout: function () {
         var self = this
-        self.delete_cookie('sng-oauth')
-        self.cu = null
-        if (self.$route.name != 'home') {
-          self.$router.push({ name: 'home'})
-        }
-      },
-      delete_cookie: function (name) {
-        document.cookie = name + '= ; domain = .slothninja.com ; expires = Thu, 01 Jan 1970 00:00:00 GMT'
-      },
+        self.$router.push({ name: 'logout'})
+      }
     },
     computed: {
       drawer: {

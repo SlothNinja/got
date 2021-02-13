@@ -3,31 +3,31 @@ package main
 import (
 	"sort"
 
-	"github.com/SlothNinja/color"
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/user"
+	"github.com/gin-gonic/gin"
 )
 
 // player represents one of the players of the game.
 type player struct {
-	ID              int           `json:"id"`
-	PerformedAction bool          `json:"performedAction"`
-	Score           int           `json:"score"`
-	Passed          bool          `json:"passed"`
-	Colors          []color.Color `json:"colors"`
-	User            *user.User    `json:"user"`
-	Hand            Cards         `json:"hand"`
-	DrawPile        Cards         `json:"drawPile"`
-	DiscardPile     Cards         `json:"discardPile"`
-	Stats           stats         `json:"stats"`
+	ID              int        `json:"id"`
+	PerformedAction bool       `json:"performedAction"`
+	Score           int        `json:"score"`
+	Passed          bool       `json:"passed"`
+	Colors          []color    `json:"colors"`
+	User            *user.User `json:"user"`
+	Hand            Cards      `json:"hand"`
+	DrawPile        Cards      `json:"drawPile"`
+	DiscardPile     Cards      `json:"discardPile"`
+	Stats           stats      `json:"stats"`
 }
 
-func (cl *client) pids() []int {
-	pids := make([]int, len(cl.g.players))
-	for i := range cl.g.players {
-		pids[i] = cl.g.players[i].ID
+func (g *Game) pids() []int {
+	pids := make([]int, len(g.players))
+	for i := range g.players {
+		pids[i] = g.players[i].ID
 	}
 	return pids
 }
@@ -124,26 +124,26 @@ func (p *player) compareByCards(p2 *player) game.Comparison {
 	return game.EqualTo
 }
 
-func (cl *client) determinePlaces() ([]contest.ResultsMap, error) {
+func (cl *client) determinePlaces(c *gin.Context, g *Game) ([]contest.ResultsMap, error) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
 	// sort players by score
-	sort.Slice(cl.g.players, func(i, j int) bool { return cl.g.players[i].compare(cl.g.players[j]) != game.LessThan })
+	sort.Slice(g.players, func(i, j int) bool { return g.players[i].compare(g.players[j]) != game.LessThan })
 	places := make([]contest.ResultsMap, 0)
 	rmap := make(contest.ResultsMap, 0)
-	for i, p1 := range cl.g.players {
+	for i, p1 := range g.players {
 		results := make([]*contest.Result, 0)
 		tie := false
-		for j, p2 := range cl.g.players {
-			r, err := cl.Rating.Get(cl.ctx, p2.User.Key, cl.g.Type)
+		for j, p2 := range g.players {
+			r, err := cl.Rating.Get(c, p2.User.Key, g.Type)
 			if err != nil {
 				log.Warningf(err.Error())
 				return nil, err
 			}
 			result := &contest.Result{
-				GameID: cl.g.id(),
-				Type:   cl.g.Type,
+				GameID: g.id(),
+				Type:   g.Type,
 				R:      r.R,
 				RD:     r.RD,
 			}
@@ -165,7 +165,7 @@ func (cl *client) determinePlaces() ([]contest.ResultsMap, error) {
 		if !tie {
 			places = append(places, rmap)
 			rmap = make(contest.ResultsMap, 0)
-		} else if i == len(cl.g.players)-1 {
+		} else if i == len(g.players)-1 {
 			places = append(places, rmap)
 		}
 		p1.Stats.Finish = uint64(len(places))
@@ -173,10 +173,10 @@ func (cl *client) determinePlaces() ([]contest.ResultsMap, error) {
 	return places, nil
 }
 
-func (cl *client) newPlayer(i int) *player {
+func (g *Game) newPlayer(i int) *player {
 	return &player{
 		ID:          i + 1,
-		Colors:      defaultColors()[:cl.g.NumPlayers],
+		Colors:      defaultColors()[:g.NumPlayers],
 		Hand:        newStartHand(),
 		DrawPile:    make(Cards, 0),
 		DiscardPile: make(Cards, 0),
@@ -187,12 +187,12 @@ func (p *player) beginningOfTurnReset() {
 	p.PerformedAction = false
 }
 
-func (cl *client) endOfTurnUpdate() {
-	if cl.g.playedCard != nil {
-		cl.g.jewels = *(cl.g.playedCard)
+func (g *Game) endOfTurnUpdate(cp *player) {
+	if g.playedCard != nil {
+		g.jewels = *(g.playedCard)
 	}
 
-	for _, card := range cl.cp.Hand {
+	for _, card := range cp.Hand {
 		card.FaceUp = true
 	}
 }
@@ -211,38 +211,52 @@ func (g *Game) indexFor(p *player) (int, bool) {
 	return -1, false
 }
 
-func (cl *client) emailFor(p *player) string {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g was nil")
-		return ""
-	}
-
+func (g *Game) emailFor(p *player) string {
 	if p == nil {
-		cl.Log.Warningf("p was nil")
 		return ""
 	}
 
-	l, index := len(cl.g.UserEmails), p.ID-1
+	l, index := len(g.UserEmails), p.ID-1
 	if index >= 0 && index < l {
-		return cl.g.UserEmails[index]
+		return g.UserEmails[index]
 	}
 	return ""
 }
 
-func (cl *client) nameFor(p *player) string {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g was nil")
-		return ""
-	}
-
+func (g *Game) emailNotificationsFor(p *player) bool {
 	if p == nil {
-		cl.Log.Warningf("p was nil")
+		return false
+	}
+
+	l, index := len(g.UserEmailNotifications), p.ID-1
+	if index >= 0 && index < l {
+		return g.UserEmailNotifications[index]
+	}
+	return false
+}
+
+func (g *Game) nameFor(p *player) string {
+	if p == nil {
 		return ""
 	}
 
-	l, index := len(cl.g.UserNames), p.ID-1
+	l, index := len(g.UserNames), p.ID-1
 	if index >= 0 && index < l {
-		return cl.g.UserNames[index]
+		return g.UserNames[index]
 	}
 	return ""
+}
+
+const notFound int64 = -1
+
+func (g *Game) uidFor(p *player) int64 {
+	if p == nil {
+		return notFound
+	}
+
+	l, index := len(g.UserIDS), p.ID-1
+	if index >= 0 && index < l {
+		return g.UserIDS[index]
+	}
+	return notFound
 }

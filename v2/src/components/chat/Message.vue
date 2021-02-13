@@ -5,12 +5,13 @@
       class='white--text'
     >
       <sn-user-btn
-        :user='message.creator'
+        :user='creator'
         size='x-small'
+        :color='colorByUser(creator)'
       >
       </sn-user-btn>
 
-      <span class='ml-1 white--text'>{{message.creator.name}}</span>
+      <span class='ml-1 white--text'>{{creator.name}}</span>
 
       <v-spacer></v-spacer>
 
@@ -47,9 +48,20 @@
   export default {
     mixins: [ Color ],
     name: 'sn-message',
-    props: [ 'message', 'id' ],
+    props: [ 'message', 'id', 'game' ],
     components: {
       'sn-user-btn': UserButton
+    },
+    computed: {
+      creator: function() {
+        let self = this
+        return {
+          id: self.message.creatorId,
+          name: self.message.creatorName,
+          emailHash: self.message.creatorEmailHash,
+          gravType: self.message.creatorGravType
+        }
+      }
     }
   }
 </script>

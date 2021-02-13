@@ -51,7 +51,7 @@ const (
 	gameKey        = "Game"
 	jsonKey        = "JSON"
 	statusKey      = "Status"
-	homePath       = "/"
+	homePath       = "/home"
 	recruitingPath = "/games/recruiting"
 
 	logKind       = "Log"

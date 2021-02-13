@@ -1,6 +1,6 @@
 <template>
   <v-app-bar
-    hide-on-scroll
+    absolute
     clipped-left
     clipped-right
     color='green'

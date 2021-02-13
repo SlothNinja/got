@@ -10,12 +10,12 @@
         :key='index'
       >
         <sn-user-btn
-          :user='player.user'
+          :user='userFor(player)'
           size='x-small'
           :color='colorByPID(player.id)'
         >
         </sn-user-btn>
-        <span class='ml-1'>{{player.user.name}}</span>
+        <span class='ml-1'>{{nameFor(player)}}</span>
       </v-col>
     </v-row>
     <div>
@@ -38,8 +38,11 @@
     },
     computed: {
       players: function () {
-        var self = this
-        return self.playersByPIDS(self.message.pids)
+        let self = this
+        if (self.game.players) {
+          return self.playersByPIDS(self.message.pids)
+        }
+        return []
       }
     }
   }

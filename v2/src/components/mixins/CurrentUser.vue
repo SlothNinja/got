@@ -12,11 +12,15 @@
         }
       },
       cuid: function () {
-        var self = this
-        return _.get(self.cu, 'id', false)
+        return _.get(this.cu, 'id', false)
       },
-      cuLoading: function () {
-        return this.$root.cuLoading
+      cuLoading: {
+        get: function () {
+          return this.$root.cuLoading
+        },
+        set: function (value) {
+          this.$root.cuLoading = value
+        }
       }
     }
   }

@@ -4,64 +4,60 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
 	"github.com/SlothNinja/user"
 )
 
-func (cl *client) validatePlayerAction() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validateCPorAdmin()
+func (g *Game) validatePlayerAction(cu *user.User) (*player, error) {
+	cp, err := g.validateCPorAdmin(cu)
 	switch {
 	case err != nil:
-		return err
-	case cl.cp.PerformedAction:
-		return fmt.Errorf("current player already performed action: %w", sn.ErrValidation)
-	default:
-		return nil
-	}
-}
-
-func (cl *client) validateCPorAdmin() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validateAdmin()
-	if err == nil {
-		cl.currentPlayer()
-		return nil
-	}
-
-	return cl.validateCurrentPlayer()
-}
-
-func (cl *client) validateCurrentPlayer() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	cp := cl.currentPlayer()
-	switch {
-	case cl.cu == nil:
-		return user.ErrNotFound
+		return nil, err
 	case cp == nil:
-		return sn.ErrPlayerNotFound
-	case cp.User.ID() != cl.cu.ID():
-		return sn.ErrNotCurrentPlayer
+		return nil, fmt.Errorf("not current player: %w", sn.ErrValidation)
+	case cp.PerformedAction:
+		return nil, fmt.Errorf("current player already performed action: %w", sn.ErrValidation)
 	default:
-		return nil
+		return cp, nil
 	}
 }
 
-func (cl *client) validateAdmin() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
+func (g *Game) validateCPorAdmin(cu *user.User) (*player, error) {
+	cp, err := g.validateCurrentPlayer(cu)
+	if err == nil {
+		return cp, nil
+	}
 
-	cu := cl.CUser()
+	err = validateAdmin(cu)
+	if err != nil {
+		return nil, err
+	}
+	return cp, nil
+}
+
+func (g *Game) validateCurrentPlayer(cu *user.User) (*player, error) {
+	log.Debugf(msgEnter)
+	defer log.Debugf(msgExit)
+
+	cp := g.currentPlayer()
+	switch {
+	case cu == nil:
+		return nil, user.ErrNotFound
+	case cp == nil:
+		return nil, sn.ErrPlayerNotFound
+	case g.uidFor(cp) != cu.ID():
+		return nil, sn.ErrNotCurrentPlayer
+	default:
+		return cp, nil
+	}
+}
+
+func validateAdmin(cu *user.User) error {
 	switch {
 	case cu == nil:
 		return user.ErrNotFound
-	case !cu.Admin:
+	case cu.Admin:
 		return errors.New("not admin")
 	default:
 		return nil

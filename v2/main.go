@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/rand"
-	"net/http"
 	"os"
 	"time"
 
@@ -71,26 +70,18 @@ func main() {
 		logger.Panicf("unable create cookie store: %v", err)
 	}
 
-	r := gin.Default()
+	router := gin.Default()
 	// renderer := restful.ParseTemplates("templates/", ".tmpl")
 	// r.HTMLRender = renderer
 
-	r.Use(sessions.Sessions(sessionName, store))
+	router.Use(sessions.Sessions(sessionName, store))
 
 	userClient := user.NewClient(logger, mcache)
 
 	// Guild of Thieves
-	r = newClient(db, userClient, logger, mcache, r).addRoutes(r)
+	cl := newClient(db, userClient, logger, mcache, router)
 
-	// warmup
-	r.GET("_ah/warmup", func(c *gin.Context) {
-		c.Status(http.StatusOK)
-	})
-
-	// login
-	r.GET("login", login)
-
-	r.Run()
+	cl.Router.Run()
 }
 
 type secrets struct {
@@ -184,21 +175,6 @@ func (cl *client) staticRoutes() *client {
 	cl.Router.Static("/js", "dist/js")
 	cl.Router.Static("/css", "dist/css")
 	return cl
-}
-
-func getLoginHost() string {
-	return os.Getenv(LOGIN_HOST)
-}
-
-func login(c *gin.Context) {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	referer := c.Request.Referer()
-	encodedReferer := base64.StdEncoding.EncodeToString([]byte(referer))
-
-	log.Debugf("redirect: %v", getLoginHost()+"/login?redirect="+encodedReferer)
-	c.Redirect(http.StatusSeeOther, getLoginHost()+"/login?redirect="+encodedReferer)
 }
 
 func getProjectID() string {

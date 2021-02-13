@@ -7,24 +7,44 @@
   export default {
     mixins: [ CurrentUser, Player ],
     computed: {
-      p : function () {
-        var self = this
+      p: function () {
+        let self = this
         if (self.cuid) {
           return self.playerByUID(self.cuid)
         }
-        return self.cp
+        return false
+      },
+      colors: function () {
+        let self = this
+        if (self.p) {
+          self.p.colors
+        }
+        return _.slice([ 'yellow', 'purple', 'green', 'black' ], 0, self.game.numPlayers )
       }
     },
     methods: {
-      colorIndex: function (p, pid) {
-        var s = _.size(p.colors)
-        return (pid - p.id + s) % s
+      colorIndex: function (pid) {
+        let self = this
+        let s = self.game.numPlayers
+        return (pid - self.p.id + s) % s
       },
       colorByPID: function (pid) {
-        var self = this
-        var index = self.colorIndex(self.p, pid)
-        return _.get(self.p.colors, index, 'none')
-      }
+        let self = this
+        let index = self.colorIndex(pid)
+        return _.nth(self.colors, index, 'white')
+      },
+      colorByPlayer: function (p) {
+        let self = this
+        return self.colorByPID(p.id)
+      },
+      colorByUser: function (u) {
+        let self = this
+        let p = self.playerByUser(u)
+        if (p) {
+          return self.colorByPlayer(p)
+        }
+        return 'white'
+      },
     }
   }
 </script>

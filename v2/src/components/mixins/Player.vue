@@ -37,23 +37,82 @@
           return self.playerByPID(pid)
         })
       },
+      playerByUser: function (u) {
+        let self = this
+        let uid = _.get(u, 'id', false)
+        if (uid) {
+          return self.playerByUID(uid)
+        }
+        return {}
+      },
       playerByUID: function (uid) {
-        var self = this
-        return _.find(self.game.players, ['user.id', uid])
+        let self = this
+        let index = self.uidIndex(uid)
+        if (index == -1) {
+          return {}
+        }
+        let pid = index + 1
+        return _.find(self.game.players, [ 'id', pid ])
       },
       pidByUID: function (uid) {
-        var self = this
-        return _.get(self.playerByUID(uid), 'id', -1)
+        let self = this
+        let player = self.playerByUID(uid)
+        if (player == {}) {
+          return -1
+        }
+        return player.id
       },
       isPlayerFor: function (player, user) {
-        var admin = _.get(user, 'admin', false)
-        if (admin) {
-          return true
-        }
-        var pid = _.get(player, 'user.id', -1)
-        var uid = _.get(user, 'id', -2)
+        let self = this
+        let pid = self.uidFor(player)
+        let uid = _.get(user, 'id', -2)
         return pid === uid
-      }
+      },
+      uidIndex: function (uid) {
+        let self = this
+        return _.indexOf(self.game.userIds, uid)
+      },
+      nameFor: function (p) {
+        let self = this
+        if (p) {
+          let index = p.id - 1
+          return self.game.userNames[index]
+        }
+        return ""
+      },
+      uidFor: function (p) {
+        let self = this
+        if (p) {
+          let index = p.id - 1
+          return self.game.userIds[index]
+        }
+        return -1
+      },
+      emailHashFor: function (p) {
+        let self = this
+        if (p) {
+          let index = p.id - 1
+          return self.game.userEmailHashes[index]
+        }
+        return -1
+      },
+      gravTypeFor: function (p) {
+        let self = this
+        if (p) {
+          let index = p.id - 1
+          return self.game.userGravTypes[index]
+        }
+        return -1
+      },
+      userFor: function (p) {
+        let self = this
+        return {
+          id: self.uidFor(p),
+          name: self.nameFor(p),
+          emailHash: self.emailHashFor(p),
+          gravType: self.gravTypeFor(p)
+        }
+      },
     }
   }
 </script>

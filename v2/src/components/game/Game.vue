@@ -6,23 +6,23 @@
 
         <v-col cols='3'>
 
-          <v-tooltip bottom color='info'>
-            <template v-slot:activator='{ on }'>
-              <v-btn v-show='!rdrawer' v-on='on' icon @click.stop='rdrawer = !rdrawer'>
-                <v-icon>mdi-arrow-expand-left</v-icon>
-              </v-btn>
-            </template>
-            <span>Open Drawer</span>
-          </v-tooltip>
+      <v-tooltip bottom color='info'>
+        <template v-slot:activator='{ on }'>
+          <v-btn v-on='on' icon @click.stop='toggleLog'>
+            <v-icon>history</v-icon>
+          </v-btn>
+        </template>
+        <span>Game Log</span>
+      </v-tooltip>
 
-          <v-tooltip bottom color='info'>
-            <template v-slot:activator='{ on }'>
-              <v-btn v-show='rdrawer' v-on='on' icon @click.stop='rdrawer = !rdrawer'>
-                <v-icon>mdi-arrow-expand-right</v-icon>
-              </v-btn>
-            </template>
-            <span>Close Drawer</span>
-          </v-tooltip>
+      <v-tooltip bottom color='info'>
+        <template v-slot:activator='{ on }'>
+          <v-btn v-on='on' icon @click.stop='toggleChat'>
+            <v-icon>chat</v-icon>
+          </v-btn>
+        </template>
+        <span>Chat</span>
+      </v-tooltip>
 
         </v-col>
 
@@ -35,54 +35,55 @@
 
     <sn-nav-drawer v-model='nav' ></sn-nav-drawer>
 
-    <sn-rdrawer v-model='rdrawer' :game='game' ></sn-rdrawer>
+    <sn-chat-drawer v-model='chatDrawer' :game='game' ></sn-chat-drawer>
+
+    <sn-log-drawer v-model='logDrawer' :game='game' ></sn-log-drawer>
 
     <sn-snackbar v-model='sbOpen'>
       <div class='text-center'>{{sbMessage}}</div>
     </sn-snackbar>
 
     <v-main>
-      <v-container fluid style='overflow:auto'>
-        <v-card min-width='1185' min-height='740' flat class='theme--light v-application' >
+      <v-container fluid>
           <v-row>
-            <v-col cols='3'>
-              <v-card
-                min-width='272'
-                flat
-                height='740'
-                class='theme--light v-application d-flex flex-column justify-space-between'
-              >
+            <v-col cols='4'>
+                <v-row>
+                  <v-col>
+                    <sn-status-panel :game='game'></sn-status-panel>
+                  </v-col>
+                </v-row>
 
-                <sn-status-panel :game='game'></sn-status-panel>
+                <v-row>
+                  <v-col>
+                    <sn-player-panels
+                      v-model='selectedTab'
+                      @show='cardbar = $event'
+                      @pass="action({action: 'pass', data: { undo: game.undo }})"
+                      :game='game'
+                    >
+                    </sn-player-panels>
+                  </v-col>
+                </v-row>
 
-                <sn-player-panels
-                  v-model='tab'
-                  @show='cardbar = $event'
-                  @pass="action({action: 'pass', data: { undo: game.undo }})"
-                  :game='game'
-                >
-                </sn-player-panels>
-
-              </v-card>
             </v-col>
 
-            <v-col cols='9'>
+            <v-col cols='8'>
 
-              <v-card
-                flat
-                height='740'
-                class='theme--light v-application d-flex flex-column justify-space-between'
-              >
+              <v-row>
+                <v-col>
+                  <sn-messagebar>{{message}}</sn-messagebar>
+                </v-col>
+              </v-row>
 
-                <sn-messagebar>{{message}}</sn-messagebar>
+              <v-row>
+                <v-col>
+                  <sn-board id='board' :game='game' @selected='selected($event)' ></sn-board>
+                </v-col>
+              </v-row>
 
-                <sn-board id='board' :game='game' @selected='selected($event)' ></sn-board>
-
-              </v-card>
             </v-col>
 
           </v-row>
-        </v-card>
 
         <sn-card-bar
           v-if='selectedPlayer'
@@ -107,7 +108,8 @@
   import Snackbar from '@/components/Snackbar'
   import Footer from '@/components/Footer'
   import NavDrawer from '@/components/NavDrawer'
-  import RDrawer from '@/components/rdrawer/Drawer'
+  import ChatDrawer from '@/components/chat/Drawer'
+  import LogDrawer from '@/components/log/Drawer'
   import Board from '@/components/board/Board'
   import Bar from '@/components/card/Bar'
   import StatusPanel from '@/components/game/StatusPanel'
@@ -136,15 +138,16 @@
           glog: [],
           jewels: {}
         },
-        tab: 'player-1',
+        tab: null,
         path: '/game',
         cardbar: false,
         nav: false,
-        rdrawer: false,
         history: false,
         chat: false,
         sbOpen: false,
-        sbMessage: ''
+        sbMessage: '',
+        chatDrawer: false,
+        logDrawer: false
       }
     },
     components: {
@@ -152,7 +155,8 @@
       'sn-toolbar': Toolbar,
       'sn-snackbar': Snackbar,
       'sn-nav-drawer': NavDrawer,
-      'sn-rdrawer': RDrawer,
+      'sn-chat-drawer': ChatDrawer,
+      'sn-log-drawer': LogDrawer,
       'sn-board': Board,
       'sn-card-bar': Bar,
       'sn-status-panel': StatusPanel,
@@ -167,8 +171,22 @@
       self.fetchData()
     },
     methods: {
+      toggleChat: function () {
+        let self = this
+        self.chatDrawer = !self.chatDrawer
+        if (self.chatDrawer) {
+          self.logDrawer = false
+        }
+      },
+      toggleLog: function () {
+        let self = this
+        self.logDrawer = !self.logDrawer
+        if (self.logDrawer) {
+          self.chatDrawer = false
+        }
+      },
       myUpdate: function (data) {
-        var self = this
+        let self = this
 
         if (_.has(data, 'game')) {
           self.game = data.game
@@ -182,15 +200,13 @@
 
         if (_.has(data, 'cu')) {
           self.cu = data.cu
+          self.cuLoading = false
         }
 
-        var cuid = _.get(self.cu, 'id', false)
-        if (cuid) {
-          self.tab = `player-${self.pidByUID(cuid)}`
-        } 
+        self.tab = self.pidByUID(self.cuid)
       },
       fetchData: function () {
-        var self = this
+        let self = this
         self.loading = true
         axios.get(`${self.path}/show/${self.$route.params.id}`)
           .then(function (response) {
@@ -257,7 +273,6 @@
           self.fetchData()
           return
         }
-        self.tab = `player-${self.pidByUID(self.cu.id)}`
         axios.put(`${self.path}/${action}/${self.$route.params.id}`, data.data)
           .then(function (response) {
             self.loading = false
@@ -301,7 +316,16 @@
         })
       }
     },
+
     computed: {
+      selectedTab: {
+        get: function () {
+          return this.tab
+        },
+        set: function (value) {
+          this.tab = value
+        }
+      },
       animate: {
         get: function () {
           return this.$root.animate

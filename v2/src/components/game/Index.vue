@@ -19,10 +19,10 @@
          :items="items"
          >
          <template v-slot:item.creator="{ item }">
-           <sn-user-btn :user="item.creator" size="x-small"></sn-user-btn>&nbsp;{{item.creator.name}}
+           <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
          </template>
          <template v-slot:item.players="{ item }">
-           <div class="py-1" v-for="user in item.users" :key="user.id" >
+           <div class="py-1" v-for="user in users(item)" :key="user.id" >
              <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
            </div>
          </template>
@@ -190,7 +190,25 @@
       },
       publicPrivate: function (item) {
         return item.public ? 'Public' : 'Private'
-      }
+      },
+      creator: function (item) {
+        return {
+          id: item.creatorId,
+          name: item.creatorName,
+          emailHash: item.creatorEmailHash,
+          gravType: item.creatorGravType
+        }
+      },
+      users: function (item) {
+        return _.map(item.userIds, function (id, i) {
+          return {
+            id: id,
+            name: item.userNames[i],
+            emailHash: item.userEmailHashes[i],
+            gravType: item.userGravTypes[i],
+          }
+        })
+      },
     },
     computed: {
       cu: {

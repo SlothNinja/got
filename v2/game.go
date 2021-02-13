@@ -28,14 +28,14 @@ func newGameKey(id, rev int64) *datastore.Key {
 	return datastore.NameKey(gameKind, fmt.Sprintf("%d-%d", id, rev), rootKey(id))
 }
 
-func (g Game) id() int64 {
+func (g *Game) id() int64 {
 	if g.Key == nil || g.Key.Parent == nil {
 		return 0
 	}
 	return g.Key.Parent.ID
 }
 
-func (g Game) rev() int64 {
+func (g *Game) rev() int64 {
 	if g.Key == nil {
 		return 0
 	}
@@ -49,33 +49,6 @@ func (g Game) rev() int64 {
 		return 0
 	}
 	return rev
-}
-
-func (cl *client) getGame(inc ...int64) error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	id, err := cl.getID()
-	if err != nil {
-		return err
-	}
-
-	undo, err := cl.getStack()
-	if err != nil {
-		return err
-	}
-
-	if len(inc) == 1 {
-		undo.Current += inc[0]
-	}
-
-	cl.g = newGame(id, undo.Current)
-	err = cl.DS.Get(cl.ctx, cl.g.Key, cl.g)
-	if err != nil {
-		return err
-	}
-	cl.g.Undo = undo
-	return nil
 }
 
 func (g *Game) Load(ps []datastore.Property) error {
@@ -128,7 +101,7 @@ func (g *Game) LoadKey(k *datastore.Key) error {
 	return nil
 }
 
-func (g Game) MarshalJSON() ([]byte, error) {
+func (g *Game) MarshalJSON() ([]byte, error) {
 	log.Debugf(msgEnter)
 	defer log.Debugf(msgExit)
 
@@ -165,3 +138,28 @@ func (g Game) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(data)
 }
+
+// func (cl *client) getUsers() error {
+// 	g.Users = make([]*user.User, len(g.UserIDS))
+// 	haveCreator := false
+//
+// 	var err error
+// 	for i, uid := range g.UserIDS {
+// 		g.Users[i], err = cl.User.Get(cl.ctx, uid)
+// 		if err != nil {
+// 			g.Users = nil
+// 			return err
+// 		}
+// 		if g.CreatorID == uid {
+// 			g.Creator = g.Users[i]
+// 			haveCreator = true
+// 		}
+// 	}
+//
+// 	if haveCreator {
+// 		return nil
+// 	}
+//
+// 	g.Creator, err = cl.User.Get(cl.ctx, g.CreatorID)
+// 	return err
+// }

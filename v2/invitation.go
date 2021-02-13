@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/Pallinder/go-randomdata"
 	"github.com/SlothNinja/restful"
+	"github.com/gin-gonic/gin"
 )
 
 type invitation struct {
@@ -15,7 +16,7 @@ type invitation struct {
 	Header
 }
 
-func (inv invitation) MarshalJSON() ([]byte, error) {
+func (inv *invitation) MarshalJSON() ([]byte, error) {
 	h, err := json.Marshal(inv.Header)
 	if err != nil {
 		return nil, err
@@ -78,8 +79,8 @@ func defaultInvitation() *invitation {
 	return inv
 }
 
-func (cl *client) getID() (int64, error) {
-	return strconv.ParseInt(cl.ctx.Param(idParam), 10, 64)
+func getID(c *gin.Context) (int64, error) {
+	return strconv.ParseInt(c.Param(idParam), 10, 64)
 }
 
 // type omit *struct{}

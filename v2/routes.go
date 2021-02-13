@@ -1,6 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
+	"net/http"
+	"os"
+
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/mlog"
@@ -30,26 +34,6 @@ type client struct {
 	User   *user.Client
 	MLog   *mlog.Client
 	Rating *rating.Client
-	g      *Game
-	gc     *gcommitted
-	cu     *user.User
-	cp     *player
-	ctx    *gin.Context
-}
-
-func (cl *client) CUser() *user.User {
-	if cl.cu != nil {
-		return cl.cu
-	}
-
-	var err error
-	cl.cu, err = cl.User.Current(cl.ctx)
-	if err != nil {
-		cl.Log.Errorf(err.Error())
-		cl.cu = nil
-		return nil
-	}
-	return cl.cu
 }
 
 func newClient(dClient *datastore.Client, uClient *user.Client, logger *log.Logger, cache *cache.Cache, router *gin.Engine) *client {
@@ -59,17 +43,40 @@ func newClient(dClient *datastore.Client, uClient *user.Client, logger *log.Logg
 		MLog:   mlog.NewClient(dClient, uClient, logger, cache),
 		Rating: rating.NewClient(dClient, uClient, logger, cache, router, "rating"),
 	}
-	return cl.staticRoutes()
+	return cl.addRoutes()
 }
 
-func (cl *client) addRoutes(eng *gin.Engine) *gin.Engine {
+func (cl *client) addRoutes() *client {
+	cl.staticRoutes()
+
+	// warmup
+	cl.Router.GET("_ah/warmup", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	// login
+	cl.Router.GET("login", cl.login)
+
+	// login
+	cl.Router.GET("logout", cl.logout)
+
 	////////////////////////////////////////////
-	// User Current
-	eng.GET(cuPath, cl.cuHandler)
+	// Home
+	cl.Router.GET(homePath, cl.homeHandler)
+
+	////////////////////////////////////////////
+	// Message Log
+	msg := cl.Router.Group("mlog")
+
+	// Get
+	msg.GET("/:id", cl.mlogHandler)
+
+	// Add
+	msg.PUT("/:id/add", cl.mlogAddHandler)
 
 	////////////////////////////////////////////
 	// Invitation Group
-	inv := eng.Group(invitationPath)
+	inv := cl.Router.Group(invitationPath)
 
 	// New
 	inv.GET(newPath, cl.newInvitationHandler)
@@ -78,27 +85,27 @@ func (cl *client) addRoutes(eng *gin.Engine) *gin.Engine {
 	inv.PUT(newPath, cl.createHandler)
 
 	// Drop
-	inv.PUT(dropPath, cl.drop)
+	inv.PUT(dropPath, cl.dropHandler)
 
 	// Accept
-	inv.PUT(acceptPath, cl.accept)
+	inv.PUT(acceptPath, cl.acceptHandler)
 
 	// Details
 	inv.GET(detailsPath, cl.details)
 
 	/////////////////////////////////////////////
 	// Invitations Group
-	invs := eng.Group(invitationsPath)
+	invs := cl.Router.Group(invitationsPath)
 
 	// Index
-	invs.GET("", cl.invitationsIndex)
+	invs.GET("", cl.invitationsIndexHandler)
 
 	/////////////////////////////////////////////
 	// Game Group
-	g := eng.Group(gamePath)
+	g := cl.Router.Group(gamePath)
 
 	// Show
-	g.GET(showPath, cl.show)
+	g.GET(showPath, cl.showHandler)
 
 	// Undo
 	g.PUT(undoPath, cl.undo)
@@ -106,7 +113,7 @@ func (cl *client) addRoutes(eng *gin.Engine) *gin.Engine {
 	// Redo
 	g.PUT(redoPath, cl.redo)
 
-	// Rest
+	// Reset
 	g.PUT(resetPath, cl.reset)
 
 	// Place Thief Finish
@@ -134,7 +141,7 @@ func (cl *client) addRoutes(eng *gin.Engine) *gin.Engine {
 	g.PUT(passPath, cl.passHandler)
 
 	// Games Group
-	gs := eng.Group(gamesPath)
+	gs := cl.Router.Group(gamesPath)
 
 	// JSON Data for Index
 	gs.GET(gamesIndexPath, cl.gamesIndex)
@@ -146,6 +153,27 @@ func (cl *client) addRoutes(eng *gin.Engine) *gin.Engine {
 
 	// Ratings
 	// eng = cl.SN.AddRoutes(ratingPrefix, eng)
+	return cl
+}
 
-	return eng
+func getLoginHost() string {
+	return os.Getenv(LOGIN_HOST)
+}
+
+func (cl *client) login(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
+	referer := c.Request.Referer()
+	encodedReferer := base64.StdEncoding.EncodeToString([]byte(referer))
+
+	c.Redirect(http.StatusSeeOther, getLoginHost()+"/login?redirect="+encodedReferer)
+}
+
+func (cl *client) logout(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
+	user.Logout(c)
+	c.Redirect(http.StatusSeeOther, "/")
 }

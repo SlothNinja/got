@@ -37,15 +37,9 @@
       },
       showlink: function () {
         var self = this
-        if (self.dev) {
-          return `http://user.slothninja.com:8080/#/show/${self.user.id}`
-        } else {
-          return `https://user.slothninja.com/#/show/${self.user.id}`
-        }
-      },
-      dev: function () {
-        return this.$root.dev
-      },
+        let userv = process.env.VUE_APP_USER_DOMAIN
+        return `${userv}#/show/${self.user.id}`
+      }
     }
   }
 </script>

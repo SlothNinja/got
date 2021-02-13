@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,60 +13,51 @@ func (cl *client) passHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	cl.ctx = c
-
-	err := cl.getGame()
+	g, cu, err := cl.getGame(c)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	err = cl.pass()
+	err = g.pass(cu)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	ks, es := cl.g.cache()
-	_, err = cl.DS.Put(c, ks, es)
+	g, _, err = cl.putCachedGame(c, g, g.id(), g.Undo.Current)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"game": cl.g})
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (cl *client) pass() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validatePass()
+func (g *Game) pass(cu *user.User) error {
+	cp, err := g.validatePass(cu)
 	if err != nil {
 		return err
 	}
 
-	cl.cp.Passed = true
-	cl.cp.PerformedAction = true
-	cl.g.Phase = passedPhase
+	cp.Passed = true
+	cp.PerformedAction = true
+	g.Phase = passedPhase
 
-	cl.g.Undo.Update()
-	cl.g.newEntryFor(cl.cp.ID, message{"template": "pass"})
+	g.Undo.Update()
+	g.newEntryFor(cp.ID, message{"template": "pass"})
 	return nil
 }
 
-func (cl *client) validatePass() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validatePlayerAction()
+func (g *Game) validatePass(cu *user.User) (*player, error) {
+	cp, err := g.validatePlayerAction(cu)
 	switch {
 	case err != nil:
-		return err
-	case cl.g.Phase != playCardPhase:
-		return fmt.Errorf("expected %q phase but have %q phase: %w", playCardPhase, cl.g.Phase, sn.ErrValidation)
+		return nil, err
+	case g.Phase != playCardPhase:
+		return nil, fmt.Errorf("expected %q phase but have %q phase: %w", playCardPhase, g.Phase, sn.ErrValidation)
 	default:
-		return nil
+		return cp, nil
 	}
 }
 
@@ -75,94 +65,79 @@ func (cl *client) passedFinishTurnHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	cl.ctx = c
-
-	err := cl.getGame()
+	g, cu, err := cl.getGame(c)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	err = cl.getGCommited()
+	gc, err := cl.getGCommited(c)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	if cl.gc.Undo.Committed != cl.g.Undo.Committed {
-		cl.jerr(fmt.Errorf("invalid commit: %w", sn.ErrValidation))
+	if gc.Undo.Committed != g.Undo.Committed {
+		sn.JErr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
 		return
 	}
 
-	end, err := cl.passedFinishTurn()
+	cp, np, err := g.passedFinishTurn(cu)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	if end {
-		cl.endGame()
+	if np == nil {
+		cl.endGame(c, g)
 		return
 	}
 
-	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		cl.g.Undo.Commit()
-		_, err := tx.PutMulti(cl.g.save())
-		return err
-	})
+	err = cl.commit(c, g)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"game": cl.g})
+
+	if cp != np {
+		cl.sendTurnNotificationsTo(g, np)
+	}
+	c.JSON(http.StatusOK, gin.H{"game": g})
 
 }
 
 func notPassed(p *player) bool { return !p.Passed }
 
-func (cl *client) passedFinishTurn() (bool, error) {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validatePassedFinishTurn()
+func (g *Game) passedFinishTurn(cu *user.User) (*player, *player, error) {
+	cp, err := g.validatePassedFinishTurn(cu)
 	if err != nil {
-		return false, err
+		return nil, nil, err
 	}
 
-	cl.endOfTurnUpdate()
-	np := cl.nextPlayer(forward, cl.cp, notPassed)
+	g.endOfTurnUpdate(cp)
+	np := g.nextPlayer(forward, cp, notPassed)
 
 	// If no next player, end game
 	if np == nil {
-		return true, nil
+		return cp, np, nil
 	}
 
 	// Otherwise, select next player and continue moving theives.
 	np.beginningOfTurnReset()
-	cl.setCurrentPlayer(np)
-	cl.g.Phase = playCardPhase
+	g.setCurrentPlayer(np)
+	g.Phase = playCardPhase
 
-	if np != cl.cp {
-		err = cl.sendTurnNotificationsTo(np)
-		if err != nil {
-			// log but otherwise ignore send errors.
-			log.Warningf(err.Error())
-		}
-	}
-	return false, nil
+	return cp, np, nil
 }
 
-func (cl *client) validatePassedFinishTurn() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validateFinishTurn()
+func (g *Game) validatePassedFinishTurn(cu *user.User) (*player, error) {
+	cp, err := g.validateFinishTurn(cu)
 	switch {
 	case err != nil:
-		return err
-	case cl.g.Phase != passedPhase:
-		return fmt.Errorf("expected %q phase but have %q phase: %w", passedPhase, cl.g.Phase, sn.ErrValidation)
+		return nil, err
+	case g.Phase != passedPhase:
+		return nil, fmt.Errorf("expected %q phase but have %q phase: %w", passedPhase, g.Phase, sn.ErrValidation)
 	default:
-		return nil
+		return cp, nil
 	}
 }

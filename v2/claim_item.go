@@ -44,10 +44,10 @@ func (g *Game) claimItem(cp *player, a *Area) {
 	}
 }
 
-func (cl *client) finalClaim() {
-	for _, row := range cl.g.grid {
+func (g *Game) finalClaim() {
+	for _, row := range g.grid {
 		for _, a := range row {
-			if p := cl.playerByID(a.Thief); p != nil {
+			if p := g.playerByID(a.Thief); p != nil {
 				card := a.Card
 				a.Card = nil
 				a.Thief = noPID
@@ -56,7 +56,7 @@ func (cl *client) finalClaim() {
 			}
 		}
 	}
-	for _, p := range cl.g.players {
+	for _, p := range g.players {
 		p.Hand.append(p.DiscardPile...)
 		p.Hand.append(p.DrawPile...)
 		for _, card := range p.Hand {

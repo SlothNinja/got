@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"cloud.google.com/go/datastore"
-	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/sn"
+	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,90 +14,78 @@ func (cl *client) placeThiefHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	err := cl.getGame(0)
+	g, cu, err := cl.getGame(c)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	err = cl.placeThief()
+	err = g.placeThief(c, cu)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	ks, es := cl.g.cache()
-	_, err = cl.DS.Put(c, ks, es)
+	g, _, err = cl.putCachedGame(c, g, g.id(), g.Undo.Current)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"game": cl.g})
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (cl *client) placeThief() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	a, err := cl.validatePlaceThief()
+func (g *Game) placeThief(c *gin.Context, cu *user.User) error {
+	cp, a, err := g.validatePlaceThief(c, cu)
 	if err != nil {
 		return err
 	}
 
-	cl.cp.PerformedAction = true
-	cl.cp.Score += a.Card.value()
-	cl.cp.Stats.Placed[cl.g.Turn-1].inc(a.Card.Kind)
-	a.Thief = cl.cp.ID
+	cp.PerformedAction = true
+	cp.Score += a.Card.value()
+	cp.Stats.Placed[g.Turn-1].inc(a.Card.Kind)
+	a.Thief = cp.ID
 
-	cl.g.Undo.Update()
+	g.Undo.Update()
 
-	cl.g.newEntryFor(cl.cp.ID, message{
+	g.newEntryFor(cp.ID, message{
 		"template": "place-thief",
 		"area":     *a,
 	})
 	return nil
 }
 
-func (cl *client) validatePlaceThief() (*Area, error) {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validatePlayerAction()
+func (g *Game) validatePlaceThief(c *gin.Context, cu *user.User) (*player, *Area, error) {
+	cp, err := g.validatePlayerAction(cu)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	a, err := cl.getArea()
+	a, err := g.getArea(c)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	switch {
 	case a == nil:
-		return nil, fmt.Errorf("you must select an area: %w", sn.ErrValidation)
+		return nil, nil, fmt.Errorf("you must select an area: %w", sn.ErrValidation)
 	case a.Card == nil:
-		return nil, fmt.Errorf("you must select an area with a card: %w", sn.ErrValidation)
+		return nil, nil, fmt.Errorf("you must select an area with a card: %w", sn.ErrValidation)
 	case a.Thief != noPID:
-		return nil, fmt.Errorf("you must select an area without a thief: %w", sn.ErrValidation)
+		return nil, nil, fmt.Errorf("you must select an area without a thief: %w", sn.ErrValidation)
 	default:
-		return a, nil
+		return cp, a, nil
 	}
 }
 
-func (cl *client) placeThievesNextPlayer(p *player) *player {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g is nil")
-		return nil
-	}
-
+func (g *Game) placeThievesNextPlayer(p *player) *player {
 	numThieves := 3
-	if cl.g.TwoThiefVariant {
+	if g.TwoThiefVariant {
 		numThieves = 2
 	}
 
-	p = cl.nextPlayer(backward, p)
-	if cl.g.Turn > numThieves {
+	p = g.nextPlayer(backward, p)
+	if g.Turn > numThieves {
 		return nil
 	}
 	return p
@@ -108,84 +95,75 @@ func (cl *client) placeThievesFinishTurnHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	cl.ctx = c
-
-	err := cl.getGame()
+	g, cu, err := cl.getGame(c)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	err = cl.getGCommited()
+	gc, err := cl.getGCommited(c)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	if cl.gc.Undo.Committed != cl.g.Undo.Committed {
-		cl.jerr(fmt.Errorf("invalid commit: %w", sn.ErrValidation))
+	if gc.Undo.Committed != g.Undo.Committed {
+		sn.JErr(c, fmt.Errorf("invalid commit: %w", sn.ErrValidation))
 		return
 	}
 
-	err = cl.placeThievesFinishTurn()
+	cp, np, err := g.placeThievesFinishTurn(cu)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	cl.cp.Stats.Moves++
-	cl.cp.Stats.Think += time.Since(cl.gc.UpdatedAt)
+	cp.Stats.Moves++
+	cp.Stats.Think += time.Since(gc.UpdatedAt)
 
-	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
-		cl.g.Undo.Commit()
-		_, err := tx.PutMulti(cl.g.save())
-		return err
-	})
+	err = cl.commit(c, g)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"game": cl.g})
+
+	if cp != np {
+		cl.sendTurnNotificationsTo(g, np)
+	}
+	c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
-func (cl *client) placeThievesFinishTurn() error {
-	log.Debugf(msgEnter)
-	defer log.Debugf(msgExit)
-
-	err := cl.validatePlaceThievesFinishTurn()
+func (g *Game) placeThievesFinishTurn(cu *user.User) (*player, *player, error) {
+	cp, err := g.validatePlaceThievesFinishTurn(cu)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	np := cl.placeThievesNextPlayer(cl.cp)
+	np := g.placeThievesNextPlayer(cp)
 	if np == nil {
-		cp := cl.firstPlayer()
+		cp = g.firstPlayer()
 		cp.beginningOfTurnReset()
-		cl.setCurrentPlayer(cp)
-		cl.g.Phase = playCardPhase
-		return nil
+		g.setCurrentPlayer(cp)
+		g.Phase = playCardPhase
+		return cp, cp, nil
 	}
 
 	np.beginningOfTurnReset()
-	if np != cl.cp {
-		cl.setCurrentPlayer(np)
-		cl.sendTurnNotificationsTo(np)
+	if np != cp {
+		g.setCurrentPlayer(np)
 	}
 
-	return nil
+	return cp, np, nil
 }
 
-func (cl *client) validatePlaceThievesFinishTurn() error {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	err := cl.validateFinishTurn()
+func (g *Game) validatePlaceThievesFinishTurn(cu *user.User) (*player, error) {
+	cp, err := g.validateFinishTurn(cu)
 	switch {
 	case err != nil:
-		return err
-	case cl.g.Phase != placeThievesPhase:
-		return fmt.Errorf("expected %q phase but have %q phase: %w", placeThievesPhase, cl.g.Phase, sn.ErrValidation)
+		return nil, err
+	case g.Phase != placeThievesPhase:
+		return nil, fmt.Errorf("expected %q phase but have %q phase: %w", placeThievesPhase, g.Phase, sn.ErrValidation)
 	default:
-		return nil
+		return cp, nil
 	}
 }

@@ -38,10 +38,6 @@
     components: {
       'sn-log-entry': Entry
     },
-    name: 'sn-game-log',
-    activated: function () {
-      var self = this
-      self.$emit('title', 'Game Log')
-    }
+    name: 'sn-game-log'
   }
 </script>

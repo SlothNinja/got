@@ -34,6 +34,13 @@ export default new Router({
       path: '/',
       name: 'home',
       component: Home
+    },
+    {
+      path: '/logout',
+      name: 'logout',
+      beforeEnter() {
+        window.location.href = '/logout'
+      }
     }
   ]
 })

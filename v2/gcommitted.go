@@ -4,7 +4,7 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
-type gcommitted struct{ *Game }
+type gcommitted struct{ Game }
 
 func (g *gcommitted) id() int64 {
 	if g == nil || g.Key == nil {
@@ -15,33 +15,22 @@ func (g *gcommitted) id() int64 {
 }
 
 // newGCommited creates a new Guild of Thieves game.
-func newGCommited(id int64) *gcommitted { return &gcommitted{&Game{Key: newGCommittedKey(id)}} }
+func newGCommited(id int64) *gcommitted { return &gcommitted{Game{Key: newGCommittedKey(id)}} }
 
 func newGCommittedKey(id int64) *datastore.Key {
 	return datastore.IDKey(gCommitedKind, id, rootKey(id))
 }
 
-func (cl *client) setCurrentPlayer(p *player) {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g is nil")
-		return
-	}
-
-	cl.g.CPIDS = nil
+func (g *Game) setCurrentPlayer(p *player) {
+	g.CPIDS = nil
 	if p == nil {
 		return
 	}
-	cl.g.CPIDS = append(cl.g.CPIDS, p.ID)
-	cl.currentPlayer()
+	g.CPIDS = append(g.CPIDS, p.ID)
 }
 
-func (cl *client) playerByID(id int) *player {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g was nil")
-		return nil
-	}
-
-	for _, p := range cl.g.players {
+func (g *Game) playerByID(id int) *player {
+	for _, p := range g.players {
 		if p != nil && p.ID == id {
 			return p
 		}
@@ -49,41 +38,26 @@ func (cl *client) playerByID(id int) *player {
 	return nil
 }
 
-func (cl *client) playerByUserID(id int64) *player {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g was nil")
-		return nil
-	}
-
-	for i, uid := range cl.g.UserIDS {
+func (g *Game) playerByUserID(id int64) *player {
+	for i, uid := range g.UserIDS {
 		if uid == id {
-			return cl.playerByID(i + 1)
+			return g.playerByID(i + 1)
 		}
 	}
 	return nil
 }
 
-func (cl *client) playerByUserKey(key *datastore.Key) *player {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g was nil")
-		return nil
-	}
-
-	for i, k := range cl.g.UserKeys {
+func (g *Game) playerByUserKey(key *datastore.Key) *player {
+	for i, k := range g.UserKeys {
 		if k.Equal(key) {
-			return cl.playerByID(i + 1)
+			return g.playerByID(i + 1)
 		}
 	}
 	return nil
 }
 
-func (cl *client) playerByPID(pid int) *player {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g was nil")
-		return nil
-	}
-
-	for _, p := range cl.g.players {
+func (g *Game) playerByPID(pid int) *player {
+	for _, p := range g.players {
 		if p != nil && p.ID == pid {
 			return p
 		}
@@ -104,29 +78,14 @@ func (cl *client) playerByPID(pid int) *player {
 // }
 
 // CurrentPlayer returns the player whose turn it is.
-func (cl *client) currentPlayer() *player {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
-	if cl.cp != nil {
-		return cl.cp
-	}
-
-	l := len(cl.g.CPIDS)
+func (g *Game) currentPlayer() *player {
+	l := len(g.CPIDS)
 	if l != 1 {
-		cl.cp = nil
-		return cl.cp
+		return nil
 	}
 
-	pid := cl.g.CPIDS[0]
-	for _, p := range cl.g.players {
-		if p.ID == pid {
-			cl.cp = p
-			return cl.cp
-		}
-	}
-	cl.cp = nil
-	return cl.cp
+	pid := g.CPIDS[0]
+	return g.playerByPID(pid)
 }
 
 func rootKey(id int64) *datastore.Key { return datastore.IDKey(rootKind, id, nil) }

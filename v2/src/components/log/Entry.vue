@@ -12,14 +12,14 @@
       <v-col cols='3'>
         <div class='text-center'>
           <sn-user-btn
-            :user='player.user'
+            :user='userFor(player)'
             size='x-small'
             :color='colorByPID(player.id)'
           >
           </sn-user-btn>
         </div>
         <div class='text-center'>
-          {{player.user.name}}
+          {{userFor(player).name}}
         </div>
       </v-col>
       <v-col cols='9'>
@@ -58,11 +58,12 @@
   import Message from '@/components/log/Message'
   import Button from '@/components/user/Button'
   import Color from '@/components/mixins/Color'
+  import Player from '@/components/mixins/Player'
 
   const _ = require('lodash')
 
   export default {
-    mixins: [ Color ],
+    mixins: [ Color, Player ],
     name: 'sn-log-entry',
     props: [ 'entry', 'game' ],
     components: {

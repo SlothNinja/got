@@ -13,54 +13,57 @@ import (
 	"github.com/SlothNinja/rating"
 	"github.com/SlothNinja/restful"
 	"github.com/SlothNinja/send"
+	"github.com/SlothNinja/sn"
 	"github.com/gin-gonic/gin"
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
 type crmap map[*datastore.Key]*rating.CurrentRating
 
-func (cl *client) endGame() {
+func (cl *client) endGame(c *gin.Context, g *Game) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	cl.finalClaim()
-	ps, err := cl.determinePlaces()
+	g.finalClaim()
+	ps, err := cl.determinePlaces(c, g)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
-	cl.setWinners(ps[0])
+	g.setWinners(ps[0])
 
 	cs := cl.Rating.Contest.GenContests(ps)
-	cl.g.Status = game.Completed
+	g.Status = game.Completed
 
-	stats, err := cl.updateUStats()
+	stats, err := cl.getUStats(c, g.UserKeys...)
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
-	crs := make(crmap, len(cl.g.UserKeys))
-	for _, ukey := range cl.g.UserKeys {
-		crs[ukey], err = cl.Rating.GetProjected(cl.ctx, ukey, cl.g.Type)
+	g.updateUStats(stats)
+
+	crs := make(crmap, len(g.UserKeys))
+	for _, ukey := range g.UserKeys {
+		crs[ukey], err = cl.Rating.GetProjected(c, ukey, g.Type)
 		if err != nil {
-			cl.jerr(err)
+			sn.JErr(c, err)
 			return
 		}
 	}
 
-	nrs := make(crmap, len(cl.g.UserKeys))
-	for _, ukey := range cl.g.UserKeys {
+	nrs := make(crmap, len(g.UserKeys))
+	for _, ukey := range g.UserKeys {
 		nrs[ukey], err = crs[ukey].Projected(cs[ukey])
 		if err != nil {
-			cl.jerr(err)
+			sn.JErr(c, err)
 			return
 		}
 	}
 
-	_, err = cl.DS.RunInTransaction(cl.ctx, func(tx *datastore.Transaction) error {
-		cl.g.Undo.Commit()
-		ks, es := cl.g.save()
+	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
+		g.Undo.Commit()
+		ks, es := g.save()
 		for _, contests := range cs {
 			for _, contest := range contests {
 				ks = append(ks, contest.Key)
@@ -75,30 +78,30 @@ func (cl *client) endGame() {
 		return err
 	})
 	if err != nil {
-		cl.jerr(err)
+		sn.JErr(c, err)
 		return
 	}
 
 	// Need to call SendTurnNotificationsTo before saving the new contests
 	// SendEndGameNotifications relies on pulling the old contests from the db.
 	// Saving the contests resulting in double counting.
-	err = cl.sendEndGameNotifications(ps, crs, nrs)
+	err = cl.sendEndGameNotifications(c, g, ps, crs, nrs)
 	if err != nil {
 		// log but otherwise ignore send errors
 		cl.Log.Warningf(err.Error())
 	}
-	cl.ctx.JSON(http.StatusOK, gin.H{"game": cl.g})
+	c.JSON(http.StatusOK, gin.H{"game": g})
 
 }
 
-func (cl *client) setWinners(rmap contest.ResultsMap) {
-	cl.g.Status = game.Completed
+func (g *Game) setWinners(rmap contest.ResultsMap) {
+	g.Status = game.Completed
 
-	cl.setCurrentPlayer(nil)
-	cl.g.WinnerKeys = nil
+	g.setCurrentPlayer(nil)
+	g.WinnerKeys = nil
 	for k := range rmap {
-		p := cl.playerByUserKey(k)
-		cl.g.WinnerKeys = append(cl.g.WinnerKeys, p.User.Key)
+		p := g.playerByUserKey(k)
+		g.WinnerKeys = append(g.WinnerKeys, p.User.Key)
 	}
 }
 
@@ -109,21 +112,21 @@ type result struct {
 
 type results []result
 
-func (cl *client) sendEndGameNotifications(ps []contest.ResultsMap, crs, nrs crmap) error {
+func (cl *client) sendEndGameNotifications(c *gin.Context, g *Game, ps []contest.ResultsMap, crs, nrs crmap) error {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	if cl.g == nil {
+	if g == nil {
 		return errors.New("cl.g was nil")
 	}
 
-	cl.g.Status = game.Completed
-	rs := make(results, cl.g.NumPlayers)
+	g.Status = game.Completed
+	rs := make(results, g.NumPlayers)
 
 	var i int
 	for place, rmap := range ps {
 		for k := range rmap {
-			p := cl.playerByUserID(k.ID)
+			p := g.playerByUserID(k.ID)
 			cr, nr := crs[k], nrs[k]
 			clo, nlo := cr.Rank().GLO(), nr.Rank().GLO()
 			inc := nlo - clo
@@ -140,7 +143,7 @@ func (cl *client) sendEndGameNotifications(ps []contest.ResultsMap, crs, nrs crm
 	}
 
 	var names []string
-	for _, p := range cl.winners() {
+	for _, p := range g.winners() {
 		names = append(names, p.User.Name)
 	}
 
@@ -176,10 +179,10 @@ func (cl *client) sendEndGameNotifications(ps []contest.ResultsMap, crs, nrs crm
 		return err
 	}
 
-	ms := make([]mailjet.InfoMessagesV31, len(cl.g.players))
-	subject := fmt.Sprintf("SlothNinja Games: Guild of Thieves #%d Has Ended", cl.g.id())
+	ms := make([]mailjet.InfoMessagesV31, len(g.players))
+	subject := fmt.Sprintf("SlothNinja Games: Guild of Thieves #%d Has Ended", g.id())
 	body := buf.String()
-	for i, p := range cl.g.players {
+	for i, p := range g.players {
 		ms[i] = mailjet.InfoMessagesV31{
 			From: &mailjet.RecipientV31{
 				Email: "webmaster@slothninja.com",
@@ -187,32 +190,27 @@ func (cl *client) sendEndGameNotifications(ps []contest.ResultsMap, crs, nrs crm
 			},
 			To: &mailjet.RecipientsV31{
 				mailjet.RecipientV31{
-					Email: cl.emailFor(p),
-					Name:  cl.nameFor(p),
+					Email: g.emailFor(p),
+					Name:  g.nameFor(p),
 				},
 			},
 			Subject:  subject,
 			HTMLPart: body,
 		}
 	}
-	_, err = send.Messages(cl.ctx, ms...)
+	_, err = send.Messages(c, ms...)
 	return err
 }
 
-func (cl *client) winners() []*player {
-	if cl.g == nil {
-		cl.Log.Warningf("cl.g was nil")
-		return nil
-	}
-
-	l := len(cl.g.WinnerKeys)
+func (g *Game) winners() []*player {
+	l := len(g.WinnerKeys)
 	if l == 0 {
 		return nil
 
 	}
 	ps := make([]*player, l)
-	for i, k := range cl.g.WinnerKeys {
-		ps[i] = cl.playerByUserKey(k)
+	for i, k := range g.WinnerKeys {
+		ps[i] = g.playerByUserKey(k)
 	}
 	return ps
 }

@@ -4,10 +4,10 @@
   export default {
     methods: {
       gravatar: function (hash, size, t) {
-        var self = this
-        var sz = _.get(self.gravSizes(), size, '64')
+        let self = this
+        let sz = _.get(self.gravSizes(), size, '64')
 
-        if (!(_.includes(this.gravTypes(), t))) {
+        if (!(_.includes(self.gravTypes(), t))) {
           t = 'monsterid'
         }
         if (t == 'personal') {

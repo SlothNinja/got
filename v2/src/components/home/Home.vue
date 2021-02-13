@@ -49,7 +49,7 @@
         </v-card-text>
       </v-card>
     </v-main>
-    <sn-footer app></sn-footer>
+    <sn-footer></sn-footer>
   </v-app>
 </template>
 
@@ -58,14 +58,50 @@
   import NavDrawer from '@/components/NavDrawer'
   import Snackbar from '@/components/Snackbar'
   import Footer from '@/components/Footer'
+  import CurrentUser from '@/components/mixins/CurrentUser'
+
+  const _ = require('lodash')
+  const axios = require('axios')
 
   export default {
     name: 'home',
+    mixins: [ CurrentUser ],
     components: {
       'sn-toolbar': Toolbar,
       'sn-nav-drawer': NavDrawer,
       'sn-snackbar': Snackbar,
       'sn-footer': Footer
+    },
+    created () {
+      let self = this
+      self.fetchData()
+    },
+    methods: {
+      myUpdate: function (data) {
+        let self = this
+
+        if (_.has(data, 'cu')) {
+          self.cu = data.cu
+          self.cuLoading = false
+        }
+      },
+      fetchData: function () {
+        let self = this
+        self.loading = true
+        axios.get("/home")
+          .then(function (response) {
+            var data = _.get(response, 'data', false)
+            if (data) {
+              self.myUpdate(data)
+            }
+            self.loading = false
+          })
+          .catch(function () {
+            self.loading = false
+            self.sbMessage = 'Server Error.  Try refreshing page.'
+            self.sbOpen = true
+        })
+      },
     },
     computed: {
       snackbar: {

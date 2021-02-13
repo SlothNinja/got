@@ -20,7 +20,7 @@
               <div>
                 <sn-user-btn
                   :id='btnID'
-                  :user='player.user'
+                  :user='userFor(player)'
                   size='large'
                   :color='color'
                 >
@@ -29,7 +29,7 @@
               </div>
 
               <div>
-                {{player.user.name}}
+                {{userFor(player).name}}
               </div>
 
             </v-card>
@@ -69,7 +69,7 @@
   import Color from '@/components/mixins/Color'
   import CurrentUser from '@/components/mixins/CurrentUser'
 
-  var _ = require('lodash')
+  const _ = require('lodash')
 
   export default {
     mixins: [ CurrentUser, Player, Color ],
@@ -81,7 +81,7 @@
     props: [ 'value', 'player', 'game' ],
     methods: {
       selected: function (kind) {
-        var self = this
+        let self = this
         if (self.canClick) {
           self.$emit('selected-card', kind)
         }
@@ -89,15 +89,15 @@
     },
     computed: {
       color: function () {
-        var self = this
+        let self = this
         return self.colorByPID(self.player.id)
       },
       btnID: function () {
-        var self = this
-        return `cardbar-button-${self.player.user.id}`
+        let self = this
+        return `cardbar-button-${self.userFor(self.player).id}`
       },
       cards: function () {
-        var self = this
+        let self = this
         return _.countBy(self.player.hand, function (card) {
           if (card.faceUp) {
             return card.kind
@@ -106,17 +106,17 @@
         })
       },
       canClick: function () {
-        var self = this
+        let self = this
         const playCardPhase = 'Play Card'
         return (self.game.phase === playCardPhase) && (self.isPlayerFor(self.player, self.cu))
       },
       cardbar: {
         get: function () {
-          var self = this
+          let self = this
           return self.value
         },
         set: function (value) {
-          var self = this
+          let self = this
           self.$emit('input', value)
         }
       }

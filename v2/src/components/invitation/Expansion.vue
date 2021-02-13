@@ -12,14 +12,14 @@
    <v-row no-gutters>
      <v-col cols=2>Invite from:</v-col>
      <v-col cols=2>
-        <sn-user-btn :user="item.creator" size="x-small"></sn-user-btn> {{item.creator.name}}
+        <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn> {{creator(item).name}}
      </v-col>
-     <v-col cols=2>{{gloFor(item.creator.id)}}</v-col>
+     <v-col cols=2>{{gloFor(creator(item).id)}}</v-col>
      <v-col cols=2>0</v-col>
      <v-col cols=2>0</v-col>
      <v-col cols=2>0</v-col>
    </v-row>
-   <v-row no-gutters v-if='cu.id != item.creator.id'>
+   <v-row no-gutters v-if='cu.id != creator(item).id'>
      <v-col cols=2>Your Experience:</v-col>
      <v-col cols=2>
         <sn-user-btn :user="cu" size="x-small"></sn-user-btn> {{cu.name}}
@@ -185,12 +185,19 @@
         return self.joined(item) && item.status === 1 // recruiting is a status 1
       },
       joined: function (item) {
-        var self = this
-        return _.find(item.users, [ 'id', self.cu.id ])
+        return _.includes(item.userIds, this.cu.id)
       },
       publicPrivate: function (item) {
         return item.public ? 'Public' : 'Private'
-      }
+      },
+      creator: function (item) {
+        return {
+          id: item.creatorId,
+          name: item.creatorName,
+          emailHash: item.creatorEmailHash,
+          gravType: item.creatorGravType
+        }
+      },
     },
     computed: {
       disabled: function () {

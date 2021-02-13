@@ -32,3 +32,7 @@ replace github.com/SlothNinja/rating => ./private/rating
 replace github.com/SlothNinja/contest => ./private/contest
 
 replace github.com/SlothNinja/game => ./private/game
+
+replace github.com/SlothNinja/send => ./private/send
+
+replace github.com/SlothNinja/mlog => ./private/mlog

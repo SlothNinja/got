@@ -7,36 +7,36 @@ import (
 )
 
 // Start begins a Guild of Thieves game.
-func (cl *client) start() {
-	cl.g.Status = game.Running
-	cl.setupPhase()
+func (g *Game) start() {
+	g.Status = game.Running
+	g.setupPhase()
 
-	cl.g.Phase = placeThievesPhase
+	g.Phase = placeThievesPhase
 }
 
-func (cl *client) addNewPlayers() {
-	cl.g.players = make([]*player, cl.g.NumPlayers)
-	for i := range cl.g.players {
-		cl.g.players[i] = cl.newPlayer(i)
+func (g *Game) addNewPlayers() {
+	g.players = make([]*player, g.NumPlayers)
+	for i := range g.players {
+		g.players[i] = g.newPlayer(i)
 	}
 }
 
-func (cl *client) setupPhase() {
-	cl.addNewPlayers()
-	cl.randomTurnOrder()
-	cl.createGrid()
-	cp := cl.nextPlayer(backward, cl.g.players[0])
-	cl.setCurrentPlayer(cp)
+func (g *Game) setupPhase() {
+	g.addNewPlayers()
+	g.randomTurnOrder()
+	g.createGrid()
+	cp := g.nextPlayer(backward, g.players[0])
+	g.setCurrentPlayer(cp)
 
-	cl.g.newEntry(message{
+	g.newEntry(message{
 		"template": "start-game",
-		"pids":     cl.pids(),
+		"pids":     g.pids(),
 	})
-	cl.g.Turn = 1
+	g.Turn = 1
 }
 
-func (cl *client) randomTurnOrder() {
-	rand.Shuffle(len(cl.g.players), func(i, j int) {
-		cl.g.players[i], cl.g.players[j] = cl.g.players[j], cl.g.players[i]
+func (g *Game) randomTurnOrder() {
+	rand.Shuffle(len(g.players), func(i, j int) {
+		g.players[i], g.players[j] = g.players[j], g.players[i]
 	})
 }

@@ -4,22 +4,20 @@ import (
 	"fmt"
 
 	"github.com/SlothNinja/sn"
+	"github.com/gin-gonic/gin"
 )
 
-func (cl *client) getArea() (*Area, error) {
-	cl.Log.Debugf(msgEnter)
-	defer cl.Log.Debugf(msgExit)
-
+func (g *Game) getArea(c *gin.Context) (*Area, error) {
 	obj := struct {
 		ID areaID `json:"areaID"`
 	}{}
 
-	err := cl.ctx.ShouldBind(&obj)
+	err := c.ShouldBind(&obj)
 	if err != nil {
 		return nil, err
 	}
 
-	a := cl.area(obj.ID)
+	a := g.area(obj.ID)
 	if a == nil {
 		return nil, fmt.Errorf("unable to find area: %w", sn.ErrValidation)
 	}
