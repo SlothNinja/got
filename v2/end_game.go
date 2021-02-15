@@ -101,7 +101,7 @@ func (g *Game) setWinners(rmap contest.ResultsMap) {
 	g.WinnerKeys = nil
 	for k := range rmap {
 		p := g.playerByUserKey(k)
-		g.WinnerKeys = append(g.WinnerKeys, p.User.Key)
+		g.WinnerKeys = append(g.WinnerKeys, g.uKeyFor(p))
 	}
 }
 
@@ -135,7 +135,7 @@ func (cl *client) sendEndGameNotifications(c *gin.Context, g *Game, ps []contest
 				Place: place,
 				GLO:   nlo,
 				Score: p.Score,
-				Name:  p.User.Name,
+				Name:  g.nameFor(p),
 				Inc:   fmt.Sprintf("%+d", inc),
 			}
 		}
@@ -144,7 +144,7 @@ func (cl *client) sendEndGameNotifications(c *gin.Context, g *Game, ps []contest
 
 	var names []string
 	for _, p := range g.winners() {
-		names = append(names, p.User.Name)
+		names = append(names, g.nameFor(p))
 	}
 
 	buf := new(bytes.Buffer)

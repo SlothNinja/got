@@ -13,7 +13,7 @@ func (g *Game) validateFinishTurn(cu *user.User) (*player, error) {
 	case err != nil:
 		return nil, err
 	case !cp.PerformedAction:
-		return nil, fmt.Errorf("%s has yet to perform an action: %w", cp.User.Name, sn.ErrValidation)
+		return nil, fmt.Errorf("%s has yet to perform an action: %w", g.nameFor(cp), sn.ErrValidation)
 	default:
 		return cp, nil
 	}

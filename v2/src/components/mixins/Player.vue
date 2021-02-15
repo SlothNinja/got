@@ -22,6 +22,10 @@
       }
     },
     methods: {
+      indexOf: function (player) {
+        let self = this
+        return _.findIndex(self.game.players, ['id', player.id])
+      },
       cpIs: function (player) {
         var self = this
         var pid = _.get(player, 'id', -2)

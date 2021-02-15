@@ -3,25 +3,25 @@ package main
 import (
 	"sort"
 
+	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/contest"
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
-	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 )
 
 // player represents one of the players of the game.
 type player struct {
-	ID              int        `json:"id"`
-	PerformedAction bool       `json:"performedAction"`
-	Score           int        `json:"score"`
-	Passed          bool       `json:"passed"`
-	Colors          []color    `json:"colors"`
-	User            *user.User `json:"user"`
-	Hand            Cards      `json:"hand"`
-	DrawPile        Cards      `json:"drawPile"`
-	DiscardPile     Cards      `json:"discardPile"`
-	Stats           stats      `json:"stats"`
+	ID              int     `json:"id"`
+	PerformedAction bool    `json:"performedAction"`
+	Score           int     `json:"score"`
+	Passed          bool    `json:"passed"`
+	Colors          []color `json:"colors"`
+	// User            *user.User `json:"user"`
+	Hand        Cards `json:"hand"`
+	DrawPile    Cards `json:"drawPile"`
+	DiscardPile Cards `json:"discardPile"`
+	Stats       stats `json:"stats"`
 }
 
 func (g *Game) pids() []int {
@@ -136,7 +136,11 @@ func (cl *client) determinePlaces(c *gin.Context, g *Game) ([]contest.ResultsMap
 		results := make([]*contest.Result, 0)
 		tie := false
 		for j, p2 := range g.players {
-			r, err := cl.Rating.Get(c, p2.User.Key, g.Type)
+			cl.Log.Debugf("c: %#v", c)
+			cl.Log.Debugf("cl: %#v", cl)
+			cl.Log.Debugf("p2: %#v", p2)
+			cl.Log.Debugf("g: %#v", g)
+			r, err := cl.Rating.Get(c, g.uKeyFor(p2), g.Type)
 			if err != nil {
 				log.Warningf(err.Error())
 				return nil, err
@@ -161,7 +165,7 @@ func (cl *client) determinePlaces(c *gin.Context, g *Game) ([]contest.ResultsMap
 				tie = true
 			}
 		}
-		rmap[p1.User.Key] = results
+		rmap[g.uKeyFor(p1)] = results
 		if !tie {
 			places = append(places, rmap)
 			rmap = make(contest.ResultsMap, 0)
@@ -259,4 +263,16 @@ func (g *Game) uidFor(p *player) int64 {
 		return g.UserIDS[index]
 	}
 	return notFound
+}
+
+func (g *Game) uKeyFor(p *player) *datastore.Key {
+	if p == nil {
+		return nil
+	}
+
+	l, index := len(g.UserKeys), p.ID-1
+	if index >= 0 && index < l {
+		return g.UserKeys[index]
+	}
+	return nil
 }

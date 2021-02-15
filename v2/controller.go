@@ -235,7 +235,7 @@ func (cl *client) newInvitationHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	_, err := cl.User.Current(c)
+	cu, err := cl.User.Current(c)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -243,7 +243,7 @@ func (cl *client) newInvitationHandler(c *gin.Context) {
 
 	inv := defaultInvitation()
 
-	c.JSON(http.StatusOK, gin.H{"invitation": inv})
+	c.JSON(http.StatusOK, gin.H{"invitation": inv, "cu": cu})
 }
 
 func (cl *client) createHandler(c *gin.Context) {
@@ -286,6 +286,7 @@ func (cl *client) createHandler(c *gin.Context) {
 	inv2 := defaultInvitation()
 	c.JSON(http.StatusOK, gin.H{
 		"invitation": inv2,
+		"cu":         cu,
 		"message":    fmt.Sprintf("%s created game %q", cu.Name, inv.Title),
 	})
 }

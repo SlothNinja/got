@@ -10,7 +10,7 @@ import (
 
 func (cl *client) sendTurnNotificationsTo(g *Game, ps ...*player) error {
 	subject := fmt.Sprintf("It's your turn in %s (%s #%d).", g.Type, g.Title, g.id())
-	url := fmt.Sprintf(`<a href="http://www.slothninja.com/%s/game/show/%d">here</a>`, g.Type.Prefix(), g.id())
+	url := fmt.Sprintf(`<a href="https://got.slothninja.com/#/game/%d">here</a>`, g.id())
 	body := fmt.Sprintf(`<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 		<html>
 			<head>

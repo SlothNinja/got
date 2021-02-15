@@ -19,15 +19,9 @@
       >
         {{nameFor(player)}}
         <v-icon>{{icon(player)}}</v-icon>
-        <!--
-        <sn-user-btn 
-          :user='userFor(player)'
-          :color='colorByPID(player.id)'
-          size='small'
-        >
-        </sn-user-btn>
-        -->
       </v-tab>
+    </v-tabs>
+
       <v-tabs-items v-model='tab'>
         <v-tab-item
           v-for="player in game.players"
@@ -42,7 +36,6 @@
           </sn-player-panel>
         </v-tab-item>
       </v-tabs-items>
-    </v-tabs>
   </v-card>
 </template>
 
@@ -64,10 +57,10 @@
       icon: function (player) {
         var self = this
         if (player.passed) {
-          return 'stop_circle'
+          return 'mdi-stop-circle'
         }
         if (self.cpIs(player)) {
-          return 'play_circle_filled'
+          return 'mdi-play-circle'
         }
         return ''
       }

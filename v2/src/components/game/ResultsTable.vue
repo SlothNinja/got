@@ -5,8 +5,8 @@
         <tr>
           <th></th>
           <th class='text-center' v-for="player in game.players" :key="`player-${player.id}-score`">
-            <sn-user-btn :user='player.user' :color='colorByPID(player.id)' size='small' ></sn-user-btn>
-            {{player.user.name}}
+            <sn-user-btn :user='userFor(player)' :color='colorByPID(player.id)' size='small' ></sn-user-btn>
+            {{nameFor(player)}}
           </th>
         </tr>
       </thead>

@@ -93,12 +93,14 @@
 
 <script>
   import UserButton from '@/components/user/Button'
+  import CurrentUser from '@/components/mixins/CurrentUser'
 
   const _ = require('lodash')
   const axios = require('axios')
 
   export default {
     name: 'sn-expanded-row',
+    mixins: [ CurrentUser ],
     props: [ 'span', 'item' ],
     components: {
       'sn-user-btn': UserButton
@@ -185,7 +187,7 @@
         return self.joined(item) && item.status === 1 // recruiting is a status 1
       },
       joined: function (item) {
-        return _.includes(item.userIds, this.cu.id)
+        return _.includes(item.userIds, this.cud)
       },
       publicPrivate: function (item) {
         return item.public ? 'Public' : 'Private'
