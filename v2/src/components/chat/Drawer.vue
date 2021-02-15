@@ -89,6 +89,7 @@ export default {
       count: 0,
       messages: [],
       message: '',
+      loaded: false,
       loading: true,
       sending: false
     }
@@ -97,9 +98,10 @@ export default {
     'sn-message': Message
   },
   watch: {
-    fetch: function (oldValue, newValue) {
-      if (oldValue != newValue) {
-        this.fetchData()
+    fetch: function () {
+      let self = this
+      if (self.fetch) {
+        self.fetchData()
       }
     }
   },
@@ -134,7 +136,7 @@ export default {
           self.$emit('message', 'Server Error.  Try refreshing page.')
         })
     },
-    fetchData: _.debounce(function () {
+    fetchData: _.once(function () {
       let self = this
       axios.get(self.msgsPath)
         .then(function (response) {
@@ -142,6 +144,7 @@ export default {
           if (msgs) {
             self.messages = self.messages.concat(msgs)
           }
+          self.loaded = true
           self.loading = false
           self.scroll()
         })
@@ -149,7 +152,7 @@ export default {
           self.loading = false
           self.$emit('message', 'Server Error.  Try refreshing page.')
         })
-    }, 500),
+    }),
     scroll: function() {
       let self = this
       self.$nextTick(function () {
@@ -167,7 +170,8 @@ export default {
   },
   computed: {
     fetch: function () {
-      return this.value && this.loading
+      let self = this
+      return self.value && !self.loaded
     },
     msgsPath: function() {
       let self = this
