@@ -202,9 +202,11 @@ export default {
         self.cu = data.cu
         self.cuLoading = false
 
-        let p = self.playerByUID(data.cu.id)
-        if (p) {
-          self.tab = self.indexOf(p)
+        if (self.cu) {
+          let p = self.playerByUID(data.cu.id)
+          if (p) {
+            self.tab = self.indexOf(p)
+          }
         }
       }
     },
@@ -227,7 +229,6 @@ export default {
     },
     selected: function (data) {
       var self = this
-      console.log(`selected data: ${JSON.stringify(data)}`)
       switch (self.game.phase) {
         case 'Place Thieves':
           self.action({
@@ -270,7 +271,6 @@ export default {
     },
     action: function (data) {
       var self = this
-      console.log(`action data: ${JSON.stringify(data)}`)
       var action = data.action
       if (action == 'refresh') {
         self.fetchData()
