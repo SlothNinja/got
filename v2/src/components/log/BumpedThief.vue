@@ -23,7 +23,7 @@
         if (pid == 0) {
           return ''
         }
-        return self.playerByPID(pid).user.name
+        return self.nameFor(self.playerByPID(pid))
       }
     }
   }
