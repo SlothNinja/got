@@ -410,8 +410,12 @@ func (cl *client) acceptHandler(c *gin.Context) {
 }
 
 type detail struct {
-	ID  int64 `json:"id"`
-	GLO int   `json:"glo"`
+	ID        int64 `json:"id"`
+	GLO       int   `json:"glo"`
+	Projected int   `json:"projected"`
+	Played    int64 `json:"played"`
+	Won       int64 `json:"won"`
+	WP        int64 `json:"wp"`
 }
 
 func (cl *client) details(c *gin.Context) {
@@ -451,9 +455,35 @@ func (cl *client) details(c *gin.Context) {
 		return
 	}
 
+	ustats, err := cl.getUStats(c, ks...)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	cl.Log.Debugf("ustats: %#v", ustats)
+
 	details := make([]detail, len(ratings))
 	for i, rating := range ratings {
-		details[i] = detail{ID: rating.Key.Parent.ID, GLO: rating.Rank().GLO()}
+		played, won := ustats[i].gamesPlayed(), ustats[i].gamesWon()
+		wp := played
+		if played != 0 {
+			wp = (won / played) * 100
+		}
+		projected, err := cl.Rating.GetProjected(c, ks[i], gtype.GOT)
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+		details[i] = detail{
+			ID:        rating.Key.Parent.ID,
+			GLO:       rating.Rank().GLO(),
+			Projected: projected.Rank().GLO(),
+			Played:    played,
+			Won:       won,
+			WP:        wp,
+		}
+		cl.Log.Debugf("ustats[%d]: %#v", i, ustats[i])
 	}
 
 	c.JSON(http.StatusOK, gin.H{"details": details})

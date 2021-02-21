@@ -4,6 +4,7 @@ import Home from '@/components/home/Home'
 import New from '@/components/invitation/New'
 import Invitations from '@/components/invitation/Index'
 import Games from '@/components/game/Index'
+import Rank from '@/components/rank/Index'
 import Game from '@/components/game/Game'
 
 Vue.use(Router)
@@ -34,6 +35,11 @@ export default new Router({
       path: '/',
       name: 'home',
       component: Home
+    },
+    {
+      path: '/rank',
+      name: 'rank',
+      component: Rank
     },
     {
       path: '/logout',

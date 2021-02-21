@@ -47,7 +47,7 @@ func (g *Game) playCard(c *gin.Context, cu *user.User) error {
 
 	cp.Hand.play(card)
 	cp.DiscardPile = append(Cards{card}, cp.DiscardPile...)
-	cp.Stats.Played.inc(card.Kind)
+	cp.Stats.CardsPlayed.inc(card.Kind)
 
 	if card.Kind == jewels {
 		pc := g.jewels
