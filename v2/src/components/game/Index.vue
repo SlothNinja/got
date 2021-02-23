@@ -23,7 +23,7 @@
               </template>
               <template v-slot:item.players="{ item }">
                 <div class="py-1" v-for="user in users(item)" :key="user.id" >
-                  <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
+                  <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;<span :class='cpClass(item, user)'>{{user.name}}</span>
                 </div>
               </template>
               <template v-slot:item.public="{ item }">
@@ -215,6 +215,10 @@ export default {
           gravType: item.userGravTypes[i],
         }
       })
+    },
+    cpClass: function (item, user) {
+      let pid = _.indexOf(item.userIds, user.id) + 1
+      return (pid == item.cpids[0]) ? 'font-weight-black red--text text--darken-4' : ''
     },
   },
   computed: {

@@ -1,0 +1,10 @@
+cron:
+- description: Bi-Monthly Ratings Update For Guild of Thieves
+  url: /ratings/update/got
+  schedule: 14 of feb, apr, jun, aug, oct, dec 01:00
+  timezone: America/Indiana/Indianapolis
+
+  # - description: Daily Notifications
+  #   url: /games/running/notifications
+  #   schedule: every day 00:00
+  #   timezone: America/Indiana/Indianapolis

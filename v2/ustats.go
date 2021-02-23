@@ -222,7 +222,7 @@ func (cl *client) getUStats(c *gin.Context, ukeys ...*datastore.Key) ([]*ustats,
 		for i, e := range merr {
 			if e == datastore.ErrNoSuchEntity {
 				stats[i] = newUStats(ukeys[i])
-			} else if err != nil {
+			} else if e != nil {
 				return nil, err
 			}
 		}

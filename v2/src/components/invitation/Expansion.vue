@@ -29,116 +29,97 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td class='text-left'>
-                  Invite from:
-                </td>
-                <td class='text-left'>
-                  <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn> {{creator(item).name}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(item.creatorId, 'glo')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(item.creatorId, 'projected')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(item.creatorId, 'played')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(item.creatorId, 'won')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(item.creatorId, 'wp')}}%
-                </td>
-              </tr>
-              <tr v-if='!joined(item)'>
-                <td class='text-left'>
-                  Your Experience:
-                </td>
-                <td class='text-left'>
-                  <sn-user-btn :user="cu" size="x-small"></sn-user-btn> {{cu.name}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(cuid, 'glo')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(cuid, 'projected')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(cuid, 'played')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(cuid, 'won')}}
-                </td>
-                <td class='text-center'>
-                  {{detailsFor(cuid, 'wp')}}%
-                </td>
-              </tr>
+
+              <sn-expanded-table-row
+                :details='details'
+                :user='creator(item)'
+                >
+                Invite from:
+              </sn-expanded-table-row>
+
+              <template
+                v-for="(uid, index) in item.userIds"
+                >
+                  <sn-expanded-table-row
+                    v-if="(uid != item.creatorId) && (uid != cu)"
+                    :details='details'
+                    :user='user(item, index)'
+                    :key="uid"
+                    >
+                  </sn-expanded-table-row>
+                  <sn-expanded-table-row
+                    v-if="(uid != item.creatorId) && (uid == cu)"
+                    :details='details'
+                    :user='user(item, index)'
+                    :key="uid"
+                    >
+                    Your Experience:
+                  </sn-expanded-table-row>
+              </template>
             </tbody>
           </v-simple-table>
         </v-card-text>
         <v-divider></v-divider>
         <v-card-actions>
           <v-container>
-          <v-row>
-            <v-col cols='4' v-if='!item.public && canAccept(item)'>
-              <v-text-field
-                v-model='password'
-                :append-icon="show ? 'mdi-eye' : 'mdi-eye-off'"
-                :rules="[rules.required, rules.min]"
-                :type="show ? 'text' : 'password'"
-                label='Password'
-                placeholder='Enter Password'
-                clearable
-                autofocus
-                dense
-                outlined
-                rounded
-                hint='At least 8 characters'
-                counter
-                @click:append="show = !show"
-                >
-              </v-text-field>
-            </v-col>
-            <v-col cols='2' v-if='!item.public && canAccept(item)'>
-              <v-btn 
-                   x-small
-                   rounded
-                   :disabled='disabled'
-                   @click.native="$emit('action', { action: 'accept', item: item })"
-                   color='info'
-                   dark
-                   >
-                   Accept
-              </v-btn>
-            </v-col>
-            <v-col cols='4' v-if='item.public && canAccept(item)'>
-              <v-btn 
-                   x-small
-                   rounded
-                   width='62'
-                   @click.native="$emit('action', { action: 'accept', item: item })"
-                   color='info'
-                   dark
-                   >
-                   Accept
-              </v-btn>
-            </v-col>
-            <v-col cols='4' v-if='item.public && canDrop(item)'>
-              <v-btn 
-                   x-small
-                   rounded
-                   width='62'
-                   v-if="canDrop(item)"
-                   @click.native="$emit('action', { action: 'drop', item: item })"
-                   color='info'
-                   dark
-                   >
-                   Drop
-              </v-btn>
-            </v-col>
-          </v-row>
+            <v-row>
+              <v-col cols='4' v-if='!item.public && canAccept(item)'>
+                <v-text-field
+                  v-model='password'
+                  :append-icon="show ? 'mdi-eye' : 'mdi-eye-off'"
+                  :rules="[rules.required, rules.min]"
+                  :type="show ? 'text' : 'password'"
+                  label='Password'
+                  placeholder='Enter Password'
+                  clearable
+                  autofocus
+                  dense
+                  outlined
+                  rounded
+                  hint='At least 8 characters'
+                  counter
+                  @click:append="show = !show"
+                  >
+                </v-text-field>
+              </v-col>
+              <v-col cols='2' v-if='!item.public && canAccept(item)'>
+                <v-btn 
+                     x-small
+                     rounded
+                     :disabled='disabled'
+                     @click.native="$emit('action', { action: 'accept', item: item })"
+                     color='info'
+                     dark
+                     >
+                     Accept
+                </v-btn>
+              </v-col>
+              <v-col cols='4' v-if='item.public && canAccept(item)'>
+                <v-btn 
+                     x-small
+                     rounded
+                     width='62'
+                     @click.native="$emit('action', { action: 'accept', item: item })"
+                     color='info'
+                     dark
+                     >
+                     Accept
+                </v-btn>
+              </v-col>
+              <v-col cols='4' v-if='item.public && canDrop(item)'>
+                <v-btn 
+                     x-small
+                     rounded
+                     width='62'
+                     v-if="canDrop(item)"
+                     @click.native="$emit('action', { action: 'drop', item: item })"
+                     color='info'
+                     dark
+                     >
+                     Drop
+                </v-btn>
+              </v-col>
+            </v-row>
           </v-container>
         </v-card-actions>
       </v-card>
@@ -147,8 +128,8 @@
 </template>
 
 <script>
-import UserButton from '@/components/user/Button'
 import CurrentUser from '@/components/mixins/CurrentUser'
+import ExpansionRow from '@/components/invitation/ExpansionRow'
 
 const _ = require('lodash')
 const axios = require('axios')
@@ -158,7 +139,7 @@ export default {
   mixins: [ CurrentUser ],
   props: [ 'span', 'item' ],
   components: {
-    'sn-user-btn': UserButton
+    'sn-expanded-table-row' : ExpansionRow
   },
   data () {
     return {
@@ -253,6 +234,14 @@ export default {
         gravType: item.creatorGravType
       }
     },
+    user: function (item, index) {
+      return {
+        id: item.userIds[index],
+        name: item.userNames[index],
+        emailHash: item.userEmailHashes[index],
+        gravType: item.userGravTypes[index]
+      }
+    }
   },
   computed: {
     disabled: function () {
