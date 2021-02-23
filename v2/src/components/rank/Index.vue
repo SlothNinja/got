@@ -123,7 +123,6 @@ export default {
       let self = this
       axios.post('/ratings/show/got/json')
         .then(function (response) {
-          console.log(`response: ${JSON.stringify(response)}`)
           let msg = _.get(response, 'data.message', false)
           if (msg) {
             self.snackbar.message = msg

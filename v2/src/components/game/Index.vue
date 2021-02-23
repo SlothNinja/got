@@ -34,35 +34,13 @@
                         x-small
                         rounded
                         width='62'
-                        v-if="canAccept(item.id)"
-                        @click="action('accept', item.id)"
-                        color='info'
-                        dark
-                        >
-                        Accept
-                </v-btn>
-                  <v-btn 
-                        x-small
-                        rounded
-                        width='62'
-                        v-if="canDrop(item.id)"
-                        @click="action('drop', item.id)"
-                        color='info'
-                        dark
-                        >
-                        Drop
-                  </v-btn>
-                    <v-btn 
-                        x-small
-                        rounded
-                        width='62'
-                        v-if="status == 'Running'"
                         :to="{ name: 'game', params: { id: item.id }}"
                         color='info'
                         dark
                         >
                         Show
-                    </v-btn>
+                </v-btn>
+
               </template>
             </v-data-table>
           </v-card-text>
@@ -126,7 +104,6 @@ export default {
       let self = this
       axios.get(`/games/${self.$route.params.status}`)
         .then(function (response) {
-          console.log(`response: ${JSON.stringify(response)}`)
           let msg = _.get(response, 'data.message', false)
           if (msg) {
             self.snackbar.message = msg
@@ -218,7 +195,8 @@ export default {
     },
     cpClass: function (item, user) {
       let pid = _.indexOf(item.userIds, user.id) + 1
-      return (pid == item.cpids[0]) ? 'font-weight-black red--text text--darken-4' : ''
+      let cpid = _.first(item.cpids)
+      return (pid == cpid) ? 'font-weight-black red--text text--darken-4' : ''
     },
   },
   computed: {
