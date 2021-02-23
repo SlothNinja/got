@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"time"
 
 	"cloud.google.com/go/datastore"
 	"github.com/SlothNinja/contest"
@@ -63,6 +64,7 @@ func (cl *client) endGame(c *gin.Context, g *Game) {
 
 	_, err = cl.DS.RunInTransaction(c, func(tx *datastore.Transaction) error {
 		g.Undo.Commit()
+		g.EndedAt = time.Now()
 		ks, es := g.save()
 		for _, contests := range cs {
 			for _, contest := range contests {
@@ -74,6 +76,7 @@ func (cl *client) endGame(c *gin.Context, g *Game) {
 			ks = append(ks, stat.Key)
 			es = append(es, stat)
 		}
+
 		_, err := tx.PutMulti(ks, es)
 		return err
 	})
