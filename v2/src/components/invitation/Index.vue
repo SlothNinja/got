@@ -11,33 +11,53 @@
       <v-container>
         <v-card>
           <v-card-title primary-title>
-            <h3>Invitations</h3>
-          </v-card-title>
-          <v-card-text>
-            <v-data-table
-              :headers="headers"
-              :items="items"
-              show-expand
-              single-expand
+            Invitations
+            <v-spacer></v-spacer>
+            <v-text-field
+              v-model="search"
+              append-icon="mdi-magnify"
+              label="Search By ID, Title, or Player"
+              single-line
+              hide-details
               >
-              <template v-slot:item.players="{ item }">
-                <div class="py-1" v-for="user in users(item)" :key="user.id" >
-                  <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
-                </div>
-              </template>
-              <template v-slot:item.public="{ item }">
-                {{publicPrivate(item)}}
-              </template>
-              <template v-slot:expanded-item="{ headers, item }">
-                <sn-expanded-row
-                  :span='headers.length'
-                  :item='item'
-                  @action='action($event)'
-                  >
-                </sn-expanded-row>
-              </template>
-            </v-data-table>
-          </v-card-text>
+            </v-text-field>
+          </v-card-title>
+          <v-data-table
+            :headers="headers"
+            :items="items"
+            :search="search"
+            :loading="loading"
+            :custom-filter='gamefilter'
+            loading-text="Loading... Please wait"
+            show-expand
+            single-expand
+            >
+            <template v-slot:item.id="{ item }">
+              <router-link :to="{name: 'game', params: { id: item.id } }">{{item.id}}</router-link>
+            </template>
+            <template v-slot:item.title="{ item }">
+              <router-link :to="{name: 'game', params: { id: item.id } }">{{item.title}}</router-link>
+            </template>
+            <template v-slot:item.creator="{ item }">
+              <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
+            </template>
+            <template v-slot:item.players="{ item }">
+              <span class="py-1" v-for="user in users(item)" :key="user.id" >
+                <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
+              </span>
+            </template>
+            <template v-slot:item.public="{ item }">
+              {{publicPrivate(item)}}
+            </template>
+            <template v-slot:expanded-item="{ headers, item }">
+              <sn-expanded-row
+                :span='headers.length'
+                :item='item'
+                @action='action($event)'
+                >
+              </sn-expanded-row>
+            </template>
+          </v-data-table>
         </v-card>
       </v-container>
     </v-main>
@@ -71,22 +91,10 @@ export default {
   },
   data () {
     return {
+      search: '',
+      loading: 'false',
       password: '',
       show: false,
-      headers: [
-        { text: '', value: 'data-table-expand' },
-        { text: 'ID', align: 'left', sortable: true, value: 'id' },
-        { text: 'Title', value: 'title' },
-        { text: 'Creator', value: 'creator.name' },
-        { text: 'Num Players', value: 'numPlayers' },
-        { text: 'Players', value: 'players' },
-        { text: 'Last Updated', value: 'lastUpdated' },
-        { text: 'Public/Private', value: 'public' }
-      ],
-      rules: {
-        required: value => !!value || 'Required.',
-        min: v => _.size(v) >= 8 || 'Min 8 characters'
-      },
       items: []
     }
   },
@@ -98,6 +106,20 @@ export default {
     '$route': 'fetchData'
   },
   methods: {
+    gamefilter: function (value, search, item) {
+      let s = _.toLower(search)
+
+      let id = _.get(item, 'id', 0).toString()
+      if (_.includes(id, s)) return true
+
+      let title = _.toLower(_.get(item, 'title', ''))
+      if (_.includes(title, s)) return true
+
+      let names = _.reduce(item.userNames, function (result, name) {
+        return result.concat(_.toLower(name))
+      }, '')
+      return _.includes(names, s)
+    },
     fetchData: function () {
       let self = this
       axios.get('/invitations')
@@ -179,6 +201,14 @@ export default {
     publicPrivate: function (item) {
       return item.public ? 'Public' : 'Private'
     },
+    creator: function (item) {
+      return {
+        id: item.creatorId,
+        name: item.creatorName,
+        emailHash: item.creatorEmailHash,
+        gravType: item.creatorGravType
+      }
+    },
     users: function (item) {
       return _.map(item.userIds, function (id, i) {
         return {
@@ -191,6 +221,18 @@ export default {
     },
   },
   computed: {
+    headers () {
+      return [
+        { text: '', value: 'data-table-expand' },
+        { text: 'ID', align: 'left', sortable: true, value: 'id' },
+        { text: 'Title', value: 'title' },
+        { text: 'Creator', value: 'creator' },
+        { text: 'Num Players', value: 'numPlayers' },
+        { text: 'Players', value: 'players' },
+        { text: 'Last Updated', value: 'lastUpdated' },
+        { text: 'Public/Private', value: 'public' },
+      ]
+    },
     disabled: function () {
       let self = this
       return _.size(self.password) < 8

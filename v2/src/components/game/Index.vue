@@ -10,40 +10,41 @@
     <v-main>
       <v-container>
         <v-card>
-          <v-card-title primary-title>
-            <h3>{{ status }} Games</h3>
-          </v-card-title>
-          <v-card-text>
-            <v-data-table
-              :headers="headers"
-              :items="items"
+          <v-card-title>
+            {{ status }} Games
+            <v-spacer></v-spacer>
+            <v-text-field
+              v-model="search"
+              append-icon="mdi-magnify"
+              label="Search By ID, Title, or Player"
+              single-line
+              hide-details
               >
-              <template v-slot:item.creator="{ item }">
-                <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
-              </template>
-              <template v-slot:item.players="{ item }">
-                <div class="py-1" v-for="user in users(item)" :key="user.id" >
-                  <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;<span :class='cpClass(item, user)'>{{user.name}}</span>
-                </div>
-              </template>
-              <template v-slot:item.public="{ item }">
-                {{publicPrivate(item)}}
-              </template>
-              <template v-slot:item.actions="{ item }">
-                <v-btn 
-                        x-small
-                        rounded
-                        width='62'
-                        :to="{ name: 'game', params: { id: item.id }}"
-                        color='info'
-                        dark
-                        >
-                        Show
-                </v-btn>
-
-              </template>
-            </v-data-table>
-          </v-card-text>
+            </v-text-field>
+          </v-card-title>
+          <v-data-table
+            :headers="headers"
+            :items="items"
+            :search="search"
+            :loading="loading"
+            loading-text="Loading... Please wait"
+            :custom-filter='gamefilter'
+            >
+            <template v-slot:item.id="{ item }">
+              <router-link :to="{name: 'game', params: { id: item.id } }">{{item.id}}</router-link>
+            </template>
+            <template v-slot:item.title="{ item }">
+              <router-link :to="{name: 'game', params: { id: item.id } }">{{item.title}}</router-link>
+            </template>
+            <template v-slot:item.creator="{ item }">
+              <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
+            </template>
+            <template v-slot:item.players="{ item }">
+              <span class="px-1" v-for="user in users(item)" :key="user.id" >
+                <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;<span :class='cpClass(item, user)'>{{user.name}}</span>
+              </span>
+            </template>
+          </v-data-table>
         </v-card>
       </v-container>
     </v-main>
@@ -74,21 +75,8 @@ export default {
   },
   data () {
     return {
-      headers: [
-        {
-          text: 'ID',
-          align: 'left',
-          sortable: true,
-          value: 'id'
-        },
-        { text: 'Title', value: 'title' },
-        { text: 'Creator', value: 'creator' },
-        { text: 'Num Players', value: 'numPlayers' },
-        { text: 'Players', value: 'players' },
-        { text: 'Last Updated', value: 'lastUpdated' },
-        { text: 'Public/Private', value: 'public' },
-        { text: 'Actions', value: 'actions' }
-      ],
+      search: '',
+      loading: 'false',
       items: []
     }
   },
@@ -100,8 +88,23 @@ export default {
     '$route': 'fetchData'
   },
   methods: {
+    gamefilter: function (value, search, item) {
+      let s = _.toLower(search)
+
+      let id = _.get(item, 'id', 0).toString()
+      if (_.includes(id, s)) return true
+
+      let title = _.toLower(_.get(item, 'title', ''))
+      if (_.includes(title, s)) return true
+
+      let names = _.reduce(item.userNames, function (result, name) {
+        return result.concat(_.toLower(name))
+      }, '')
+      return _.includes(names, s)
+    },
     fetchData: function () {
       let self = this
+      self.loading = true
       axios.get(`/games/${self.$route.params.status}`)
         .then(function (response) {
           let msg = _.get(response, 'data.message', false)
@@ -119,6 +122,7 @@ export default {
             self.cu = cu
             self.cuLoading = false
           }
+          self.loading = false
         })
         .catch(function () {
           self.loading = false
@@ -196,10 +200,25 @@ export default {
     cpClass: function (item, user) {
       let pid = _.indexOf(item.userIds, user.id) + 1
       let cpid = _.first(item.cpids)
-      return (pid == cpid) ? 'font-weight-black red--text text--darken-4' : ''
+      if (pid == cpid) {
+        if (this.cuid == user.id) {
+          return 'font-weight-black red--text text--darken-4'
+        }
+        return 'font-weight-black'
+      }
+      return ''
     },
   },
   computed: {
+    headers () {
+      return [
+        { text: 'ID', align: 'left', sortable: true, value: 'id' },
+        { text: 'Title', value: 'title' },
+        { text: 'Creator', value: 'creator' },
+        { text: 'Players', value: 'players' },
+        { text: 'Last Updated', value: 'lastUpdated' },
+      ]
+    },
     status: function () {
       return _.capitalize(this.$route.params.status)
     },

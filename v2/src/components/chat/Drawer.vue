@@ -136,7 +136,7 @@ export default {
           self.$emit('message', 'Server Error.  Try refreshing page.')
         })
     },
-    fetchData: _.once(function () {
+    fetchData: _.debounce(function () {
       let self = this
       axios.get(self.msgsPath)
         .then(function (response) {
@@ -152,7 +152,7 @@ export default {
           self.loading = false
           self.$emit('message', 'Server Error.  Try refreshing page.')
         })
-    }),
+    }, 2000),
     scroll: function() {
       let self = this
       self.$nextTick(function () {

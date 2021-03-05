@@ -47,6 +47,30 @@ export default new Router({
       beforeEnter() {
         window.location.href = '/logout'
       }
+    },
+    {
+      path: '/sng-home',
+      name: 'sng-home',
+      beforeEnter() {
+        let sngHome = process.env.VUE_APP_SNG_HOME
+        window.location.href = sngHome
+      }
+    },
+    {
+      path: '/sng-games/:type/:status',
+      name: 'sng-games',
+      beforeEnter(to) {
+        let sngHome = process.env.VUE_APP_SNG_HOME
+        window.location.href = `${sngHome}${to.params.type}/games/${to.params.status}`
+      }
+    },
+    {
+      path: '/sng-new-game/:type',
+      name: 'sng-new-game',
+      beforeEnter(to) {
+        let sngHome = process.env.VUE_APP_SNG_HOME
+        window.location.href = `${sngHome}${to.params.type}/game/new`
+      }
     }
   ]
 })

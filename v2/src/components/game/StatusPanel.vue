@@ -16,7 +16,7 @@
         <v-col cols='4'>
           <v-row v-if='game.status == 2'>
             <v-col>
-              <v-dialog v-model='dialog' scrollable max-width='600px'>
+              <v-dialog v-model='dialog' max-width='600px'>
                 <template v-slot:activator="{ on }">
                   <v-btn small class='mt-5' color='info' dark v-on='on'>Results</v-btn>
                 </template>

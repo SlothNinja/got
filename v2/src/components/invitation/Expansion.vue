@@ -18,7 +18,7 @@
                   Projected
                 </th>
                 <th class='text-center'>
-                  {{item.numPlayers}}P Played
+                  Played
                 </th>
                 <th class='text-center'>
                   Won

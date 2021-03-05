@@ -24,9 +24,9 @@
     },
     methods: {
       colorIndex: function (pid) {
-        let self = this
-        let s = self.game.numPlayers
-        return (pid - self.p.id + s) % s
+        let s = this.game.numPlayers
+        let pid2 = this.p ? this.p.id : 0
+        return (pid - pid2 + s) % s
       },
       colorByPID: function (pid) {
         let self = this

@@ -23,6 +23,8 @@
 *.test
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+# vim swp files
+*.swp
 
 node_modules/
 src/
@@ -31,7 +33,7 @@ babel.config.js
 package.json
 package-lock.json
 public/
-userv
+got
 gin-bin
 db
 backend
