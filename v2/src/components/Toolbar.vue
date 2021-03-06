@@ -17,7 +17,7 @@
         {{cu.name}}
       </div>
       <div v-else>
-              <v-btn :to='login' color='info'>Login</v-btn>
+        <v-btn :to="{ name: 'login' }" color='info'>Login</v-btn>
       </div>
     </div>
 

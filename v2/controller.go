@@ -461,14 +461,12 @@ func (cl *client) details(c *gin.Context) {
 		return
 	}
 
-	cl.Log.Debugf("ustats: %#v", ustats)
-
 	details := make([]detail, len(ratings))
 	for i, rating := range ratings {
 		played, won := ustats[i].gamesPlayed(), ustats[i].gamesWon()
 		wp := played
 		if played != 0 {
-			wp = (won / played) * 100
+			wp = (won * 100) / played
 		}
 		projected, err := cl.Rating.GetProjected(c, ks[i], gtype.GOT)
 		if err != nil {
@@ -483,7 +481,6 @@ func (cl *client) details(c *gin.Context) {
 			Won:       won,
 			WP:        wp,
 		}
-		cl.Log.Debugf("ustats[%d]: %#v", i, ustats[i])
 	}
 
 	c.JSON(http.StatusOK, gin.H{"details": details})

@@ -49,6 +49,13 @@ export default new Router({
       }
     },
     {
+      path: '/login',
+      name: 'login',
+      beforeEnter() {
+        window.location.href = '/login'
+      }
+    },
+    {
       path: '/sng-home',
       name: 'sng-home',
       beforeEnter() {

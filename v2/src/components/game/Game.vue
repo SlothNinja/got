@@ -39,6 +39,16 @@
 
     <sn-log-drawer v-model='logDrawer' :game='game' ></sn-log-drawer>
 
+    <sn-card-bar
+      v-if='selectedPlayer'
+      :player='selectedPlayer'
+      :game='game'
+      v-model='cardbar'
+      @selected-card='selected($event)'
+      >
+    </sn-card-bar>
+
+
     <sn-snackbar v-model='sbOpen'>
       <div class='text-center'>{{sbMessage}}</div>
     </sn-snackbar>
@@ -84,15 +94,6 @@
           </v-col>
 
         </v-row>
-
-        <sn-card-bar
-          v-if='selectedPlayer'
-          :player='selectedPlayer'
-          :game='game'
-          v-model='cardbar'
-          @selected-card='selected($event)'
-          >
-        </sn-card-bar>
 
       </v-container>
     </v-main>
