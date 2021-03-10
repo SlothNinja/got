@@ -17,6 +17,7 @@ import (
 	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/iterator"
 )
 
 var (
@@ -626,7 +627,24 @@ func (cl *client) invitationsIndexHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
+	options := struct {
+		ItemsPerPage int    `json:"itemsPerPage"`
+		Forward      string `json:"forward"`
+	}{}
+
+	err := c.ShouldBind(&options)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
 	cu, err := cl.User.Current(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	forward, err := datastore.DecodeCursor(options.Forward)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -637,21 +655,72 @@ func (cl *client) invitationsIndexHandler(c *gin.Context) {
 		Filter("Status=", int(game.Recruiting)).
 		Order("-UpdatedAt")
 
-	var es []*invitation
-	_, err = cl.DS.GetAll(c, q, &es)
+	cnt, err := cl.DS.Count(c, q)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"invitations": es, "cu": cu})
+	cl.Log.Debugf("cnt: %v", cnt)
+	items := options.ItemsPerPage
+	if options.ItemsPerPage == -1 {
+		items = cnt
+	}
+
+	var es []*invitation
+	it := cl.DS.Run(c, q.Start(forward))
+	for i := 0; i < items; i++ {
+		var inv invitation
+		_, err := it.Next(&inv)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+		es = append(es, &inv)
+	}
+
+	forward, err = it.Cursor()
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"invitations": es,
+		"totalItems":  cnt,
+		"forward":     forward.String(),
+		"cu":          cu,
+	})
 }
 
 func (cl *client) gamesIndex(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
+	options := struct {
+		Page         int    `json:"page"`
+		ItemsPerPage int    `json:"itemsPerPage"`
+		Cursor       string `json:"cursor"`
+	}{}
+
+	err := c.ShouldBind(&options)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	cl.Log.Debugf("options: %#v", options)
+
 	cu, err := cl.User.Current(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	cursor, err := datastore.DecodeCursor(options.Cursor)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -663,14 +732,45 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		Filter("Status=", int(status)).
 		Order("-UpdatedAt")
 
-	var es []*GHeader
-	_, err = cl.DS.GetAll(c, q, &es)
+	cnt, err := cl.DS.Count(c, q)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"gheaders": es, "cu": cu})
+	cl.Log.Debugf("cnt: %v", cnt)
+	items := options.ItemsPerPage
+	if options.ItemsPerPage == -1 {
+		items = cnt
+	}
+
+	var es []*GHeader
+	it := cl.DS.Run(c, q.Start(cursor))
+	for i := 0; i < items; i++ {
+		var gh GHeader
+		_, err := it.Next(&gh)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+		es = append(es, &gh)
+	}
+
+	cursor, err = it.Cursor()
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"gheaders":   es,
+		"totalItems": cnt,
+		"cursor":     cursor.String(),
+		"cu":         cu,
+	})
 }
 
 func (cl *client) cuHandler(c *gin.Context) {

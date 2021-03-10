@@ -28,5 +28,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20210220050731-9a76102bfb43 // indirect
+	google.golang.org/api v0.40.0
 	google.golang.org/genproto v0.0.0-20210219173056-d891e3cb3b5b // indirect
 )

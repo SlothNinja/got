@@ -98,7 +98,7 @@ func (cl *client) addRoutes() *client {
 	invs := cl.Router.Group(invitationsPath)
 
 	// Index
-	invs.GET("", cl.invitationsIndexHandler)
+	invs.POST("", cl.invitationsIndexHandler)
 
 	/////////////////////////////////////////////
 	// Game Group
@@ -144,7 +144,7 @@ func (cl *client) addRoutes() *client {
 	gs := cl.Router.Group(gamesPath)
 
 	// JSON Data for Index
-	gs.GET(gamesIndexPath, cl.gamesIndex)
+	gs.POST(gamesIndexPath, cl.gamesIndex)
 
 	// Admin Group
 	// admin := g.Group(adminPath, user.RequireAdmin)

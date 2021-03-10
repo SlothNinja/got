@@ -12,30 +12,17 @@
         <v-card>
           <v-card-title>
             {{ status }} Games
-            <v-spacer></v-spacer>
-            <v-text-field
-              v-model="search"
-              append-icon="mdi-magnify"
-              label="Search By ID, Title, or Player"
-              single-line
-              hide-details
-              >
-            </v-text-field>
           </v-card-title>
           <v-data-table
+            @click:row="showGame"
             :headers="headers"
             :items="items"
-            :search="search"
             :loading="loading"
+            :options.sync="options"
             loading-text="Loading... Please wait"
-            :custom-filter='gamefilter'
+            :server-items-length="totalItems"
+            :footer-props="{ itemsPerPageOptions: [ 25, 50, 100 ] }"
             >
-            <template v-slot:item.id="{ item }">
-              <router-link :to="{name: 'game', params: { id: item.id } }">{{item.id}}</router-link>
-            </template>
-            <template v-slot:item.title="{ item }">
-              <router-link :to="{name: 'game', params: { id: item.id } }">{{item.title}}</router-link>
-            </template>
             <template v-slot:item.creator="{ item }">
               <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
             </template>
@@ -75,8 +62,11 @@ export default {
   },
   data () {
     return {
-      search: '',
+      cursorMap: new Map,
       loading: 'false',
+      totalItems: 0,
+      forward: "",
+      options: {},
       items: []
     }
   },
@@ -85,32 +75,55 @@ export default {
     this.fetchData()
   },
   watch: {
-    '$route': 'fetchData'
+    '$route': 'fetchData',
+    options: {
+      handler (val) {
+        this.fetchData(val)
+      },
+      deep: true,
+    },
+  },
+  mounted () {
+    this.fetchData()
   },
   methods: {
-    gamefilter: function (value, search, item) {
-      let s = _.toLower(search)
-
-      let id = _.get(item, 'id', 0).toString()
-      if (_.includes(id, s)) return true
-
-      let title = _.toLower(_.get(item, 'title', ''))
-      if (_.includes(title, s)) return true
-
-      let names = _.reduce(item.userNames, function (result, name) {
-        return result.concat(_.toLower(name))
-      }, '')
-      return _.includes(names, s)
+    fetchOptions: function(val) {
+      let self = this
+      let key = JSON.stringify(val)
+      let options = self.cursorMap.get(key)
+      if (options) {
+        return options
+      }
+      options = {
+        page: val.page,
+        itemsPerPage: val.itemsPerPage,
+        forward: val.page == 1 ? "" : self.forward,
+      }
+      self.cursorMap.set(key, options)
+      return options
     },
-    fetchData: function () {
+    showGame: function (item) {
+      this.$router.push({name: 'game', params: { id: item.id } })
+    },
+    fetchData: _.debounce(function (val) {
       let self = this
       self.loading = true
-      axios.get(`/games/${self.$route.params.status}`)
+      let options = self.fetchOptions(val)
+
+      axios.post(`/games/${self.$route.params.status}`, options)
         .then(function (response) {
           let msg = _.get(response, 'data.message', false)
           if (msg) {
             self.snackbar.message = msg
             self.snackbar.open = true
+          }
+          let totalItems = _.get(response, 'data.totalItems', false)
+          if (totalItems) {
+            self.totalItems = totalItems
+          }
+          let forward = _.get(response, 'data.forward', false)
+          if (forward) {
+            self.forward = forward
           }
           let gheaders = _.get(response, 'data.gheaders', false)
           if (gheaders) {
@@ -129,7 +142,7 @@ export default {
           self.snackbar.message = 'Server Error.  Try refreshing page.'
           self.snackbar.open = true
         })
-    },
+    }, 1000),
     action: function (action, id) {
       let self = this
       axios.put(`/game/${action}/${id}`)
@@ -212,11 +225,11 @@ export default {
   computed: {
     headers () {
       return [
-        { text: 'ID', align: 'left', sortable: true, value: 'id' },
-        { text: 'Title', value: 'title' },
-        { text: 'Creator', value: 'creator' },
-        { text: 'Players', value: 'players' },
-        { text: 'Last Updated', value: 'lastUpdated' },
+        { text: 'ID', align: 'left', sortable: false, value: 'id' },
+        { text: 'Title', sortable: false, value: 'title' },
+        { text: 'Creator', sortable: false, value: 'creator' },
+        { text: 'Players', sortable: false, value: 'players' },
+        { text: 'Last Updated', sortable: false, value: 'lastUpdated' },
       ]
     },
     status: function () {
