@@ -22,7 +22,7 @@
             :options.sync="options"
             loading-text="Loading... Please wait"
             :server-items-length="totalItems"
-            :footer-props="{ itemsPerPageOptions: [ 25, 50, 100 ] }"
+            :footer-props="{ itemsPerPageOptions: [ 2, 5, 10 ] }"
             show-expand
             single-expand
             >
@@ -132,30 +132,34 @@ export default {
 
       axios.post('/invitations', options)
         .then(function (response) {
+
           let msg = _.get(response, 'data.message', false)
           if (msg) {
             self.snackbar.message = msg
             self.snackbar.open = true
           }
+
           let invitations = _.get(response, 'data.invitations', false)
           if (invitations) {
             self.items = invitations
           }
+
           let totalItems = _.get(response, 'data.totalItems', false)
           if (totalItems) {
             self.totalItems = totalItems
           }
+
           let forward = _.get(response, 'data.forward', false)
           if (forward) {
             self.forward = forward
           }
  
-          self.loading = false
           let cu = _.get(response, 'data.cu', false)
           if (cu) {
             self.cu = cu
             self.cuLoading = false
           }
+          self.loading = false
         })
         .catch(function () {
           self.loading = false

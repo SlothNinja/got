@@ -55,7 +55,7 @@ func (cl *client) endGame(c *gin.Context, g *Game) {
 
 	nrs := make(crmap, len(g.UserKeys))
 	for _, ukey := range g.UserKeys {
-		nrs[ukey], err = crs[ukey].Projected(cs[ukey])
+		nrs[ukey], err = cl.Rating.GetProjectedWith(c, ukey, g.Type, cs[ukey])
 		if err != nil {
 			sn.JErr(c, err)
 			return

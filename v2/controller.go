@@ -701,9 +701,8 @@ func (cl *client) gamesIndex(c *gin.Context) {
 	defer cl.Log.Debugf(msgExit)
 
 	options := struct {
-		Page         int    `json:"page"`
 		ItemsPerPage int    `json:"itemsPerPage"`
-		Cursor       string `json:"cursor"`
+		Forward      string `json:"forward"`
 	}{}
 
 	err := c.ShouldBind(&options)
@@ -720,7 +719,7 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		return
 	}
 
-	cursor, err := datastore.DecodeCursor(options.Cursor)
+	forward, err := datastore.DecodeCursor(options.Forward)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -745,7 +744,7 @@ func (cl *client) gamesIndex(c *gin.Context) {
 	}
 
 	var es []*GHeader
-	it := cl.DS.Run(c, q.Start(cursor))
+	it := cl.DS.Run(c, q.Start(forward))
 	for i := 0; i < items; i++ {
 		var gh GHeader
 		_, err := it.Next(&gh)
@@ -759,7 +758,7 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		es = append(es, &gh)
 	}
 
-	cursor, err = it.Cursor()
+	forward, err = it.Cursor()
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -768,7 +767,7 @@ func (cl *client) gamesIndex(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"gheaders":   es,
 		"totalItems": cnt,
-		"cursor":     cursor.String(),
+		"forward":    forward.String(),
 		"cu":         cu,
 	})
 }
