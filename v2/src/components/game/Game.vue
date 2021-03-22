@@ -171,7 +171,7 @@ export default {
     var self = this
     self.fetchData()
     self.getToken()
-    self.fbMsg.onMessage((payload) => {
+    self.fbMsg().onMessage((payload) => {
       self.action(payload.data)
     })
   },

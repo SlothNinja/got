@@ -27,6 +27,8 @@
 *.swp
 # cert keys
 *.pem
+# env
+.env.*
 
 node_modules/
 src/

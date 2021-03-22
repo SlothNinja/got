@@ -18,9 +18,11 @@ workbox.core.setCacheNameDetails({prefix: "got"});
 importScripts('https://www.gstatic.com/firebasejs/8.3.0/firebase-app.js')
 importScripts('https://www.gstatic.com/firebasejs/8.3.0/firebase-messaging.js')
 
+const apiKey = process.env.VUE_APP_SNG_HOME,
+
 if (firebase.messaging.isSupported()) {
 firebase.initializeApp({
-  apiKey: "AIzaSyDkTvPKy-TJQYo1P2yqScveK86Rf-mqblE",
+  apiKey: apiKey,
   authDomain: "got-slothninja-games.firebaseapp.com",
   projectId: "got-slothninja-games",
   storageBucket: "got-slothninja-games.appspot.com",

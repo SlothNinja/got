@@ -9,8 +9,6 @@ export default {
   data () {
     return {
       token: null,
-      firebaseApp: null,
-      firebaseMessaging: null
     }
   },
   methods: {
@@ -28,42 +26,42 @@ export default {
         return
       }
 
-      self.fbMsg.getToken({ vapidKey: 'BLdpB0yUNJh2ZqJddGunLJ9oo_PSLkflgZzCBnqGCWMaPuId0YgY8woKilBstNmxGY7vk6s6lK3ecQQ-iTeXLVg' })
+      self.fbMsg().getToken({ vapidKey: 'BLdpB0yUNJh2ZqJddGunLJ9oo_PSLkflgZzCBnqGCWMaPuId0YgY8woKilBstNmxGY7vk6s6lK3ecQQ-iTeXLVg' })
         .then((currentToken) => {
           self.token = currentToken
           if (_.isFunction(f)) {
             f(currentToken)
           }
         })
-    }
-  },
-  computed: {
+    },
     fbApp: function () {
       let self = this
       if (!self.fbmSupported) {
         return null
       }
-      if (_.isNull(self.firebaseApp)) {
-        self.firebaseApp = firebase.initializeApp(self.fbmConfig)
+      if (_.size(firebase.apps) == 0) {
+        return firebase.initializeApp(self.fbmConfig, 'got')
       }
-      return self.firebaseApp
+      return firebase.app('got')
     },
     fbMsg: function () {
       let self = this
       if (!self.fbmSupported) {
         return null
       }
-      if (_.isNull(self.firebaseMessaging)) {
-        self.firebaseMessaging = firebase.messaging(self.fbApp)
+      if (_.size(firebase.apps) == 0) {
+        return firebase.messaging(firebase.initializeApp(self.fbmConfig, 'got'))
       }
-      return self.firebaseMessaging
+      return firebase.messaging(firebase.app('got'))
     },
+  },
+  computed: {
     fbmSupported: function () {
       return firebase.messaging.isSupported()
     },
     fbmConfig: function () {
       return {
-        apiKey: "AIzaSyDkTvPKy-TJQYo1P2yqScveK86Rf-mqblE",
+        apiKey: process.env.VUE_APP_SNG_HOME,
         authDomain: "got-slothninja-games.firebaseapp.com",
         projectId: "got-slothninja-games",
         storageBucket: "got-slothninja-games.appspot.com",

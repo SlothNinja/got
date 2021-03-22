@@ -18,6 +18,9 @@
 # vendor/
 #
 
+# environment
+.env.*
+
 # cert keys
 *.pem
 
