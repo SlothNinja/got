@@ -25,6 +25,8 @@
 *.out
 # vim swp files
 *.swp
+# cert keys
+*.pem
 
 node_modules/
 src/

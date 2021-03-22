@@ -25,6 +25,64 @@ var (
 	ErrInvalidCache = fmt.Errorf("invalid cached item: %w", sn.ErrValidation)
 )
 
+func (cl *client) subscribeHandler(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
+	token, err := cl.getToken(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	s, err := cl.getSubcription(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	changed := s.Subscribe(token)
+	if changed {
+		_, err := cl.putSubscription(c, s)
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"subscribed": s.Tokens})
+}
+
+func (cl *client) unsubscribeHandler(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
+	token, err := cl.getToken(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	s, err := cl.getSubcription(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	log.Debugf("original s: %+v", s)
+	changed := s.Unsubscribe(token)
+	if changed {
+		log.Debugf("changed s: %+v", s)
+		_, err := cl.putSubscription(c, s)
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"subscribed": s.Tokens})
+}
+
 func (cl *client) homeHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
@@ -47,6 +105,14 @@ func (cl *client) showHandler(c *gin.Context) {
 		return
 	}
 
+	s, err := cl.getSubcription(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	log.Debugf("s: %+v", s)
+
 	cu, err := cl.User.Current(c)
 	if err != nil {
 		cl.Log.Warningf(err.Error())
@@ -55,8 +121,9 @@ func (cl *client) showHandler(c *gin.Context) {
 	g := &(gc.Game)
 	g.updateClickablesFor(cu, g.selectedThiefArea())
 	c.JSON(http.StatusOK, gin.H{
-		"game": g,
-		"cu":   cu,
+		"game":       g,
+		"subscribed": s.Tokens,
+		"cu":         cu,
 	})
 }
 

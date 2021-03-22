@@ -186,6 +186,8 @@ func (cl *client) moveThiefFinishTurnHandler(c *gin.Context) {
 		return
 	}
 
+	cl.sentRefreshMessages(c)
+
 	if cp != np {
 		cl.sendTurnNotificationsTo(g, np)
 	}

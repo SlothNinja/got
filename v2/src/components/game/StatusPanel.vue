@@ -12,6 +12,12 @@
           <div><span class='font-weight-black'>ID:</span> {{game.id}}</div>
           <div><span class='font-weight-black'>Turn:</span> {{game.turn}}</div>
           <div><span class='font-weight-black'>Current Player:</span> {{nameFor(cp)}}</div>
+          <v-checkbox
+            v-model='checked'
+            label='Live Updates'
+            ref='live'
+            >
+          </v-checkbox>
         </v-col>
         <v-col cols='4'>
           <v-row v-if='game.status == 2'>
@@ -71,7 +77,17 @@
       'space-image': SpaceImage,
       'sn-results-table': ResultsTable
     },
-    props: [ 'game' ]
+    props: [ 'game', 'live' ],
+    computed: {
+      checked: {
+        get: function () {
+          return this.live
+        },
+        set: function (value) {
+          this.$emit('update:live', value)
+        }
+      }
+    }
   }
 </script>
 

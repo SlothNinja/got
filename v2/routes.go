@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
+	log2 "log"
 	"net/http"
 	"os"
 
 	"cloud.google.com/go/datastore"
+	firebase "firebase.google.com/go"
+	"firebase.google.com/go/messaging"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/mlog"
 	"github.com/SlothNinja/rating"
@@ -13,37 +17,62 @@ import (
 	"github.com/SlothNinja/user"
 	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
+	"google.golang.org/api/option"
 )
-
-// type client struct {
-// 	DS    *datastore.Client
-// 	SN    sn.Client
-// 	Cache *cache.Cache
-// }
-//
-// func newClient(dsClient *datastore.Client, mcache *cache.Cache) client {
-// 	return client{
-// 		DS:    dsClient,
-// 		SN:    sn.NewClient(dsClient),
-// 		Cache: mcache,
-// 	}
-// }
 
 type client struct {
 	*sn.Client
-	User   *user.Client
-	MLog   *mlog.Client
-	Rating *rating.Client
+	User      *user.Client
+	MLog      *mlog.Client
+	Rating    *rating.Client
+	Messaging *messaging.Client
 }
 
-func newClient(dClient *datastore.Client, uClient *user.Client, logger *log.Logger, cache *cache.Cache, router *gin.Engine) *client {
+func newClient(ctx context.Context, dClient *datastore.Client, uClient *user.Client, logger *log.Logger, cache *cache.Cache, router *gin.Engine) *client {
 	cl := &client{
-		Client: sn.NewClient(dClient, logger, cache, router),
-		User:   uClient,
-		MLog:   mlog.NewClient(dClient, uClient, logger, cache),
-		Rating: rating.NewClient(dClient, uClient, logger, cache, router, "rating"),
+		Client:    sn.NewClient(dClient, logger, cache, router),
+		User:      uClient,
+		MLog:      mlog.NewClient(dClient, uClient, logger, cache),
+		Rating:    rating.NewClient(dClient, uClient, logger, cache, router, "rating"),
+		Messaging: newMsgClient(ctx),
 	}
 	return cl.addRoutes()
+}
+
+const GotCreds = "GOT_CREDS"
+
+func newMsgClient(ctx context.Context) *messaging.Client {
+	if sn.IsProduction() {
+		log.Debugf("production")
+		app, err := firebase.NewApp(ctx, nil)
+		if err != nil {
+			log2.Panicf("unable to create messaging client: %v", err)
+			return nil
+		}
+		cl, err := app.Messaging(ctx)
+		if err != nil {
+			log2.Panicf("unable to create messaging client: %v", err)
+			return nil
+		}
+		return cl
+	}
+	log.Debugf("development")
+	app, err := firebase.NewApp(
+		ctx,
+		nil,
+		option.WithGRPCConnectionPool(50),
+		option.WithCredentialsFile(os.Getenv(GotCreds)),
+	)
+	if err != nil {
+		log2.Panicf("unable to create messaging client: %v", err)
+		return nil
+	}
+	cl, err := app.Messaging(ctx)
+	if err != nil {
+		log2.Panicf("unable to create messaging client: %v", err)
+		return nil
+	}
+	return cl
 }
 
 func (cl *client) addRoutes() *client {
@@ -106,6 +135,12 @@ func (cl *client) addRoutes() *client {
 
 	// Show
 	g.GET(showPath, cl.showHandler)
+
+	// Subscribe
+	g.PUT(subscribePath, cl.subscribeHandler)
+
+	// Unsubscribe
+	g.PUT(unsubscribePath, cl.unsubscribeHandler)
 
 	// Undo
 	g.PUT(undoPath, cl.undo)

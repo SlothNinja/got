@@ -18,7 +18,7 @@
                   aspect-ratio='1'
                   height='480'
                   contain
-                ></v-img>
+                  ></v-img>
               </v-col>
 
               <v-col cols='6'>
@@ -54,72 +54,80 @@
 </template>
 
 <script>
-  import Toolbar from '@/components/Toolbar'
-  import NavDrawer from '@/components/NavDrawer'
-  import Snackbar from '@/components/Snackbar'
-  import Footer from '@/components/Footer'
-  import CurrentUser from '@/components/mixins/CurrentUser'
 
-  const _ = require('lodash')
-  const axios = require('axios')
+import Toolbar from '@/components/Toolbar'
+import NavDrawer from '@/components/NavDrawer'
+import Snackbar from '@/components/Snackbar'
+import Footer from '@/components/Footer'
+import CurrentUser from '@/components/mixins/CurrentUser'
+import Messaging from '@/components/mixins/Messaging'
 
-  export default {
-    name: 'home',
-    mixins: [ CurrentUser ],
-    components: {
-      'sn-toolbar': Toolbar,
-      'sn-nav-drawer': NavDrawer,
-      'sn-snackbar': Snackbar,
-      'sn-footer': Footer
-    },
-    created () {
+const _ = require('lodash')
+const axios = require('axios')
+
+export default {
+  name: 'home',
+  mixins: [ CurrentUser, Messaging ],
+  components: {
+    'sn-toolbar': Toolbar,
+    'sn-nav-drawer': NavDrawer,
+    'sn-snackbar': Snackbar,
+    'sn-footer': Footer
+  },
+  created () {
+    let self = this
+    self.fetchData()
+  },
+  methods: {
+    myUpdate: function (data) {
       let self = this
-      self.fetchData()
-    },
-    methods: {
-      myUpdate: function (data) {
-        let self = this
 
-        if (_.has(data, 'cu')) {
-          self.cu = data.cu
-          self.cuLoading = false
-        }
-      },
-      fetchData: function () {
-        let self = this
-        self.loading = true
-        axios.get("/home")
-          .then(function (response) {
-            var data = _.get(response, 'data', false)
-            if (data) {
-              self.myUpdate(data)
-            }
-            self.loading = false
-          })
-          .catch(function () {
-            self.loading = false
-            self.sbMessage = 'Server Error.  Try refreshing page.'
-            self.sbOpen = true
+      if (_.has(data, 'cu')) {
+        self.cu = data.cu
+        self.cuLoading = false
+      }
+
+      if ((_.isNull(self.token)) && self.cu) {
+        self.getToken(function (token) {
+          console.log(`token: ${token}`)
         })
-      },
+      }
     },
-    computed: {
-      snackbar: {
-        get: function () {
-          return this.$root.snackbar
-        },
-        set: function (value) {
-          this.$root.snackbar = value
-        }
+    fetchData: function () {
+      let self = this
+      self.loading = true
+      axios.get("/home")
+        .then(function (response) {
+          var data = _.get(response, 'data', false)
+          if (data) {
+            self.myUpdate(data)
+          }
+          self.loading = false
+        })
+        .catch(function () {
+          self.loading = false
+          self.sbMessage = 'Server Error.  Try refreshing page.'
+          self.sbOpen = true
+        })
+    },
+  },
+  computed: {
+    snackbar: {
+      get: function () {
+        return this.$root.snackbar
       },
-      nav: {
-        get: function () {
-          return this.$root.nav
-        },
-        set: function (value) {
-          this.$root.nav = value
-        }
+      set: function (value) {
+        this.$root.snackbar = value
+      }
+    },
+    nav: {
+      get: function () {
+        return this.$root.nav
+      },
+      set: function (value) {
+        this.$root.nav = value
       }
     }
   }
+}
 </script>

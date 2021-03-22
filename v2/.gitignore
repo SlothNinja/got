@@ -18,6 +18,9 @@
 # vendor/
 #
 
+# cert keys
+*.pem
+
 node_modules/
 dist/
 

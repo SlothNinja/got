@@ -44,7 +44,8 @@ func main() {
 		gin.SetMode(gin.DebugMode)
 	}
 
-	db, err := datastore.NewClient(context.Background(), "")
+	ctx := context.Background()
+	db, err := datastore.NewClient(ctx, "")
 	if err != nil {
 		panic(fmt.Sprintf("unable to connect to database: %v", err.Error()))
 	}
@@ -79,9 +80,13 @@ func main() {
 	userClient := user.NewClient(logger, mcache)
 
 	// Guild of Thieves
-	cl := newClient(db, userClient, logger, mcache, router)
+	cl := newClient(ctx, db, userClient, logger, mcache, router)
 
-	cl.Router.Run()
+	if gin.Mode() == gin.DebugMode {
+		cl.Router.RunTLS(getPort(), "cert.pem", "key.pem")
+	} else {
+		cl.Router.Run()
+	}
 }
 
 type secrets struct {
@@ -89,6 +94,10 @@ type secrets struct {
 	BlockKey  []byte
 	UpdatedAt time.Time
 	Key       *datastore.Key `datastore:"__key__"`
+}
+
+func getPort() string {
+	return ":" + os.Getenv("PORT")
 }
 
 func getSecrets() (secrets, error) {
@@ -169,6 +178,12 @@ func (cl *client) staticRoutes() *client {
 	// cl.Router.Static("/rules", "public/rules")
 	// cl.Router.StaticFile("/", "dist/index.html")
 	cl.Router.StaticFile("/", "dist/index.html")
+	cl.Router.StaticFile("/index.html", "dist/index.html")
+	cl.Router.StaticFile("/firebase-messaging-sw.js", "dist/firebase-messaging-sw.js")
+	cl.Router.StaticFile("/manifest.json", "dist/manifest.json")
+	cl.Router.StaticFile("/robots.txt", "dist/robots.txt")
+	cl.Router.StaticFile("/precache-manifest.169265351c010cfd724fe63afe555e11.js", "dist/precache-manifest.169265351c010cfd724fe63afe555e11.js")
+	// cl.Router.StaticFile("/firebase-messaging-sw.js", "dist/firebase-messaging-sw.js")
 	cl.Router.StaticFile("/app.js", "dist/app.js")
 	cl.Router.StaticFile("/favicon.ico", "dist/favicon.ico")
 	cl.Router.Static("/img", "dist/img")

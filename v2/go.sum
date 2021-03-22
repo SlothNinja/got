@@ -40,6 +40,8 @@ cloud.google.com/go/datastore v1.4.0 h1:CFDJm15RpYXeEblQ0TMDUrYtqmBmbAWTy536nA8J
 cloud.google.com/go/datastore v1.4.0/go.mod h1:d18825/a9bICdAIJy2EkHs9joU4RlIZ1t6l8WDdbdY0=
 cloud.google.com/go/datastore v1.5.0 h1:3En8Rj64Q5GxtjsTljiqm25LTzvPFbpK+WQrgeKOUvI=
 cloud.google.com/go/datastore v1.5.0/go.mod h1:RGUNM0FFAVkYA94BLTxoXBgfIyY1Riq67TwaBXH0lwc=
+cloud.google.com/go/firestore v1.5.0 h1:4qNItsmc4GP6UOZPGemmHY4ZfPofVhcaKXsYw9wm9oA=
+cloud.google.com/go/firestore v1.5.0/go.mod h1:c4nNYR1qdq7eaZ+jSc5fonrQN2k3M7sWATcYTiakjEo=
 cloud.google.com/go/logging v1.1.2 h1:KNALX0NZn8UJhqKnqoHxhMqyoZfBZoh5wF7CQJZ5XrU=
 cloud.google.com/go/logging v1.1.2/go.mod h1:KrljuAHIw631j9+QXsnq9vDwsrwmdxfGpivMR68M7DY=
 cloud.google.com/go/logging v1.2.0 h1:YQgGHetngci67X1Iby1/xvYc23AB5ZTvf/S/kQBaLuY=
@@ -65,6 +67,9 @@ cloud.google.com/go/storage v1.13.0/go.mod h1:pqFyBUK3zZqMIIU5+8NaZq6/Ma3ClgUg9H
 cloud.google.com/go/storage v1.14.0 h1:6RRlFMv1omScs6iq2hfE3IvgE+l6RfJPampq8UZc5TU=
 cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3fOKtUw0Xmo=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
+firebase.google.com/go v1.0.2 h1:MCEmjmlwZiQ0s+z7EDVX6e3KHHvpGdF2pJBiQAXVXao=
+firebase.google.com/go v3.13.0+incompatible h1:3TdYC3DDi6aHn20qoRkxwGqNgdjtblwVAyRLQwGn/+4=
+firebase.google.com/go v3.13.0+incompatible/go.mod h1:xlah6XbEyW6tbfSklcfe5FHJIwjt8toICdV5Wh9ptHs=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
@@ -103,6 +108,8 @@ github.com/SlothNinja/sn v1.0.2 h1:lFaLNUJ0/TFbNR/UBkK52HFXv7WpX0u2Jq0h7FX6t9E=
 github.com/SlothNinja/sn v1.0.2/go.mod h1:OqY/UyaN6IsL2unwwgoKIJVWKVQFliWZd7T/ZwsH8+8=
 github.com/SlothNinja/sn v1.0.3 h1:ex+xN4qy571+ow1Ucia+CZudgREaPXAwuEi/Hrx+1pg=
 github.com/SlothNinja/sn v1.0.3/go.mod h1:mZryMovZZQvJse1ip7lZnFDer4ScVwQsI1U+nr74cg8=
+github.com/SlothNinja/sn v1.0.4 h1:F/S1bKWRPYG5q+6ETBnIFGX+jBcGVSyLxQU/GUcMFWw=
+github.com/SlothNinja/sn v1.0.4/go.mod h1:mZryMovZZQvJse1ip7lZnFDer4ScVwQsI1U+nr74cg8=
 github.com/SlothNinja/type v1.0.1 h1:O76sTnIRNE/ZMxZaMVEwYN+jwKg16G459k1ogsUriUE=
 github.com/SlothNinja/type v1.0.1/go.mod h1:mMCQiVmqWL9ZIHH0XTddJYLRj7JO5vAaYqwfpfjp/x8=
 github.com/SlothNinja/undo v1.0.0 h1:eg0zXWpABWiD0YeePRt0CBlG/qFl5DehMAooZ8UB0GE=

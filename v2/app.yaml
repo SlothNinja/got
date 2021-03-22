@@ -41,9 +41,9 @@ handlers:
   upload: dist/index.html
   secure: always
 
-- url: /(.*\.(gif|png|jpg|js|ico))$
+- url: /(.*\.(gif|png|jpg|js|ico|txt|html|json|js))$
   static_files: dist/\1
-  upload: dist/.*\.(gif|png|jpg|js|ico)$
+  upload: dist/.*\.(gif|png|jpg|js|ico|txt|html|json|js)$
   secure: always
 
 - url: /.*

@@ -49,56 +49,58 @@
     </sn-card-bar>
 
 
-    <sn-snackbar v-model='sbOpen'>
-      <div class='text-center'>{{sbMessage}}</div>
-    </sn-snackbar>
+      <sn-snackbar v-model='snackbar.open'>
+        <div class='text-center'>
+          <span v-html='snackbar.message'></span>
+        </div>
+      </sn-snackbar>
 
-    <v-main>
-      <v-container fluid>
-        <v-row>
-          <v-col cols='4'>
-            <v-row>
-              <v-col>
-                <sn-status-panel :game='game'></sn-status-panel>
-              </v-col>
-            </v-row>
+      <v-main>
+        <v-container fluid>
+          <v-row>
+            <v-col cols='4'>
+              <v-row>
+                <v-col>
+                  <sn-status-panel :game='game' :live.sync='live'></sn-status-panel>
+                </v-col>
+              </v-row>
 
-            <v-row>
-              <v-col>
-                <sn-player-panels
-                  v-model='tab'
-                  @show='cardbar = $event'
-                  @pass="action({action: 'pass', data: { undo: game.undo }})"
-                  :game='game'
-                  >
-                </sn-player-panels>
-              </v-col>
-            </v-row>
+              <v-row>
+                <v-col>
+                  <sn-player-panels
+                    v-model='tab'
+                    @show='cardbar = $event'
+                    @pass="action({action: 'pass', data: { undo: game.undo }})"
+                    :game='game'
+                    >
+                  </sn-player-panels>
+                </v-col>
+              </v-row>
 
-          </v-col>
+            </v-col>
 
-          <v-col cols='8'>
+            <v-col cols='8'>
 
-            <v-row>
-              <v-col>
-                <sn-messagebar>{{message}}</sn-messagebar>
-              </v-col>
-            </v-row>
+              <v-row>
+                <v-col>
+                  <sn-messagebar>{{message}}</sn-messagebar>
+                </v-col>
+              </v-row>
 
-            <v-row>
-              <v-col>
-                <sn-board id='board' :game='game' @selected='selected($event)' ></sn-board>
-              </v-col>
-            </v-row>
+              <v-row>
+                <v-col>
+                  <sn-board id='board' :game='game' @selected='selected($event)' ></sn-board>
+                </v-col>
+              </v-row>
 
-          </v-col>
+            </v-col>
 
-        </v-row>
+          </v-row>
 
-      </v-container>
-    </v-main>
+        </v-container>
+      </v-main>
 
-    <sn-footer></sn-footer>
+      <sn-footer></sn-footer>
 
   </v-app>
 </template>
@@ -116,19 +118,21 @@ import Bar from '@/components/card/Bar'
 import StatusPanel from '@/components/game/StatusPanel'
 import Panels from '@/components/player/Panels'
 import Messagebar from '@/components/game/Messagebar'
-// import ChatBox from '@/components/chat/Box'
-// import GameLog from '@/components/log/Box'
 import CurrentUser from '@/components/mixins/CurrentUser'
+import Messaging from '@/components/mixins/Messaging'
 import Player from '@/components/mixins/Player'
 
 const _ = require('lodash')
 const axios = require('axios')
 
 export default {
-  mixins: [ CurrentUser, Player ],
+  mixins: [ CurrentUser, Player, Messaging ],
   name: 'game',
   data () {
     return {
+      stop: false,
+      subscribed: [],
+      loaded: false,
       game: {
         title: '',
         id: 0,
@@ -145,8 +149,6 @@ export default {
       nav: false,
       history: false,
       chat: false,
-      sbOpen: false,
-      sbMessage: '',
       chatDrawer: false,
       logDrawer: false
     }
@@ -162,16 +164,77 @@ export default {
     'sn-card-bar': Bar,
     'sn-status-panel': StatusPanel,
     'sn-player-panels': Panels,
-    // 'sn-chat-box': ChatBox,
-    // 'sn-game-log': GameLog,
     'sn-messagebar': Messagebar,
     'sn-footer': Footer
   },
   created () {
     var self = this
     self.fetchData()
+    self.getToken()
+    self.fbMsg.onMessage((payload) => {
+      self.action(payload.data)
+    })
   },
   methods: {
+    subscribe: function () {
+      let self = this
+      let obj = { token: self.token }
+      axios.put(`${self.path}/subscribe/${self.$route.params.id}`, obj )
+        .then(function (response) {
+          let msg = _.get(response, 'data.message', false)
+          let subscribed = _.get(response, 'data.subscribed', false)
+          self.$nextTick()
+            .then(function () {
+              if (subscribed) {
+                self.subscribed = subscribed
+              }
+              if (msg) {
+                self.snackbar.message = msg
+                self.snackbar.open = true
+              }
+            })
+        })
+        .catch(function (response) {
+          let subscribed = self.subscribed
+          if (_.size(self.subscribed) > 1) {
+            self.subscribed.push(self.token)
+          } else {
+            self.subscribed = [ self.token ]
+          }
+          let msg = _.get(response, 'message', 'Server Error.  Try refreshing page.')
+          self.$nextTick()
+            .then(function () {
+              self.subscribed = subscribed
+              self.snackbar.message = msg
+              self.snackbar.open = true
+            })
+        })
+    },
+    unsubscribe: function () {
+      let self = this
+      let obj = { token: self.token }
+      axios.put(`${self.path}/unsubscribe/${self.$route.params.id}`, obj )
+        .then(function (response) {
+          let msg = _.get(response, 'data.message', false)
+          self.$nextTick()
+            .then(function () {
+              if (msg) {
+                self.snackbar.message = msg
+                self.snackbar.open = true
+              }
+            })
+        })
+        .catch(function () {
+          let subscribed = self.subscribed
+          self.subscribed = []
+          self.$nextTick()
+            .then(function () {
+              self.subscribed = subscribed
+              self.snackbar.message = 'Server Error.  Try refreshing page.'
+              self.snackbar.open = true
+            })
+        })
+    },
     toggleChat: function () {
       let self = this
       self.chatDrawer = !self.chatDrawer
@@ -195,8 +258,16 @@ export default {
       }
 
       if (_.has(data, 'message') && (data.message != '')) {
-        self.sbMessage = data.message
-        self.sbOpen = true
+        self.snackbar.message = data.message
+        self.snackbar.open = true
+      }
+
+      if (_.has(data, 'subscribed')) {
+        self.subscribed = data.subscribed
+      }
+
+      if (_.has(data, 'token')) {
+        self.token = data.token
       }
 
       if (_.has(data, 'cu')) {
@@ -213,19 +284,17 @@ export default {
     },
     fetchData: function () {
       let self = this
-      self.loading = true
       axios.get(`${self.path}/show/${self.$route.params.id}`)
         .then(function (response) {
           var data = _.get(response, 'data', false)
           if (data) {
             self.myUpdate(data)
           }
-          self.loading = false
+          self.loaded = true
         })
         .catch(function () {
-          self.loading = false
-          self.sbMessage = 'Server Error.  Try refreshing page.'
-          self.sbOpen = true
+          self.snackbar.message = 'Server Error.  Try refreshing page.'
+          self.snackbar.open = true
         })
     },
     selected: function (data) {
@@ -277,57 +346,40 @@ export default {
         self.fetchData()
         return
       }
+      data.data.token = self.token
       axios.put(`${self.path}/${action}/${self.$route.params.id}`, data.data)
         .then(function (response) {
-          self.loading = false
-
           if (_.has(response, 'data')) {
             self.myUpdate(response.data)
           }
         })
         .catch(function () {
-          self.loading = false
-          self.sbMessage = 'Server Error.  Try refreshing page.'
-          self.sbOpen = true
+          self.snackbar.message = 'Server Error.  Try refreshing page.'
+          self.snackbar.open = true
         })
     },
-    animateMoveTo: function (obj, to, complete) {
-      var height = obj.height()
-      var width = obj.width()
-      var from = obj.offset()
-      var midpoint = {
-        top: (from.top + to.top) / 2,
-        left: (from.left + to.left) / 2
-      }
-      obj.velocity({
-        top: midpoint.top,
-        left: midpoint.left,
-        height: height * 2,
-        width: width * 2
-      }, { duration: 200 })
-        .velocity({
-          top: to.top,
-          left: to.left,
-          height: height,
-          width: width
-        }, {
-          duration: 200,
-          complete: function () {
-            if (complete) {
-              complete()
-            }
-          }
-        })
-    }
   },
-
   computed: {
-    animate: {
+    live: {
       get: function () {
-        return this.$root.animate
+        let self = this
+        return _.includes(self.subscribed, self.token)
       },
       set: function (value) {
-        this.$root.animate = value
+        let self = this
+        if (value) {
+          self.subscribe()
+        } else {
+          self.unsubscribe()
+        }
+      }
+    },
+    snackbar: {
+      get: function () {
+        return this.$root.snackbar
+      },
+      set: function (value) {
+        this.$root.snackbar = value
       }
     },
     selectedPlayer: function () {

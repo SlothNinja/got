@@ -19,6 +19,8 @@ const (
 	statusParam     = "status"
 	uidParam        = "uid"
 	showPath        = "/show/:" + idParam
+	subscribePath   = "/subscribe/:" + idParam
+	unsubscribePath = "/unsubscribe/:" + idParam
 	newPath         = "/new"
 	undoPath        = "/undo/:" + idParam
 	redoPath        = "/redo/:" + idParam
