@@ -1,24 +1,28 @@
 <template>
   <v-navigation-drawer
+    v-model='nav'
     clipped
-    permanent
-    expand-on-hover
     light
     app
-  >
-    <v-list-item>
-        <v-list-item-icon>
-          <sn-user-btn v-if='cu' size='x-small' :user='cu' ></sn-user-btn>
-        </v-list-item-icon>
+    >
+    <v-list-item v-if='cu'>
+      <v-list-item-icon>
+        <sn-user-btn size='x-small' :user='cu' ></sn-user-btn>
+      </v-list-item-icon>
+      <v-list-item-content>
+        <v-list-item-title>
+          {{cu.name}}
+        </v-list-item-title>
+      </v-list-item-content>
+    </v-list-item>
 
-        <v-list-item-content>
-          <v-list-item-title v-if='cu'>
-            {{cu.name}}
-          </v-list-item-title>
-          <v-list-item-title v-else>
-            <v-btn :to="{ name: 'login' }" color='info'>Login</v-btn>
-          </v-list-item-title>
-        </v-list-item-content>
+    <v-list-item v-else :to="{ name: 'login'}" >
+      <v-list-item-icon>
+        <v-icon>mdi-login</v-icon>
+      </v-list-item-icon>
+      <v-list-item-content>
+        <v-list-item-title>Login</v-list-item-title>
+      </v-list-item-content>
     </v-list-item>
 
     <v-divider></v-divider>
@@ -26,7 +30,7 @@
     <v-list
       dense
       nav
-    >
+      >
       <v-list-item :to="{ name: 'home' }" exact>
         <v-list-item-icon>
           <v-icon>mdi-home</v-icon>
@@ -171,6 +175,7 @@
   export default {
     mixins: [ CurrentUser ],
     name: 'nav-drawer',
+    props: [ 'value' ],
     components: {
       'sn-user-btn': UserButton
     },
@@ -178,6 +183,16 @@
       logout: function () {
         var self = this
         self.$router.push({ name: 'logout'})
+      }
+    },
+    computed: {
+      nav: {
+        get: function () {
+          return this.value
+        },
+        set: function (value) {
+          this.$emit('input', value)
+        }
       }
     }
   }

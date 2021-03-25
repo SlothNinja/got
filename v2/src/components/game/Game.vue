@@ -4,8 +4,6 @@
 
     <sn-toolbar v-model='nav'>
       <v-row no-gutters>
-        <v-col cols='1'>
-        </v-col>
         <v-col cols='3'>
           <v-tooltip bottom color='info'>
             <template v-slot:activator='{ on }'>
@@ -27,7 +25,7 @@
 
         </v-col>
 
-        <v-col cols='8'>
+        <v-col cols='9'>
           <sn-control-bar v-model='game' @action='action($event)' ></sn-control-bar>
         </v-col>
 

@@ -7,8 +7,16 @@
     dark
     app
   >
-    <v-row no-gutters>
-      <v-col>
+  <v-row no-gutters>
+    <v-col cols='1'>
+      <v-tooltip bottom color='info' dark>
+        <template v-slot:activator='{ on }'>
+          <v-app-bar-nav-icon v-on='on' @click.stop="$emit('input', !value)" ></v-app-bar-nav-icon>
+        </template>
+        <span>Menu</span>
+      </v-tooltip>
+    </v-col>
+    <v-col>
         <slot></slot>
       </v-col>
       <v-col cols='1' align='right'>
