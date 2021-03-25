@@ -11,14 +11,20 @@ import (
 const subscriptionKind = "Subscription"
 
 type Subscription struct {
-	Key       *datastore.Key
+	Key       *datastore.Key `datastore:"__key__"`
 	Tokens    []string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 func (s *Subscription) Load(ps []datastore.Property) error {
-	return datastore.LoadStruct(s, ps)
+	var ps2 []datastore.Property
+	for _, p := range ps {
+		if p.Name != "Key" {
+			ps2 = append(ps2, p)
+		}
+	}
+	return datastore.LoadStruct(s, ps2)
 }
 
 func (s *Subscription) Save() ([]datastore.Property, error) {
@@ -37,6 +43,10 @@ func (s *Subscription) LoadKey(k *datastore.Key) error {
 }
 
 func (s *Subscription) Subscribe(token string) bool {
+	if token == "" {
+		return false
+	}
+
 	_, found := s.find(token)
 	if found {
 		return false
@@ -47,6 +57,10 @@ func (s *Subscription) Subscribe(token string) bool {
 }
 
 func (s *Subscription) Unsubscribe(token string) bool {
+	if token == "" {
+		return false
+	}
+
 	i, found := s.find(token)
 	if !found {
 		return false
@@ -57,6 +71,9 @@ func (s *Subscription) Unsubscribe(token string) bool {
 }
 
 func (s *Subscription) find(token string) (int, bool) {
+	if token == "" {
+		return -1, false
+	}
 	for i, t := range s.Tokens {
 		if t == token {
 			return i, true
@@ -66,6 +83,9 @@ func (s *Subscription) find(token string) (int, bool) {
 }
 
 func (s *Subscription) other(token string) []string {
+	if token == "" {
+		return s.Tokens
+	}
 	i, found := s.find(token)
 	if !found {
 		return s.Tokens
@@ -159,25 +179,38 @@ func (cl *client) getToken(c *gin.Context) (string, error) {
 	return obj.Token, err
 }
 
-func (cl *client) sentRefreshMessages(c *gin.Context) {
+func (cl *client) sendRefreshMessages(c *gin.Context) error {
+	cl.Log.Debugf("entering sendRefreshMessages")
+	defer cl.Log.Debugf("exiting sendRefreshMessages")
+
 	s, err := cl.getSubcription(c)
 	if err != nil {
-		cl.Log.Warningf("error getting subscription: %w", err)
+		return err
 	}
+	cl.Log.Debugf("subscription: %#v", s)
 
 	token, err := cl.getToken(c)
 	if err != nil {
-		cl.Log.Warningf("error getting subscription token: %w", err)
+		return err
 	}
+	cl.Log.Debugf("token: %#v", token)
 
 	tokens := s.other(token)
+	cl.Log.Debugf("tokens: %#v", tokens)
 	if len(tokens) > 0 {
-		_, err := cl.Messaging.SendMulticast(c, &messaging.MulticastMessage{
+		resp, err := cl.Messaging.SendMulticast(c, &messaging.MulticastMessage{
 			Tokens: tokens,
 			Data:   map[string]string{"action": "refresh"},
 		})
+		if resp != nil {
+			cl.Log.Debugf("batch response: %+v", resp)
+			for _, r := range resp.Responses {
+				cl.Log.Debugf("response: %+v", r)
+			}
+		}
 		if err != nil {
-			cl.Log.Warningf("error sending messages: %w", err)
+			return err
 		}
 	}
+	return nil
 }

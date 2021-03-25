@@ -18,22 +18,23 @@ workbox.core.setCacheNameDetails({prefix: "got"});
 importScripts('https://www.gstatic.com/firebasejs/8.3.0/firebase-app.js')
 importScripts('https://www.gstatic.com/firebasejs/8.3.0/firebase-messaging.js')
 
-const apiKey = process.env.VUE_APP_SNG_HOME,
+// const apiKey = process.env.VUE_APP_FIREBASE_KEY
+const apiKey = "AIzaSyDkTvPKy-TJQYo1P2yqScveK86Rf-mqblE"
 
 if (firebase.messaging.isSupported()) {
-firebase.initializeApp({
-  apiKey: apiKey,
-  authDomain: "got-slothninja-games.firebaseapp.com",
-  projectId: "got-slothninja-games",
-  storageBucket: "got-slothninja-games.appspot.com",
-  messagingSenderId: "623888087074",
-  appId: "1:623888087074:web:9297f4c964c2f4726cf27b",
-  measurementId: "G-QBX9QG6NH5"
-})
+        firebase.initializeApp({
+                apiKey: apiKey,
+                authDomain: "got-slothninja-games.firebaseapp.com",
+                projectId: "got-slothninja-games",
+                storageBucket: "got-slothninja-games.appspot.com",
+                messagingSenderId: "623888087074",
+                appId: "1:623888087074:web:9297f4c964c2f4726cf27b",
+                measurementId: "G-QBX9QG6NH5"
+        })
 
-// Retrieve an instance of Firebase Messaging so that it can handle background
-// messages.
-const messaging = firebase.messaging()
+        // Retrieve an instance of Firebase Messaging so that it can handle background
+        // messages.
+        const messaging = firebase.messaging()
 }
 // messaging.setBackgroundMessageHandler(function (payload) {
 //     const promiseChain = clients

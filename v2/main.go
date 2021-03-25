@@ -182,7 +182,7 @@ func (cl *client) staticRoutes() *client {
 	cl.Router.StaticFile("/firebase-messaging-sw.js", "dist/firebase-messaging-sw.js")
 	cl.Router.StaticFile("/manifest.json", "dist/manifest.json")
 	cl.Router.StaticFile("/robots.txt", "dist/robots.txt")
-	cl.Router.StaticFile("/precache-manifest.169265351c010cfd724fe63afe555e11.js", "dist/precache-manifest.169265351c010cfd724fe63afe555e11.js")
+	cl.Router.StaticFile("/precache-manifest.c0be88927a8120cb7373cf7df05f5688.js", "dist/precache-manifest.c0be88927a8120cb7373cf7df05f5688.js")
 	// cl.Router.StaticFile("/firebase-messaging-sw.js", "dist/firebase-messaging-sw.js")
 	cl.Router.StaticFile("/app.js", "dist/app.js")
 	cl.Router.StaticFile("/favicon.ico", "dist/favicon.ico")

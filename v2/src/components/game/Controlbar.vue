@@ -1,5 +1,6 @@
 <template>
-  <div>
+  <v-row no-gutters>
+    <v-col align='center'>
     <v-tooltip :disabled='!canReset' bottom color='info'>
       <template v-slot:activator="{ on }">
         <v-btn v-on="on" icon :disabled="!canReset" @click="$emit('action', { action: 'reset', data: { undo: game.undo }})" >
@@ -24,7 +25,6 @@
       </template>
       <span>Redo</span>
     </v-tooltip>
-
     <v-tooltip :disabled='!canFinish' bottom color='info'>
       <template v-slot:activator='{ on }'>
       <v-btn v-on='on' icon :disabled='!canFinish' @click="$emit('action', { action : finishAction, data: { undo: game.undo }})" >
@@ -33,7 +33,6 @@
       </template>
       <span>Finish</span>
     </v-tooltip>
-
     <v-tooltip bottom color='info'>
       <template v-slot:activator='{ on }'>
         <v-btn v-on='on' icon @click.native="$emit('action', { action : 'refresh' })" >
@@ -42,8 +41,8 @@
       </template>
       <span>Refresh</span>
     </v-tooltip>
-
-  </div>
+    </v-col>
+  </v-row>
 </template>
 
 <script>

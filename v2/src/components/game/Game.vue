@@ -1,11 +1,12 @@
 <template>
   <v-app id='app'>
+    <div v-visibility-change="visibilityChange"></div>
 
     <sn-toolbar v-model='nav'>
-      <v-row>
-
+      <v-row no-gutters>
+        <v-col cols='1'>
+        </v-col>
         <v-col cols='3'>
-
           <v-tooltip bottom color='info'>
             <template v-slot:activator='{ on }'>
               <v-btn v-on='on' icon @click.stop='toggleLog'>
@@ -26,7 +27,7 @@
 
         </v-col>
 
-        <v-col cols='7' class='d-flex justify-center'>
+        <v-col cols='8'>
           <sn-control-bar v-model='game' @action='action($event)' ></sn-control-bar>
         </v-col>
 
@@ -176,6 +177,12 @@ export default {
     })
   },
   methods: {
+    visibilityChange(evt, hidden) {
+      let self = this
+      if(!hidden) {
+        self.action({ action: 'refresh' })
+      }
+    },
     subscribe: function () {
       let self = this
       let obj = { token: self.token }
@@ -341,8 +348,10 @@ export default {
     },
     action: function (data) {
       var self = this
+      console.log(`action data: ${JSON.stringify(data)}`)
       var action = data.action
       if (action == 'refresh') {
+        console.log(`refresh fetchData`)
         self.fetchData()
         return
       }

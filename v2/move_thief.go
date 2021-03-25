@@ -186,7 +186,10 @@ func (cl *client) moveThiefFinishTurnHandler(c *gin.Context) {
 		return
 	}
 
-	cl.sentRefreshMessages(c)
+	err = cl.sendRefreshMessages(c)
+	if err != nil {
+		cl.Log.Warningf("sendRefreshMessages error: %v", err)
+	}
 
 	if cp != np {
 		cl.sendTurnNotificationsTo(g, np)

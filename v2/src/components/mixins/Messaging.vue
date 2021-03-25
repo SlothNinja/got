@@ -61,7 +61,7 @@ export default {
     },
     fbmConfig: function () {
       return {
-        apiKey: process.env.VUE_APP_SNG_HOME,
+        apiKey: process.env.VUE_APP_FIREBASE_KEY,
         authDomain: "got-slothninja-games.firebaseapp.com",
         projectId: "got-slothninja-games",
         storageBucket: "got-slothninja-games.appspot.com",

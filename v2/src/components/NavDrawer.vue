@@ -1,19 +1,24 @@
 <template>
   <v-navigation-drawer
     clipped
-    v-model='drawer'
+    permanent
+    expand-on-hover
     light
     app
   >
     <v-list-item>
-      <v-list-item-content>
-        <v-list-item-title class='title font-weight-black text-center'>
-          SlothNinja Games
-        </v-list-item-title>
-        <v-list-item-subtitle class='subtitle-1 font-weight-bold text-center'>
-          Guild of Thieves
-        </v-list-item-subtitle>
-      </v-list-item-content>
+        <v-list-item-icon>
+          <sn-user-btn v-if='cu' size='x-small' :user='cu' ></sn-user-btn>
+        </v-list-item-icon>
+
+        <v-list-item-content>
+          <v-list-item-title v-if='cu'>
+            {{cu.name}}
+          </v-list-item-title>
+          <v-list-item-title v-else>
+            <v-btn :to="{ name: 'login' }" color='info'>Login</v-btn>
+          </v-list-item-title>
+        </v-list-item-content>
     </v-list-item>
 
     <v-divider></v-divider>
@@ -160,28 +165,19 @@
 </template>
 
 <script>
+  import UserButton from '@/components/user/Button'
   import CurrentUser from '@/components/mixins/CurrentUser'
 
   export default {
     mixins: [ CurrentUser ],
     name: 'nav-drawer',
-    props: [ 'value' ],
+    components: {
+      'sn-user-btn': UserButton
+    },
     methods: {
       logout: function () {
         var self = this
         self.$router.push({ name: 'logout'})
-      }
-    },
-    computed: {
-      drawer: {
-        get: function () {
-          var self = this
-          return self.value
-        },
-        set: function (value) {
-          var self = this
-          self.$emit('input', value)
-        }
       }
     }
   }

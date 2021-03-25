@@ -3,7 +3,9 @@ import App from './App.vue'
 import vuetify from './plugins/vuetify'
 import router from './router/router'
 import { Plugin } from 'vue-fragment'
+import visibility from 'vue-visibility-change';
 
+Vue.use(visibility)
 Vue.use(Plugin)
 Vue.config.productionTip = false
 

@@ -94,6 +94,8 @@ github.com/SlothNinja/inflect v1.0.0/go.mod h1:UcsxNaFuwOBkpXXuEnPf+B2q7mIXCzy9u
 github.com/SlothNinja/log v1.0.0/go.mod h1:ERX7qO0ujhvJVnncp2i1b1FOLptERQV1a/k/oZcKYMk=
 github.com/SlothNinja/log v1.0.2 h1:akUp5ofd5Yb/5+K42/vPer2FiSpVfRhCqIDCNQiEcns=
 github.com/SlothNinja/log v1.0.2/go.mod h1:ERX7qO0ujhvJVnncp2i1b1FOLptERQV1a/k/oZcKYMk=
+github.com/SlothNinja/log v1.0.3 h1:REgKPkA+JbFUcG+dkiBmIc2EaXSMAqB4xapL+zOJytg=
+github.com/SlothNinja/log v1.0.3/go.mod h1:ERX7qO0ujhvJVnncp2i1b1FOLptERQV1a/k/oZcKYMk=
 github.com/SlothNinja/mlog v1.0.4 h1:CEqL5Ig5hcAoo8VwTVSSGe8MwfpWpQ+Rn7V/skaShAg=
 github.com/SlothNinja/mlog v1.0.4/go.mod h1:zLYKHwznpDKBwkcCeTs/gK8OYUB3ir9JE+s6KWo68/w=
 github.com/SlothNinja/rating v1.0.8 h1:cs0Wr4jlZaVp5ObqrU/tbPWhe7SDZTz2qpsbIVb4Xn0=
