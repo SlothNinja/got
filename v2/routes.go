@@ -3,18 +3,21 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	log2 "log"
 	"net/http"
 	"os"
+	"time"
 
-	"cloud.google.com/go/datastore"
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/messaging"
+	"github.com/SlothNinja/cookie"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/mlog"
 	"github.com/SlothNinja/rating"
 	"github.com/SlothNinja/sn"
 	"github.com/SlothNinja/user"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
 	"google.golang.org/api/option"
@@ -26,17 +29,69 @@ type client struct {
 	MLog      *mlog.Client
 	Rating    *rating.Client
 	Messaging *messaging.Client
+	logClient *log.Client
 }
 
-func newClient(ctx context.Context, dClient *datastore.Client, uClient *user.Client, logger *log.Logger, cache *cache.Cache, router *gin.Engine) *client {
-	cl := &client{
-		Client:    sn.NewClient(dClient, logger, cache, router),
-		User:      uClient,
-		MLog:      mlog.NewClient(dClient, uClient, logger, cache),
-		Rating:    rating.NewClient(dClient, uClient, logger, cache, router, "rating"),
-		Messaging: newMsgClient(ctx),
+func newClient(ctx context.Context) *client {
+	logClient := newLogClient()
+	snClient := sn.NewClient(ctx, sn.Options{
+		ProjectID: getGotProjectID(),
+		DSURL:     getGotDSURL(),
+		Logger:    logClient.Logger("got"),
+		Cache:     cache.New(30*time.Minute, 10*time.Minute),
+		Router:    gin.Default(),
+	})
+
+	snClient.Log.Debugf("ProjectID: %q", getGotProjectID())
+	snClient.Log.Debugf("DSURL: %q", getGotDSURL())
+
+	uClient := user.NewClient(sn.NewClient(ctx, sn.Options{
+		ProjectID: getUserProjectID(),
+		DSURL:     getUserDSURL(),
+		Logger:    snClient.Log,
+		Cache:     snClient.Cache,
+		Router:    snClient.Router,
+	}))
+
+	store, err := cookie.NewClient(uClient.Client).NewStore(ctx)
+	if err != nil {
+		snClient.Log.Panicf("unable create cookie store: %v", err)
 	}
-	return cl.addRoutes()
+	snClient.Router.Use(sessions.Sessions(sessionName, store))
+
+	nClient := &client{
+		Client:    snClient,
+		User:      uClient,
+		MLog:      mlog.NewClient(snClient, uClient),
+		Rating:    rating.NewClient(snClient, uClient, "rating"),
+		Messaging: newMsgClient(ctx),
+		logClient: logClient,
+	}
+	return nClient.addRoutes()
+}
+
+type CloseErrors struct {
+	Client     error
+	LogClient  error
+	UserClient error
+}
+
+func (ce CloseErrors) Error() string {
+	return fmt.Sprintf("error closing clients: client: %q logClient: %q userClient: %q",
+		ce.Client, ce.LogClient, ce.UserClient)
+}
+
+func (cl *client) Close() error {
+	var ce CloseErrors
+
+	ce.Client = cl.Client.Close()
+	ce.LogClient = cl.logClient.Close()
+	ce.UserClient = cl.User.Client.Close()
+
+	if ce.Client != nil || ce.LogClient != nil || ce.UserClient != nil {
+		return ce
+	}
+	return nil
 }
 
 const GotCreds = "GOT_CREDS"
@@ -191,10 +246,6 @@ func (cl *client) addRoutes() *client {
 	return cl
 }
 
-func getLoginHost() string {
-	return os.Getenv(LOGIN_HOST)
-}
-
 func (cl *client) login(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
@@ -202,7 +253,9 @@ func (cl *client) login(c *gin.Context) {
 	referer := c.Request.Referer()
 	encodedReferer := base64.StdEncoding.EncodeToString([]byte(referer))
 
-	c.Redirect(http.StatusSeeOther, getLoginHost()+"/login?redirect="+encodedReferer)
+	path := getUserHostURL() + "/login?redirect=" + encodedReferer
+	cl.Log.Debugf("path: %q", path)
+	c.Redirect(http.StatusSeeOther, path)
 }
 
 func (cl *client) logout(c *gin.Context) {

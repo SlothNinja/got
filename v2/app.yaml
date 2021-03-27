@@ -14,11 +14,12 @@ automatic_scaling:
 default_expiration: "10m"
 
 env_variables:
-  HOST: "https://got.slothninja.com"
-  LOGIN_HOST: "https://user.slothninja.com"
-  DATASTORE_PROJECT_ID: "got-slothninja-games"
+  GOT_PROJECT_ID: "got-slothninja-games"
+  GOT_HOST_URL: "got.slothninja.com"
+  GOT_DS_URL: "got.slothninja.com"
   USER_PROJECT_ID: "user-slothninja-games"
-  SECRETS_PROJECT_ID: "user-slothninja-games"
+  USER_DS_URL: "user.slothninja.com"
+  USER_HOST_URL: "https://user.slothninja.com"
   NODE_ENV: "production"
   MJ_API_KEY_PUB: "0b66e3cf5d4b5a5c536ef1a289b58d79"
   MJ_API_KEY_PRIV: "e4ba83076c32f4732e84a1b05cb4e3e5"

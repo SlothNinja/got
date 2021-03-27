@@ -235,26 +235,6 @@ func (cl *client) reset(c *gin.Context) {
 
 	g.updateClickablesFor(cu, g.selectedThiefArea())
 	c.JSON(http.StatusOK, gin.H{"game": g})
-	// cu, err := cl.User.Current(c)
-	// if err != nil {
-	// 	sn.JErr(c, err)
-	// 	return
-	// }
-
-	// gc, err := cl.getGCommited(c)
-	// if err != nil {
-	// 	sn.JErr(c, err)
-	// 	return
-	// }
-
-	// g, _, err := cl.putCachedGame(c, &(gc.Game), gc.id(), gc.Undo.Current)
-	// if err != nil {
-	// 	sn.JErr(c, err)
-	// 	return
-	// }
-
-	// g.updateClickablesFor(cu, g.selectedThiefArea())
-	// c.JSON(http.StatusOK, gin.H{"game": g})
 }
 
 func (cl *client) undoOperations(c *gin.Context, action func(*undo.Stack) bool) {
@@ -785,6 +765,8 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		sn.JErr(c, err)
 		return
 	}
+	cl.Log.Debugf("cu: %#v", cu)
+	cl.Log.Debugf("err: %#v", err)
 
 	forward, err := datastore.DecodeCursor(options.Forward)
 	if err != nil {
@@ -792,12 +774,15 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		return
 	}
 
+	cl.Log.Debugf("forward: %#v", forward)
 	status := game.ToStatus[c.Param("status")]
 	q := datastore.
 		NewQuery(headerKind).
 		Filter("Status=", int(status)).
 		Order("-UpdatedAt")
 
+	cl.Log.Debugf("status: %#v", status)
+	cl.Log.Debugf("client: %#v", cl)
 	cnt, err := cl.DS.Count(c, q)
 	if err != nil {
 		sn.JErr(c, err)

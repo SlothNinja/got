@@ -60,14 +60,13 @@ import NavDrawer from '@/components/NavDrawer'
 import Snackbar from '@/components/Snackbar'
 import Footer from '@/components/Footer'
 import CurrentUser from '@/components/mixins/CurrentUser'
-import Messaging from '@/components/mixins/Messaging'
 
 const _ = require('lodash')
 const axios = require('axios')
 
 export default {
   name: 'home',
-  mixins: [ CurrentUser, Messaging ],
+  mixins: [ CurrentUser ],
   components: {
     'sn-toolbar': Toolbar,
     'sn-nav-drawer': NavDrawer,
@@ -85,12 +84,6 @@ export default {
       if (_.has(data, 'cu')) {
         self.cu = data.cu
         self.cuLoading = false
-      }
-
-      if ((_.isNull(self.token)) && self.cu) {
-        self.getToken(function (token) {
-          console.log(`token: ${token}`)
-        })
       }
     },
     fetchData: function () {
