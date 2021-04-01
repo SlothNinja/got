@@ -62,12 +62,12 @@
         <v-divider></v-divider>
         <v-card-actions>
           <v-container>
-            <v-row>
-              <v-col cols='4' v-if='!item.public && canAccept(item)'>
+            <v-row align='center' v-if='!item.public && canAccept(item)'>
+              <v-col cols='6' align='right'>
                 <v-text-field
+                  hide-details
                   v-model='password'
                   :append-icon="show ? 'mdi-eye' : 'mdi-eye-off'"
-                  :rules="[rules.required, rules.min]"
                   :type="show ? 'text' : 'password'"
                   label='Password'
                   placeholder='Enter Password'
@@ -76,27 +76,26 @@
                   dense
                   outlined
                   rounded
-                  hint='At least 8 characters'
-                  counter
                   @click:append="show = !show"
                   >
                 </v-text-field>
               </v-col>
-              <v-col cols='2' v-if='!item.public && canAccept(item)'>
+              <v-col cols='6' align='left'>
                 <v-btn 
-                     x-small
+                     small
                      rounded
-                     :disabled='disabled'
-                     @click.native="$emit('action', { action: 'accept', item: item })"
+                     @click.native="$emit('action', { action: 'acceptWith', password: password, item: item })"
                      color='info'
                      dark
                      >
                      Accept
                 </v-btn>
               </v-col>
-              <v-col cols='4' v-if='item.public && canAccept(item)'>
+            </v-row>
+            <v-row v-if='item.public && canAccept(item)'>
+              <v-col cols='12' align='center'>
                 <v-btn 
-                     x-small
+                     small
                      rounded
                      width='62'
                      @click.native="$emit('action', { action: 'accept', item: item })"
@@ -106,9 +105,11 @@
                      Accept
                 </v-btn>
               </v-col>
-              <v-col cols='4' v-if='item.public && canDrop(item)'>
+            </v-row>
+            <v-row v-if='canDrop(item)'>
+              <v-col cols='12' align='center'>
                 <v-btn 
-                     x-small
+                     small
                      rounded
                      width='62'
                      v-if="canDrop(item)"
@@ -145,10 +146,6 @@ export default {
     return {
       password: '',
       show: false,
-      rules: {
-        required: value => !!value || 'Required.',
-        min: v => _.size(v) >= 8 || 'Min 8 characters'
-      },
       id: 0,
       details: {}
     }
@@ -244,9 +241,6 @@ export default {
     }
   },
   computed: {
-    disabled: function () {
-      return _.size(this.password) < 8
-    },
     snackbar: {
       get: function () {
         return this.$root.snackbar

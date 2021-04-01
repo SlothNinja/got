@@ -21,14 +21,15 @@
             :options.sync="options"
             loading-text="Loading... Please wait"
             :server-items-length="totalItems"
-            :footer-props="{ itemsPerPageOptions: [ 25, 50, 100 ] }"
+            :items-per-page='10'
+            :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
             >
             <template v-slot:item.creator="{ item }">
               <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
             </template>
             <template v-slot:item.players="{ item }">
               <span class="px-1" v-for="user in users(item)" :key="user.id" >
-                <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;<span :class='cpClass(item, user)'>{{user.name}}</span>
+                <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;<span :class='userClass(item, user)'>{{user.name}}</span>
               </span>
             </template>
           </v-data-table>
@@ -62,23 +63,24 @@ export default {
   },
   data () {
     return {
-      cursorMap: new Map,
+      cursors: [ "" ],
       loading: 'false',
       totalItems: 0,
-      forward: "",
       options: {},
       items: []
     }
   },
   created () {
-    this.$root.toolbar = 'sn-toolbar'
     this.fetchData()
   },
   watch: {
     '$route': 'fetchData',
     options: {
-      handler (val) {
-        this.fetchData(val)
+      handler (val, oldVal) {
+        if (val.itemsPerPage != oldVal.itemsPerPage) {
+          this.cursors = [ "" ]
+        }
+        this.fetchData()
       },
       deep: true,
     },
@@ -87,30 +89,13 @@ export default {
     this.fetchData()
   },
   methods: {
-    fetchOptions: function(val) {
-      let self = this
-      let key = JSON.stringify(val)
-      let options = self.cursorMap.get(key)
-      if (options) {
-        return options
-      }
-      options = {
-        page: val.page,
-        itemsPerPage: val.itemsPerPage,
-        forward: val.page == 1 ? "" : self.forward,
-      }
-      self.cursorMap.set(key, options)
-      return options
-    },
     showGame: function (item) {
       this.$router.push({name: 'game', params: { id: item.id } })
     },
-    fetchData: _.debounce(function (val) {
+    fetchData: _.debounce(function () {
       let self = this
       self.loading = true
-      let options = self.fetchOptions(val)
-
-      axios.post(`/games/${self.$route.params.status}`, options)
+      axios.post(`/games/${self.$route.params.status}`, { options: self.options, forward: self.forward })
         .then(function (response) {
           let msg = _.get(response, 'data.message', false)
           if (msg) {
@@ -210,6 +195,13 @@ export default {
         }
       })
     },
+    userClass: function (item, user) {
+      const completed = 2
+      if (item.status == completed) {
+        return this.winnerClass(item, user)
+      } 
+      return this.cpClass(item, user)
+    },
     cpClass: function (item, user) {
       let pid = _.indexOf(item.userIds, user.id) + 1
       let cpid = _.first(item.cpids)
@@ -221,8 +213,27 @@ export default {
       }
       return ''
     },
+    winnerClass: function (item, user) {
+      let index = _.indexOf(item.userIds, user.id)
+      let uKey = _.nth(item.userKeys, index)
+      if (_.includes(item.winnerKeys, uKey)) {
+        if (this.cuid == user.id) {
+          return 'font-weight-black red--text text--darken-4'
+        }
+        return 'font-weight-black'
+      }
+      return ''
+    },
   },
   computed: {
+    forward: {
+      get: function () {
+        return this.cursors[this.options.page-1]
+      },
+      set: function (value) {
+        this.cursors.splice(this.options.page, 1, value)
+      }
+    },
     headers () {
       return [
         { text: 'ID', align: 'left', sortable: false, value: 'id' },

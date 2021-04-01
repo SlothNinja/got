@@ -400,6 +400,8 @@ func (cl *client) acceptHandler(c *gin.Context) {
 		Password string `json:"password"`
 	}{}
 
+	cl.Log.Debugf("password: %v", obj.Password)
+
 	err = c.ShouldBind(&obj)
 	if err != nil {
 		sn.JErr(c, err)
@@ -674,12 +676,14 @@ func (cl *client) invitationsIndexHandler(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	options := struct {
-		ItemsPerPage int    `json:"itemsPerPage"`
-		Forward      string `json:"forward"`
+	obj := struct {
+		Options struct {
+			ItemsPerPage int `json:"itemsPerPage"`
+		} `json:"options"`
+		Forward string `json:"forward"`
 	}{}
 
-	err := c.ShouldBind(&options)
+	err := c.ShouldBind(&obj)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -691,7 +695,7 @@ func (cl *client) invitationsIndexHandler(c *gin.Context) {
 		return
 	}
 
-	forward, err := datastore.DecodeCursor(options.Forward)
+	forward, err := datastore.DecodeCursor(obj.Forward)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -708,9 +712,8 @@ func (cl *client) invitationsIndexHandler(c *gin.Context) {
 		return
 	}
 
-	cl.Log.Debugf("cnt: %v", cnt)
-	items := options.ItemsPerPage
-	if options.ItemsPerPage == -1 {
+	items := obj.Options.ItemsPerPage
+	if obj.Options.ItemsPerPage == -1 {
 		items = cnt
 	}
 
@@ -735,6 +738,7 @@ func (cl *client) invitationsIndexHandler(c *gin.Context) {
 		return
 	}
 
+	cl.Log.Debugf("es[0]: %#v", es[0])
 	c.JSON(http.StatusOK, gin.H{
 		"invitations": es,
 		"totalItems":  cnt,
@@ -747,18 +751,20 @@ func (cl *client) gamesIndex(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	options := struct {
-		ItemsPerPage int    `json:"itemsPerPage"`
-		Forward      string `json:"forward"`
+	obj := struct {
+		Options struct {
+			ItemsPerPage int `json:"itemsPerPage"`
+		} `json:"options"`
+		Forward string `json:"forward"`
 	}{}
 
-	err := c.ShouldBind(&options)
+	err := c.ShouldBind(&obj)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	cl.Log.Debugf("options: %#v", options)
+	cl.Log.Debugf("obj: %#v", obj)
 
 	cu, err := cl.User.Current(c)
 	if err != nil {
@@ -768,7 +774,7 @@ func (cl *client) gamesIndex(c *gin.Context) {
 	cl.Log.Debugf("cu: %#v", cu)
 	cl.Log.Debugf("err: %#v", err)
 
-	forward, err := datastore.DecodeCursor(options.Forward)
+	forward, err := datastore.DecodeCursor(obj.Forward)
 	if err != nil {
 		sn.JErr(c, err)
 		return
@@ -781,8 +787,6 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		Filter("Status=", int(status)).
 		Order("-UpdatedAt")
 
-	cl.Log.Debugf("status: %#v", status)
-	cl.Log.Debugf("client: %#v", cl)
 	cnt, err := cl.DS.Count(c, q)
 	if err != nil {
 		sn.JErr(c, err)
@@ -790,8 +794,8 @@ func (cl *client) gamesIndex(c *gin.Context) {
 	}
 
 	cl.Log.Debugf("cnt: %v", cnt)
-	items := options.ItemsPerPage
-	if options.ItemsPerPage == -1 {
+	items := obj.Options.ItemsPerPage
+	if obj.Options.ItemsPerPage == -1 {
 		items = cnt
 	}
 
@@ -816,6 +820,8 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		return
 	}
 
+	cl.Log.Debugf("forward: %#v", forward)
+	cl.Log.Debugf("forward.String: %#v", forward.String())
 	c.JSON(http.StatusOK, gin.H{
 		"gheaders":   es,
 		"totalItems": cnt,

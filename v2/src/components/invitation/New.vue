@@ -35,11 +35,13 @@
                       >
                       </v-select> 
                         <v-text-field
-                          label="Password"
-                          v-model="invitation.password"
+                          label='Password'
+                          v-model='invitation.password'
+                          :append-icon="show ? 'mdi-eye' : 'mdi-eye-off'"
+                          :type="show ? 'text' : 'password'"
                           placeholder="Enter Password for Private Game"
-                          type="password"
-                          autocomplete="new-password"
+                          clearable
+                          @click:append="show = !show"
                           >
                         </v-text-field>
                           <v-btn color='green' dark @click="putData">Submit</v-btn>
@@ -104,6 +106,7 @@ export default {
   mixins: [ CurrentUser ],
   data () {
     return {
+      show: false,
       invitation: {
         title: '',
         id: 0,

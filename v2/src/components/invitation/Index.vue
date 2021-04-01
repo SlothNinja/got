@@ -22,7 +22,8 @@
             :options.sync="options"
             loading-text="Loading... Please wait"
             :server-items-length="totalItems"
-            :footer-props="{ itemsPerPageOptions: [ 2, 5, 10 ] }"
+            :items-per-page='10'
+            :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
             show-expand
             single-expand
             >
@@ -79,11 +80,10 @@ export default {
   },
   data () {
     return {
-      cursorMap: new Map,
+      cursors: [ "" ],
       expanded: [],
       loading: 'false',
       totalItems: 0,
-      forward: "",
       options: {},
       password: '',
       show: false,
@@ -91,14 +91,16 @@ export default {
     }
   },
   created () {
-    this.$root.toolbar = 'sn-toolbar'
     this.fetchData()
   },
   watch: {
     '$route': 'fetchData',
     options: {
-      handler (val) {
-        this.fetchData(val)
+      handler (val, oldVal) {
+        if (val.itemsPerPage != oldVal.itemsPerPage) {
+          this.cursors = [ "" ]
+        }
+        this.fetchData()
       },
       deep: true,
     },
@@ -107,30 +109,13 @@ export default {
     this.fetchData()
   },
   methods: {
-    fetchOptions: function(val) {
-      let self = this
-      let key = JSON.stringify(val)
-      let options = self.cursorMap.get(key)
-      if (options) {
-        return options
-      }
-      options = {
-        page: val.page,
-        itemsPerPage: val.itemsPerPage,
-        forward: val.page == 1 ? "" : self.forward,
-      }
-      self.cursorMap.set(key, options)
-      return options
-    },
     expandRow: function(item) {
       this.expanded = item === this.expanded[0] ? [] : [item]
     },
-    fetchData: _.debounce(function (val) {
+    fetchData: _.debounce(function () {
       let self = this
       self.loading = true
-      let options = self.fetchOptions(val)
-
-      axios.post('/invitations', options)
+      axios.post('/invitations', { options: self.options, forward: self.forward })
         .then(function (response) {
 
           let msg = _.get(response, 'data.message', false)
@@ -171,8 +156,10 @@ export default {
       let self = this
       let data = {}
       let action = _.get(obj, 'action', false)
-      if (action == 'accept') {
-        data = { password: self.password }
+      if (action == 'acceptWith') {
+        let password = _.get(obj, 'password', '')
+        data = { password: password }
+        action = 'accept'
       }
       let id = _.get(obj, 'item.id', 0)
       axios.put(`/invitation/${action}/${id}`, data)
@@ -242,6 +229,14 @@ export default {
     },
   },
   computed: {
+    forward: {
+      get: function () {
+        return this.cursors[this.options.page-1]
+      },
+      set: function (value) {
+        this.cursors.splice(this.options.page, 1, value)
+      }
+    },
     headers () {
       return [
         { text: '', sortable: false, value: 'data-table-expand' },
@@ -253,10 +248,6 @@ export default {
         { text: 'Last Updated', sortable: false, value: 'lastUpdated' },
         { text: 'Public/Private', sortable: false, value: 'public' },
       ]
-    },
-    disabled: function () {
-      let self = this
-      return _.size(self.password) < 8
     },
     snackbar: {
       get: function () {
