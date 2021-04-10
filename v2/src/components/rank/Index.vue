@@ -75,11 +75,12 @@
 
 <script>
 import UserButton from '@/components/user/Button'
-import Toolbar from '@/components/Toolbar'
-import NavDrawer from '@/components/NavDrawer'
-import Snackbar from '@/components/Snackbar'
-import Footer from '@/components/Footer'
 import CurrentUser from '@/components/mixins/CurrentUser'
+
+import Toolbar from '@/components/lib/Toolbar'
+import NavDrawer from '@/components/lib/NavDrawer'
+import Snackbar from '@/components/lib/Snackbar'
+import Footer from '@/components/lib/Footer'
 
 const _ = require('lodash')
 const axios = require('axios')

@@ -1,17 +1,20 @@
 <template>
-  <v-btn 
-    fab
-    :x-small="size ? size === 'x-small' : true"
-    :small="size ? size === 'small' : true"
-    :medium="size ? size === 'medium' : true"
-    :large="size ? size === 'large' : true"
-    :color="color || 'black' "
-    :href="showlink"
-  >
-    <v-avatar :size="avatarSize" >
-      <img :src="gravatar(user.emailHash, size, user.gravType)" />
-    </v-avatar>
-  </v-btn>
+  <div>
+    <v-btn 
+      fab
+      :x-small="size ? size === 'x-small' : true"
+      :small="size ? size === 'small' : true"
+      :medium="size ? size === 'medium' : true"
+      :large="size ? size === 'large' : true"
+      :color="color || 'black' "
+      :href="showlink"
+      >
+      <v-avatar :size="avatarSize" >
+        <img :src="gravatar(user.emailHash, size, user.gravType)" />
+      </v-avatar>
+    </v-btn>
+      <span class='ml-1'><slot></slot></span>
+  </div>
 </template>
 
 <script>

@@ -92,10 +92,12 @@
 </template>
 
 <script>
-import Toolbar from '@/components/Toolbar'
-import Snackbar from '@/components/Snackbar'
-import Footer from '@/components/Footer'
-import NavDrawer from '@/components/NavDrawer'
+
+import Toolbar from '@/components/lib/Toolbar'
+import NavDrawer from '@/components/lib/NavDrawer'
+import Snackbar from '@/components/lib/Snackbar'
+import Footer from '@/components/lib/Footer'
+
 import CurrentUser from '@/components/mixins/CurrentUser'
 
 const _ = require('lodash')

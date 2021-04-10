@@ -27,16 +27,26 @@
             show-expand
             single-expand
             >
+            <template v-slot:item.title="{ item }">
+              <v-icon class='mb-2' small v-if='!item.public'>mdi-lock</v-icon>{{item.title}}
+            </template>
             <template v-slot:item.creator="{ item }">
-              <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
+              <v-row no-gutters>
+                <v-col>
+                  <sn-user-btn :user="creator(item)" size="x-small">
+                    {{creator(item).name}}
+                  </sn-user-btn>
+                </v-col>
+              </v-row>
             </template>
             <template v-slot:item.players="{ item }">
-              <span class="py-1" v-for="user in users(item)" :key="user.id" >
-                <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
-              </span>
-            </template>
-            <template v-slot:item.public="{ item }">
-              {{publicPrivate(item)}}
+              <v-row no-gutters>
+                <v-col class='my-1' cols='12' md='6' v-for="user in users(item)" :key="user.id" >
+                  <sn-user-btn :user="user" size="x-small">
+                    {{user.name}}
+                  </sn-user-btn>
+                </v-col>
+              </v-row>
             </template>
             <template v-slot:expanded-item="{ headers, item }">
               <sn-expanded-row
@@ -58,11 +68,13 @@
 
 import UserButton from '@/components/user/Button'
 import Expansion from '@/components/invitation/Expansion'
-import Toolbar from '@/components/Toolbar'
-import NavDrawer from '@/components/NavDrawer'
-import Snackbar from '@/components/Snackbar'
-import Footer from '@/components/Footer'
 import CurrentUser from '@/components/mixins/CurrentUser'
+
+import Toolbar from '@/components/lib/Toolbar'
+import NavDrawer from '@/components/lib/NavDrawer'
+import Snackbar from '@/components/lib/Snackbar'
+import Footer from '@/components/lib/Footer'
+
 
 const _ = require('lodash')
 const axios = require('axios')
@@ -206,9 +218,6 @@ export default {
       let self = this
       return _.find(self.items, [ 'id', id ])
     },
-    publicPrivate: function (item) {
-      return item.public ? 'Public' : 'Private'
-    },
     creator: function (item) {
       return {
         id: item.creatorId,
@@ -237,17 +246,24 @@ export default {
         this.cursors.splice(this.options.page, 1, value)
       }
     },
-    headers () {
+    headers: function () {
       return [
         { text: '', sortable: false, value: 'data-table-expand' },
         { text: 'ID', align: 'left', sortable: false, value: 'id' },
         { text: 'Title', sortable: false, value: 'title' },
-        { text: 'Creator', sortable: false, value: 'creator' },
+        { text: 'Creator', sortable: false, width: '180px', value: 'creator' },
         { text: 'Num Players', sortable: false, value: 'numPlayers' },
-        { text: 'Players', sortable: false, value: 'players' },
+        { text: 'Players', sortable: false, width: this.width, value: 'players' },
         { text: 'Last Updated', sortable: false, value: 'lastUpdated' },
-        { text: 'Public/Private', sortable: false, value: 'public' },
       ]
+    },
+    width: function () {
+      console.log(`mdAndUp: ${this.$vuetify.breakpoint.mdAndUp}`)
+      if (this.$vuetify.breakpoint.mdAndUp) {
+        return '30%'
+      } else {
+        return '180px'
+      }
     },
     snackbar: {
       get: function () {

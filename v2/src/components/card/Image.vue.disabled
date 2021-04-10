@@ -1,0 +1,18 @@
+<template>
+  <v-img
+    :src="cardPath(kind)"
+    :width="width"
+    >
+  </v-img>
+</template>
+
+<script>
+
+  import CardPaths from '@/components/mixins/CardPaths'
+
+  export default {
+    name: 'sn-card-image',
+    mixins: [ CardPaths ],
+    props: [ 'kind', 'width' ]
+  }
+</script>

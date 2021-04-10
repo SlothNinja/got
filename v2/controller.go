@@ -972,3 +972,59 @@ func (cl *client) putCachedGame(c *gin.Context, g *Game, id, rev int64) (*Game, 
 	cl.Cache.Delete(k.Encode())
 	return g, k, nil
 }
+
+// type Options struct {
+// 	ItemsPerPage int              `json:"itemsPerPage"`
+// 	Forward      datastore.Cursor `json:"forward"`
+// 	Status       game.Status      `json:"status"`
+// 	Type         gtype.Type       `json:"type"`
+// 	UserID       int64            `json:"userId"`
+// }
+//
+// func (cl *Client) GamesIndex(ctx context.Context, opt Options) ([]*GHeader, datastore.Cursor, error) {
+// 	cl.Log.Debugf("Entering")
+// 	defer cl.Log.Debugf("Exiting")
+//
+// 	q := datastore.
+// 		NewQuery("Game").
+// 		Filter("Status=", int(opt.Status)).
+// 		Order("-UpdatedAt")
+//
+// 	if opt.Type != gtype.All && opt.Type != gtype.NoType {
+// 		q = q.Filter("Type=", int(opt.Type))
+// 	}
+//
+// 	if opt.UserID != 0 {
+// 		q = q.Filter("UserIDS=", opt.UserID)
+// 	}
+//
+// 	cnt, err := cl.DS.Count(ctx, q)
+// 	if err != nil {
+// 		return nil, datastore.Cursor{}, err
+// 	}
+//
+// 	items := opt.ItemsPerPage
+// 	if opt.ItemsPerPage == -1 {
+// 		items = cnt
+// 	}
+//
+// 	var es []*GHeader
+// 	it := cl.DS.Run(ctx, q.Start(opt.Forward))
+// 	for i := 0; i < items; i++ {
+// 		var h Header
+// 		k, err := it.Next(&h)
+// 		if err == iterator.Done {
+// 			break
+// 		}
+// 		if err != nil {
+// 			return nil, datastore.Cursor{}, err
+// 		}
+// 		es = append(es, &GHeader{Key: k, Header: h})
+// 	}
+//
+// 	forward, err := it.Cursor()
+// 	if err != nil {
+// 		return nil, datastore.Cursor{}, err
+// 	}
+// 	return es, forward, nil
+// }

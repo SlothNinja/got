@@ -6,16 +6,19 @@
         dark
         overlap
         bottom
-      >
-        <span slot="badge">{{deck ? deck.length : 0}}</span>
-          <sn-card
-            :show='show'
-            :kind='topCard(deck)'
+        :content='count'
+        >
+        <sn-card
+          :show='show'
+          :kind='topCard(deck)'
+          :width='50'
           >
-          </sn-card>
+        </sn-card>
       </v-badge>
     </div>
-    <div class='text-center font-weight-black'>{{label}}</div>
+    <div class='text-center font-weight-black'>
+      <slot></slot>
+    </div>
   </div>
 </template>
 
@@ -31,12 +34,17 @@
     components: {
       'sn-card': Card
     },
-    props: [ 'deck', 'show', 'label' ],
+    props: [ 'deck', 'show', 'size' ],
     methods: {
       topCard: function (deck) {
         var card = _.first(deck)
         return card ? card.kind : 'card-back'
       },
+    },
+    computed: {
+      count: function () {
+        return _.toString(_.size(this.deck))
+      }
     }
   }
 </script>

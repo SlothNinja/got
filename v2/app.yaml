@@ -15,6 +15,7 @@ default_expiration: "10m"
 
 env_variables:
   GOT_PROJECT_ID: "got-slothninja-games"
+  HOST: "got.slothninja.com"
   GOT_HOST_URL: "got.slothninja.com"
   GOT_DS_URL: "got.slothninja.com"
   USER_PROJECT_ID: "user-slothninja-games"

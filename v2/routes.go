@@ -23,6 +23,14 @@ import (
 	"google.golang.org/api/option"
 )
 
+// type Client struct {
+// 	*sn.Client
+// }
+//
+// func NewClient(ctx context.Context, snClient *sn.Client) *Client {
+// 	return &Client{snClient}
+// }
+
 type client struct {
 	*sn.Client
 	User      *user.Client
@@ -41,9 +49,6 @@ func newClient(ctx context.Context) *client {
 		Cache:     cache.New(30*time.Minute, 10*time.Minute),
 		Router:    gin.Default(),
 	})
-
-	snClient.Log.Debugf("ProjectID: %q", getGotProjectID())
-	snClient.Log.Debugf("DSURL: %q", getGotDSURL())
 
 	uClient := user.NewClient(sn.NewClient(ctx, sn.Options{
 		ProjectID: getUserProjectID(),

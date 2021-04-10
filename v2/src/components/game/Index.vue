@@ -25,12 +25,22 @@
             :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
             >
             <template v-slot:item.creator="{ item }">
-              <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
+              <v-row no-gutters>
+                <v-col>
+                  <sn-user-btn :user="creator(item)" size="x-small">
+                    {{creator(item).name}}
+                  </sn-user-btn>
+                </v-col>
+              </v-row>
             </template>
             <template v-slot:item.players="{ item }">
-              <span class="px-1" v-for="user in users(item)" :key="user.id" >
-                <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;<span :class='userClass(item, user)'>{{user.name}}</span>
-              </span>
+              <v-row no-gutters>
+                <v-col class='my-1' cols='12' md='6' v-for="user in users(item)" :key="user.id" >
+                  <sn-user-btn :user="user" size="x-small">
+                    <span :class='userClass(item, user)'>{{user.name}}</span>
+                  </sn-user-btn>
+                </v-col>
+              </v-row>
             </template>
           </v-data-table>
         </v-card>
@@ -42,11 +52,13 @@
 
 <script>
 import UserButton from '@/components/user/Button'
-import Toolbar from '@/components/Toolbar'
-import NavDrawer from '@/components/NavDrawer'
-import Snackbar from '@/components/Snackbar'
-import Footer from '@/components/Footer'
 import CurrentUser from '@/components/mixins/CurrentUser'
+
+import Toolbar from '@/components/lib/Toolbar'
+import NavDrawer from '@/components/lib/NavDrawer'
+import Snackbar from '@/components/lib/Snackbar'
+import Footer from '@/components/lib/Footer'
+
 
 const _ = require('lodash')
 const axios = require('axios')
@@ -234,14 +246,22 @@ export default {
         this.cursors.splice(this.options.page, 1, value)
       }
     },
-    headers () {
+    headers: function () {
       return [
         { text: 'ID', align: 'left', sortable: false, value: 'id' },
         { text: 'Title', sortable: false, value: 'title' },
-        { text: 'Creator', sortable: false, value: 'creator' },
-        { text: 'Players', sortable: false, value: 'players' },
+        { text: 'Creator', sortable: false, width: '180px', value: 'creator' },
+        { text: 'Players', sortable: false, width: this.width, value: 'players' },
         { text: 'Last Updated', sortable: false, value: 'lastUpdated' },
       ]
+    },
+    width: function () {
+      console.log(`mdAndUp: ${this.$vuetify.breakpoint.mdAndUp}`)
+      if (this.$vuetify.breakpoint.mdAndUp) {
+        return '30%'
+      } else {
+        return '180px'
+      }
     },
     status: function () {
       return _.capitalize(this.$route.params.status)

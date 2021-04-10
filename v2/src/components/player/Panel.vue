@@ -1,63 +1,61 @@
 <template>
-  <v-card>
-    <v-container>
-      <v-row align='center'>
-        <v-col>
-          <sn-user-btn 
-            :user='userFor(player)'
-            :color='colorByPlayer(player)'
-            size='small'
-          >
-          </sn-user-btn>
-          {{nameFor(player)}}
-        </v-col>
-        <v-col>
+  <v-card class='mb-3'>
+    <v-card-text>
+      <v-row no-gutters align='center'>
+        <v-col cols='12' md='3'>
+          <div>
+            <sn-user-btn 
+             :user='userFor(player)'
+             :color='colorByPlayer(player)'
+             size='small'
+             >
+            </sn-user-btn>
+              {{nameFor(player)}}
+          </div>
           <div><strong>Score:</strong> {{player.score}}</div>
-        </v-col>
-        <v-col>
           <div v-if='player.passed'><strong>Passed</strong></div>
         </v-col>
-      </v-row>
-    </v-container>
-    <v-divider></v-divider>
-    <v-container>
-      <v-row>
-        <v-col>
-          <sn-deck :id='`hand-${player.id}`' label='Hand' :deck='player.hand' :show='false'></sn-deck>
+        <v-col cols='4' md='3'>
+          <sn-deck :deck='player.hand' :show='false' size='small'>Hand</sn-deck>
         </v-col>
-        <v-col>
-          <sn-deck :id='`draw-${player.id}`' label='Draw' :deck='player.drawPile' :show='false'></sn-deck>
+        <v-col cols='4' md='3'>
+          <sn-deck :deck='player.drawPile' :show='false' size='small'>Draw</sn-deck>
         </v-col>
-        <v-col>
-          <sn-deck :id='`discard-${player.id}`' label='Discard' :deck='player.discardPile' :show='true' ></sn-deck>
+        <v-col cols='4' md='3'>
+          <sn-deck :deck='player.discardPile' :show='true' size='small'>Discard</sn-deck>
         </v-col>
       </v-row>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn
-          small
-          width='64'
-          :disabled='!canShow'
-          color='info'
-          dark
-          @click.stop="$emit('show')"
+    </v-card-text>
+    <v-divider v-if='showBtns'></v-divider>
+    <v-card-actions v-if='showBtns'>
+      <v-row
+        no-gutters
+        justify='space-around'
         >
-          Hand
-        </v-btn>
-        <v-spacer></v-spacer>
-        <v-btn
-          small
-          width='64'
-          :disabled='!canPass'
-          color='info'
-          dark
-          @click.stop="$emit('pass')"
-        >
-          Pass
-        </v-btn>
-        <v-spacer></v-spacer>
-      </v-card-actions>
-    </v-container>
+        <v-col align='center' v-if='canShow'>
+          <v-btn
+            small
+            width='64'
+            color='info'
+            dark
+            @click.stop="$emit('show')"
+            >
+            Hand
+          </v-btn>
+        </v-col>
+        <v-col align='center' v-if='canPass'>
+          <v-btn
+            small
+            width='64'
+            color='info'
+            dark
+            @click.stop="$emit('pass')"
+            >
+            Pass
+          </v-btn>
+        </v-col>
+      </v-row>
+    </v-card-actions>
   </v-card>
 </template>
 
@@ -90,6 +88,9 @@
       canShow: function () {
         var self = this
         return self.isPlayerFor(self.player, self.cu)
+      },
+      showBtns: function () {
+        return this.canPass || this.canShow
       }
     }
   }

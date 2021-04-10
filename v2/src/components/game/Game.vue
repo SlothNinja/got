@@ -57,7 +57,7 @@
       <v-main>
         <v-container fluid>
           <v-row>
-            <v-col cols='4'>
+            <v-col cols='12' md='4' order='2' order-md='1'>
               <v-row>
                 <v-col>
                   <sn-status-panel :game='game' :live.sync='live'></sn-status-panel>
@@ -78,7 +78,7 @@
 
             </v-col>
 
-            <v-col cols='8'>
+            <v-col cols='12' md='8' order='1' order-md='2'>
 
               <v-row>
                 <v-col>
@@ -106,10 +106,6 @@
 
 <script>
 import Controlbar from '@/components/game/Controlbar'
-import Toolbar from '@/components/Toolbar'
-import Snackbar from '@/components/Snackbar'
-import Footer from '@/components/Footer'
-import NavDrawer from '@/components/NavDrawer'
 import ChatDrawer from '@/components/chat/Drawer'
 import LogDrawer from '@/components/log/Drawer'
 import Board from '@/components/board/Board'
@@ -120,6 +116,11 @@ import Messagebar from '@/components/game/Messagebar'
 import CurrentUser from '@/components/mixins/CurrentUser'
 import Messaging from '@/components/mixins/Messaging'
 import Player from '@/components/mixins/Player'
+
+import Toolbar from '@/components/lib/Toolbar'
+import NavDrawer from '@/components/lib/NavDrawer'
+import Snackbar from '@/components/lib/Snackbar'
+import Footer from '@/components/lib/Footer'
 
 const _ = require('lodash')
 const axios = require('axios')

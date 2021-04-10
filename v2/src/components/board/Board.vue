@@ -1,6 +1,7 @@
 <template>
   <v-card
     color='green'
+    min-height='656'
     min-width='860'
   >
     <v-card-text

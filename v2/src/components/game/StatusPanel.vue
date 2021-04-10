@@ -41,7 +41,7 @@
               </v-row>
               <v-row no-gutters>
                 <v-col align='center'>
-                  <v-card color='green' height='90' width='90' >
+                  <v-card color='green' height='90' min-width='90' width='90' >
                   <v-tooltip bottom>
                     <template v-slot:activator="{ on }">
                       <space-image v-on="on" :value='game.jewels'></space-image>

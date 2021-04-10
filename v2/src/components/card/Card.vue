@@ -7,7 +7,13 @@
       open-delay='400'
     >
       <template v-slot:activator="{ on }">
-        <sn-card-image v-on="on" :kind='kind' :show='show' ></sn-card-image>
+        <v-img
+          :src="cardPath(show ? kind : 'cardback')"
+          v-on='on'
+          :width='width'
+          style='border-radius:5%'
+          >
+        </v-img>
       </template>
       <span>{{tooltip(kind)}}</span>
     </v-tooltip>
@@ -15,15 +21,12 @@
 </template>
 
 <script>
-  import Image from '@/components/card/Image'
   import Tooltip from '@/components/mixins/Tooltip'
+  import CardPaths from '@/components/mixins/CardPaths'
 
   export default {
-    mixins: [ Tooltip ],
+    mixins: [ CardPaths, Tooltip ],
     name: 'sn-card',
-    props: [ 'kind', 'show' ],
-    components: {
-      'sn-card-image': Image
-    }
+    props: [ 'kind', 'show', 'width' ]
   }
 </script>

@@ -7,6 +7,7 @@
     dark
     app
   >
+
   <v-row no-gutters>
     <v-col cols='1'>
       <v-tooltip bottom color='info' dark>
@@ -19,9 +20,9 @@
     <v-col>
         <slot></slot>
       </v-col>
-      <v-col cols='1' align='right'>
-        <v-card :to="{ name: 'sng-home' }" color='white' width='100' >
-          <v-img width='100' :src="require('../assets/slothninja_logo_fullsize.png')" />
+      <v-col cols='auto' align='right'>
+        <v-card :to="{ name: 'sng-home' }" color='white' min-width='100' >
+          <v-img width='100' :src="imagePath('logo')" />
         </v-card>
       </v-col>
     </v-row>
@@ -31,9 +32,10 @@
 
 <script>
   import CurrentUser from '@/components/mixins/CurrentUser'
+  import ImagePaths from '@/components/lib/mixins/ImagePaths'
 
   export default {
-    mixins: [ CurrentUser ],
+    mixins: [ CurrentUser, ImagePaths ],
     name: 'sn-toolbar',
     props: [ 'value' ]
   }
