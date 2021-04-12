@@ -74,7 +74,7 @@
 
 <script>
 
-import CurrentUser from '@/components/mixins/CurrentUser'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 import Message from '@/components/chat/Message'
 
 const axios = require('axios')

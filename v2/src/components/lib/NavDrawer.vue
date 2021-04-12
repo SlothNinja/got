@@ -118,8 +118,8 @@
 </template>
 
 <script>
-import UserButton from '@/components/user/Button'
-import CurrentUser from '@/components/mixins/CurrentUser'
+import UserButton from '@/components/lib/user/Button'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 
 const _ = require('lodash')
 
@@ -165,6 +165,20 @@ export default {
           }
         },
         {
+          path: '/sng-join-game/:type',
+          name: 'sng-join-game',
+          beforeEnter: (to, from, next) => {
+            let game = process.env.VUE_APP_GAME
+            let sngHome = process.env.VUE_APP_SNG_HOME
+            if (to.params.type == game) {
+              next({ name: 'new'})
+            } else {
+              window.location.replace(`${sngHome}${to.params.type}/games/recruiting`)
+              next()
+            }
+          }
+        },
+        {
           path: '/sng-new-game/:type',
           name: 'sng-new-game',
           beforeEnter: (to, from, next) => {
@@ -174,6 +188,20 @@ export default {
               next({ name: 'new'})
             } else {
               window.location.replace(`${sngHome}${to.params.type}/game/new`)
+              next()
+            }
+          }
+        },
+        {
+          path: '/sng-ratings/:type',
+          name: 'sng-ratings',
+          beforeEnter: (to, from, next) => {
+            let game = process.env.VUE_APP_GAME
+            let sngHome = process.env.VUE_APP_SNG_HOME
+            if (to.params.type == game) {
+              next({ name: 'rank'})
+            } else {
+              window.location.replace(`${sngHome}ratings/show/${to.params.type}`)
               next()
             }
           }
@@ -216,7 +244,7 @@ export default {
       return _.map(this.types, game => {
         return { 
           createlink: { name: 'sng-new-game', params: { type: game.type } },
-          joinlink: { name: 'sng-games', params: { type: game.type, status: 'recruiting' } },
+          joinlink: { name: 'sng-join-game', params: { type: game.type, status: 'recruiting' } },
           playlink: { name: 'sng-games', params: { type: game.type, status: 'running' } },
           completedlink: { name: 'sng-games', params: { type: game.type, status: 'completed' } },
           ratingslink: { name: 'sng-ratings', params: { type: game.type } },

@@ -59,7 +59,7 @@ import Toolbar from '@/components/lib/Toolbar'
 import NavDrawer from '@/components/lib/NavDrawer'
 import Snackbar from '@/components/lib/Snackbar'
 import Footer from '@/components/lib/Footer'
-import CurrentUser from '@/components/mixins/CurrentUser'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 
 const _ = require('lodash')
 const axios = require('axios')

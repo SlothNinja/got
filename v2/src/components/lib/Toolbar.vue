@@ -31,7 +31,7 @@
 
 
 <script>
-  import CurrentUser from '@/components/mixins/CurrentUser'
+  import CurrentUser from '@/components/lib/mixins/CurrentUser'
   import ImagePaths from '@/components/lib/mixins/ImagePaths'
 
   export default {

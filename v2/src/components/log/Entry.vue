@@ -56,7 +56,7 @@
 
 <script>
   import Message from '@/components/log/Message'
-  import Button from '@/components/user/Button'
+  import Button from '@/components/lib/user/Button'
   import Color from '@/components/mixins/Color'
   import Player from '@/components/mixins/Player'
 

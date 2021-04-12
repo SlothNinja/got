@@ -25,7 +25,7 @@
 </template>
 
 <script>
-import UserButton from '@/components/user/Button'
+import UserButton from '@/components/lib/user/Button'
 
 const _ = require('lodash')
 

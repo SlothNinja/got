@@ -61,10 +61,10 @@
 
 <script>
   import Deck from '@/components/deck/Deck'
-  import CurrentUser from '@/components/mixins/CurrentUser'
+  import CurrentUser from '@/components/lib/mixins/CurrentUser'
   import Player from '@/components/mixins/Player'
   import Color from '@/components/mixins/Color'
-  import Button from '@/components/user/Button'
+  import Button from '@/components/lib/user/Button'
 
   const _ = require('lodash')
 

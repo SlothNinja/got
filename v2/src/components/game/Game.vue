@@ -113,7 +113,7 @@ import Bar from '@/components/card/Bar'
 import StatusPanel from '@/components/game/StatusPanel'
 import Panels from '@/components/player/Panels'
 import Messagebar from '@/components/game/Messagebar'
-import CurrentUser from '@/components/mixins/CurrentUser'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 import Messaging from '@/components/mixins/Messaging'
 import Player from '@/components/mixins/Player'
 

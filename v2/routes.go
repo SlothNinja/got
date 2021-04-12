@@ -23,14 +23,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-// type Client struct {
-// 	*sn.Client
-// }
-//
-// func NewClient(ctx context.Context, snClient *sn.Client) *Client {
-// 	return &Client{snClient}
-// }
-
 type client struct {
 	*sn.Client
 	User      *user.Client
@@ -152,6 +144,11 @@ func (cl *client) addRoutes() *client {
 	////////////////////////////////////////////
 	// Home
 	cl.Router.GET(homePath, cl.homeHandler)
+
+	///////////////////////////////////////////////
+	// Rankings
+	rnks := cl.Router.Group("rankings")
+	rnks.POST("", cl.rankingsIndex)
 
 	////////////////////////////////////////////
 	// Message Log

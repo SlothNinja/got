@@ -58,7 +58,7 @@
 
 <script>
 import Player from '@/components/mixins/Player'
-import Button from '@/components/user/Button'
+import Button from '@/components/lib/user/Button'
 import Color from '@/components/mixins/Color'
 
 const _ = require('lodash')

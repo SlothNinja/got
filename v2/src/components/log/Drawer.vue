@@ -42,7 +42,7 @@
 
 <script>
 // import GameLog from '@/components/log/Box'
-import CurrentUser from '@/components/mixins/CurrentUser'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 import Entry from '@/components/log/Entry'
 
 export default {

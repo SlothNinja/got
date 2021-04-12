@@ -1,5 +1,5 @@
 <script>
-  import CurrentUser from '@/components/mixins/CurrentUser'
+  import CurrentUser from '@/components/lib/mixins/CurrentUser'
   import Player from '@/components/mixins/Player'
 
   const _ = require('lodash')

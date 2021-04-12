@@ -10,59 +10,28 @@
     <v-main>
       <v-container>
         <v-card>
-          <v-card-title primary-title>
-            <h3>{{ status }} Games</h3>
+          <v-card-title>
+            Guild of Thieves Rankings
           </v-card-title>
           <v-card-text>
             <v-data-table
               :headers="headers"
               :items="items"
+              :loading="loading"
+              :options.sync="options"
+              loading-text="Loading... Please wait"
+              :server-items-length="totalItems"
+              :items-per-page='10'
+              :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
               >
-              <template v-slot:item.creator="{ item }">
-                <sn-user-btn :user="creator(item)" size="x-small"></sn-user-btn>&nbsp;{{creator(item).name}}
+              <template v-slot:item.user="{ item }">
+                <sn-user-btn :user="item.user" size="x-small">{{item.user.name}}</sn-user-btn>
               </template>
-              <template v-slot:item.players="{ item }">
-                <div class="py-1" v-for="user in users(item)" :key="user.id" >
-                  <sn-user-btn :user="user" size="x-small"></sn-user-btn>&nbsp;{{user.name}}
-                </div>
+              <template v-slot:item.current="{ item }">
+                {{display(item.current)}}
               </template>
-              <template v-slot:item.public="{ item }">
-                {{publicPrivate(item)}}
-              </template>
-              <template v-slot:item.actions="{ item }">
-                <v-btn 
-                        x-small
-                        rounded
-                        width='62'
-                        v-if="canAccept(item.id)"
-                        @click="action('accept', item.id)"
-                        color='info'
-                        dark
-                        >
-                        Accept
-                </v-btn>
-                  <v-btn 
-                        x-small
-                        rounded
-                        width='62'
-                        v-if="canDrop(item.id)"
-                        @click="action('drop', item.id)"
-                        color='info'
-                        dark
-                        >
-                        Drop
-                  </v-btn>
-                    <v-btn 
-                        x-small
-                        rounded
-                        width='62'
-                        v-if="status == 'Running'"
-                        :to="{ name: 'game', params: { id: item.id }}"
-                        color='info'
-                        dark
-                        >
-                        Show
-                    </v-btn>
+              <template v-slot:item.projected="{ item }">
+                {{display(item.projected)}}
               </template>
             </v-data-table>
           </v-card-text>
@@ -74,9 +43,8 @@
 </template>
 
 <script>
-import UserButton from '@/components/user/Button'
-import CurrentUser from '@/components/mixins/CurrentUser'
-
+import UserButton from '@/components/lib/user/Button'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 import Toolbar from '@/components/lib/Toolbar'
 import NavDrawer from '@/components/lib/NavDrawer'
 import Snackbar from '@/components/lib/Snackbar'
@@ -97,37 +65,46 @@ export default {
   },
   data () {
     return {
-      headers: [
-        {
-          text: 'Rank',
-          align: 'left',
-          sortable: true,
-          value: 'rank'
-        },
-        { text: 'Gravatar', value: 'gravatar' },
-        { text: 'Name', value: 'name' },
-        { text: 'Current', value: 'current' },
-        { text: 'Projected', value: 'projected' },
-      ],
+      cursors: [ "" ],
+      loading: 'false',
+      totalItems: 0,
+      options: {},
       items: []
     }
   },
   created () {
-    this.$root.toolbar = 'sn-toolbar'
     this.fetchData()
   },
   watch: {
-    '$route': 'fetchData'
+    '$route': 'fetchData',
+    options: {
+      handler (val, oldVal) {
+        if (val.itemsPerPage != oldVal.itemsPerPage) {
+          this.cursors = [ "" ]
+        }
+        this.fetchData()
+      },
+      deep: true,
+    },
   },
   methods: {
-    fetchData: function () {
+    fetchData: _.debounce(function () {
       let self = this
-      axios.post('/ratings/show/got/json')
+      self.loading = true
+      axios.post('/rankings', { options: self.options, forward: self.forward })
         .then(function (response) {
           let msg = _.get(response, 'data.message', false)
           if (msg) {
             self.snackbar.message = msg
             self.snackbar.open = true
+          }
+          let totalItems = _.get(response, 'data.totalItems', false)
+          if (totalItems) {
+            self.totalItems = totalItems
+          }
+          let forward = _.get(response, 'data.forward', false)
+          if (forward) {
+            self.forward = forward
           }
           let gheaders = _.get(response, 'data.gheaders', false)
           if (gheaders) {
@@ -139,42 +116,32 @@ export default {
             self.cu = cu
             self.cuLoading = false
           }
+          self.loading = false
         })
         .catch(function () {
           self.loading = false
           self.snackbar.message = 'Server Error.  Try refreshing page.'
           self.snackbar.open = true
         })
-    },
-    getItem: function (id) {
-      let self = this
-      return _.find(self.items, [ 'id', id ])
-    },
-    publicPrivate: function (item) {
-      return item.public ? 'Public' : 'Private'
-    },
-    creator: function (item) {
-      return {
-        id: item.creatorId,
-        name: item.creatorName,
-        emailHash: item.creatorEmailHash,
-        gravType: item.creatorGravType
-      }
-    },
-    users: function (item) {
-      return _.map(item.userIds, function (id, i) {
-        return {
-          id: id,
-          name: item.userNames[i],
-          emailHash: item.userEmailHashes[i],
-          gravType: item.userGravTypes[i],
-        }
-      })
-    },
+    }, 1000),
+    display: rating => `${_.toInteger(rating.low)} (${_.toInteger(rating.r)}:${_.toInteger(rating.rd)})`,
   },
   computed: {
-    status: function () {
-      return _.capitalize(this.$route.params.status)
+    forward: {
+      get: function () {
+        return this.cursors[this.options.page-1]
+      },
+      set: function (value) {
+        this.cursors.splice(this.options.page, 1, value)
+      }
+    },
+    headers: function () {
+      return [
+        { text: 'Rank', align: 'left', sortable: true, value: 'rank' },
+        { text: 'User', value: 'user' },
+        { text: 'Current', value: 'current' },
+        { text: 'Projected', value: 'projected' },
+      ]
     },
     snackbar: {
       get: function () {
@@ -195,10 +162,3 @@ export default {
   }
 }
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h1, h2, h3 {
-  font-weight: normal;
-}
-</style>

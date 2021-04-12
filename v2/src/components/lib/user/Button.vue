@@ -18,7 +18,7 @@
 </template>
 
 <script>
-  import Gravatar from '@/components/mixins/Gravatar'
+  import Gravatar from '@/components/lib/mixins/Gravatar'
 
   export default {
     mixins: [ Gravatar ],

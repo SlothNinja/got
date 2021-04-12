@@ -62,7 +62,7 @@
 <script>
   import GameLog from '@/components/log/Box'
   import ChatBox from '@/components/chat/Box'
-  import CurrentUser from '@/components/mixins/CurrentUser'
+  import CurrentUser from '@/components/lib/mixins/CurrentUser'
 
   export default {
     name: 'sn-rdrawer',

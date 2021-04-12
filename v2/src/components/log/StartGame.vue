@@ -25,7 +25,7 @@
 </template>
 
 <script>
-  import Button from '@/components/user/Button'
+  import Button from '@/components/lib/user/Button'
   import Player from '@/components/mixins/Player'
   import Color from '@/components/mixins/Color'
 

@@ -47,7 +47,7 @@
 
 <script>
 import Player from '@/components/mixins/Player'
-import CurrentUser from '@/components/mixins/CurrentUser'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 
 var _ = require('lodash')
 

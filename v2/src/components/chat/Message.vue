@@ -42,7 +42,7 @@
 </template>
 
 <script>
-  import UserButton from '@/components/user/Button'
+  import UserButton from '@/components/lib/user/Button'
   import Color from '@/components/mixins/Color'
 
   export default {

@@ -51,8 +51,8 @@
 </template>
 
 <script>
-import UserButton from '@/components/user/Button'
-import CurrentUser from '@/components/mixins/CurrentUser'
+import UserButton from '@/components/lib/user/Button'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 
 import Toolbar from '@/components/lib/Toolbar'
 import NavDrawer from '@/components/lib/NavDrawer'

@@ -18,7 +18,6 @@
 <script>
   import Panel from '@/components/player/Panel'
   import Player from '@/components/mixins/Player'
-  //import Button from '@/components/user/Button'
   import Color from '@/components/mixins/Color'
 
   export default {

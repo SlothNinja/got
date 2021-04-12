@@ -11,6 +11,7 @@ import (
 	"github.com/SlothNinja/game"
 	"github.com/SlothNinja/log"
 	"github.com/SlothNinja/mlog"
+	"github.com/SlothNinja/rating"
 	"github.com/SlothNinja/sn"
 	gtype "github.com/SlothNinja/type"
 	"github.com/SlothNinja/undo"
@@ -764,15 +765,11 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		return
 	}
 
-	cl.Log.Debugf("obj: %#v", obj)
-
 	cu, err := cl.User.Current(c)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
-	cl.Log.Debugf("cu: %#v", cu)
-	cl.Log.Debugf("err: %#v", err)
 
 	forward, err := datastore.DecodeCursor(obj.Forward)
 	if err != nil {
@@ -780,7 +777,6 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		return
 	}
 
-	cl.Log.Debugf("forward: %#v", forward)
 	status := game.ToStatus[c.Param("status")]
 	q := datastore.
 		NewQuery(headerKind).
@@ -793,7 +789,6 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		return
 	}
 
-	cl.Log.Debugf("cnt: %v", cnt)
 	items := obj.Options.ItemsPerPage
 	if obj.Options.ItemsPerPage == -1 {
 		items = cnt
@@ -820,10 +815,111 @@ func (cl *client) gamesIndex(c *gin.Context) {
 		return
 	}
 
-	cl.Log.Debugf("forward: %#v", forward)
-	cl.Log.Debugf("forward.String: %#v", forward.String())
 	c.JSON(http.StatusOK, gin.H{
 		"gheaders":   es,
+		"totalItems": cnt,
+		"forward":    forward.String(),
+		"cu":         cu,
+	})
+}
+
+type ranking struct {
+	Rank      int                   `json:"rank"`
+	User      *user.User            `json:"user"`
+	Current   *rating.CurrentRating `json:"current"`
+	Projected *rating.CurrentRating `json:"projected"`
+}
+
+func (cl *client) rankingsIndex(c *gin.Context) {
+	cl.Log.Debugf(msgEnter)
+	defer cl.Log.Debugf(msgExit)
+
+	obj := struct {
+		Options struct {
+			Page         int `json:"page"`
+			ItemsPerPage int `json:"itemsPerPage"`
+		} `json:"options"`
+		Forward string `json:"forward"`
+	}{}
+
+	err := c.ShouldBind(&obj)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	cl.Log.Debugf("obj: %#v", obj)
+	cu, err := cl.User.Current(c)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	forward, err := datastore.DecodeCursor(obj.Forward)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	q := datastore.
+		NewQuery("CurrentRating").
+		Filter("Leader=", true).
+		Order("-Low")
+
+	cnt, err := cl.DS.Count(c, q)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	items := obj.Options.ItemsPerPage
+	rankOffset := ((obj.Options.Page - 1) * items) + 1
+	if obj.Options.ItemsPerPage == -1 {
+		items = cnt
+		rankOffset = 1
+	}
+
+	var rs []*ranking
+	it := cl.DS.Run(c, q.Start(forward))
+	for i := 0; i < items; i++ {
+		var cr rating.CurrentRating
+		k, err := it.Next(&cr)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+
+		pr, err := cl.Rating.GetProjected(c, k.Parent, cr.Type)
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+
+		u, err := cl.User.Get(c, k.Parent.ID)
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+
+		rs = append(rs, &ranking{
+			Rank:      rankOffset + i,
+			User:      u,
+			Current:   &cr,
+			Projected: pr,
+		})
+	}
+
+	forward, err = it.Cursor()
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"gheaders":   rs,
 		"totalItems": cnt,
 		"forward":    forward.String(),
 		"cu":         cu,

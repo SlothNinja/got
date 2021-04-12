@@ -129,7 +129,7 @@
 </template>
 
 <script>
-import CurrentUser from '@/components/mixins/CurrentUser'
+import CurrentUser from '@/components/lib/mixins/CurrentUser'
 import ExpansionRow from '@/components/invitation/ExpansionRow'
 
 const _ = require('lodash')
