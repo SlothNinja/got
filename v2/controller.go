@@ -739,7 +739,6 @@ func (cl *client) invitationsIndexHandler(c *gin.Context) {
 		return
 	}
 
-	cl.Log.Debugf("es[0]: %#v", es[0])
 	c.JSON(http.StatusOK, gin.H{
 		"invitations": es,
 		"totalItems":  cnt,

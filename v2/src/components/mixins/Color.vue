@@ -10,7 +10,8 @@
       p: function () {
         let self = this
         if (self.cuid) {
-          return self.playerByUID(self.cuid)
+          let p2 = self.playerByUID(self.cuid)
+          return _.isEmpty(p2) ? false : p2
         }
         return false
       },

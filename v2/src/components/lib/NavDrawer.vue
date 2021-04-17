@@ -134,47 +134,55 @@ export default {
     _.forEach(this.routes, route => this.$router.addRoute(route))
   },
   computed: {
-    routes: () => {
+    sngGames: () => [ 'atf', 'confucius', 'indonesia', 'tammany', 'all' ],
+    routes: function () {
       return [
         {
           path: '/sng-games/:type/:status',
           name: 'sng-games',
           beforeEnter: (to, from, next) => {
-            let game = process.env.VUE_APP_GAME
-            let sngHome = process.env.VUE_APP_SNG_HOME
-            if (to.params.type == game) {
-              next({ name: 'games', params: { status: to.params.status } })
-            } else {
+            if (_.includes(this.sngGames, to.params.type)) {
+              let sngHome = process.env.VUE_APP_SNG_HOME
               window.location.replace(`${sngHome}#/games/${to.params.status}/${to.params.type}`)
               next()
+            } else {
+              let game = process.env.VUE_APP_GAME
+              if (to.params.type == game) {
+                next({ name: 'games', params: { status: to.params.status } })
+              } else {
+                let gotHome = process.env.VUE_APP_GOT_HOME
+                window.location.replace(`${gotHome}#/games/${to.params.status}`)
+                next()
+              }
             }
-          },
+          }
         },
         {
           path: '/sng-ugames/:uid/:status/:type',
           name: 'sng-ugames',
           beforeEnter: (to, from, next) => {
-            let home = process.env.VUE_APP_HOME
             let sngHome = process.env.VUE_APP_SNG_HOME
-            if (home == sngHome) {
-              next({ name: 'ugames', params: { uid: to.params.uid, status: to.params.status, type: to.params.type } })
-            } else {
-              window.location.replace(`${sngHome}#/ugames/${to.params.uid}/${to.params.status}/${to.params.type}`)
-              next()
-            }
+            window.location.replace(`${sngHome}#/ugames/${to.params.uid}/${to.params.status}/${to.params.type}`)
+            next()
           }
         },
         {
           path: '/sng-join-game/:type',
           name: 'sng-join-game',
           beforeEnter: (to, from, next) => {
-            let game = process.env.VUE_APP_GAME
-            let sngHome = process.env.VUE_APP_SNG_HOME
-            if (to.params.type == game) {
-              next({ name: 'new'})
-            } else {
+            if (_.includes(this.sngGames, to.params.type)) {
+              let sngHome = process.env.VUE_APP_SNG_HOME
               window.location.replace(`${sngHome}${to.params.type}/games/recruiting`)
               next()
+            } else {
+              let game = process.env.VUE_APP_GAME
+              if (to.params.type == game) {
+                next({ name: 'invitations'})
+              } else {
+                let gotHome = process.env.VUE_APP_GOT_HOME
+                window.location.replace(`${gotHome}#/invitations`)
+                next()
+              }
             }
           }
         },
@@ -182,13 +190,19 @@ export default {
           path: '/sng-new-game/:type',
           name: 'sng-new-game',
           beforeEnter: (to, from, next) => {
-            let game = process.env.VUE_APP_GAME
-            let sngHome = process.env.VUE_APP_SNG_HOME
-            if (to.params.type == game) {
-              next({ name: 'new'})
-            } else {
+            if (_.includes(this.sngGames, to.params.type)) {
+              let sngHome = process.env.VUE_APP_SNG_HOME
               window.location.replace(`${sngHome}${to.params.type}/game/new`)
               next()
+            } else {
+              let game = process.env.VUE_APP_GAME
+              if (to.params.type == game) {
+                next({ name: 'new'})
+              } else {
+                let gotHome = process.env.VUE_APP_GOT_HOME
+                window.location.replace(`${gotHome}#/invitation/new`)
+                next()
+              }
             }
           }
         },
@@ -196,13 +210,19 @@ export default {
           path: '/sng-ratings/:type',
           name: 'sng-ratings',
           beforeEnter: (to, from, next) => {
-            let game = process.env.VUE_APP_GAME
-            let sngHome = process.env.VUE_APP_SNG_HOME
-            if (to.params.type == game) {
-              next({ name: 'rank'})
-            } else {
+            if (_.includes(this.sngGames, to.params.type)) {
+              let sngHome = process.env.VUE_APP_SNG_HOME
               window.location.replace(`${sngHome}ratings/show/${to.params.type}`)
               next()
+            } else {
+              let game = process.env.VUE_APP_GAME
+              if (to.params.type == game) {
+                next({ name: 'rank'})
+              } else {
+                let gotHome = process.env.VUE_APP_GOT_HOME
+                window.location.replace(`${gotHome}#/rank`)
+                next()
+              }
             }
           }
         },
