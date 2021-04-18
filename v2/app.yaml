@@ -11,7 +11,7 @@ automatic_scaling:
   max_pending_latency: 15s
   min_pending_latency: 15s
 
-default_expiration: "1m"
+default_expiration: "10m"
 
 env_variables:
   GOT_PROJECT_ID: "got-slothninja-games"

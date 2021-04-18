@@ -83,7 +83,7 @@ const _ = require('lodash')
 export default {
   name: 'sn-chat-drawer',
   mixins: [ CurrentUser ],
-  props: [ 'value', 'game' ],
+  props: [ 'value', 'game', 'unread' ],
   data: function () {
     return {
       count: 0,
@@ -140,10 +140,14 @@ export default {
       let self = this
       axios.get(self.msgsPath)
         .then(function (response) {
-          let msgs = _.get(response, 'data.messages', false)
-          if (msgs) {
-            self.messages = self.messages.concat(msgs)
+          if (_.has(response, 'data.messages')) {
+            self.messages = self.messages.concat(response.data.messages)
           }
+
+          if (_.has(response, 'data.unread')) {
+            self.$emit('update:unread', response.data.unread)
+          }
+
           self.loaded = true
           self.loading = false
           self.scroll()

@@ -14,7 +14,7 @@
             <v-row>
               <v-col cols='6'>
                 <v-img
-                  :src="require('@/assets/got-box.jpg')"
+                  :src="boxPath()"
                   aspect-ratio='1'
                   height='480'
                   contain
@@ -60,13 +60,14 @@ import NavDrawer from '@/components/lib/NavDrawer'
 import Snackbar from '@/components/lib/Snackbar'
 import Footer from '@/components/lib/Footer'
 import CurrentUser from '@/components/lib/mixins/CurrentUser'
+import BoxPath from '@/components/mixins/BoxPath'
 
 const _ = require('lodash')
 const axios = require('axios')
 
 export default {
   name: 'home',
-  mixins: [ CurrentUser ],
+  mixins: [ CurrentUser, BoxPath ],
   components: {
     'sn-toolbar': Toolbar,
     'sn-nav-drawer': NavDrawer,

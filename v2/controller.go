@@ -112,8 +112,6 @@ func (cl *client) showHandler(c *gin.Context) {
 		return
 	}
 
-	log.Debugf("s: %+v", s)
-
 	cu, err := cl.User.Current(c)
 	if err != nil {
 		cl.Log.Warningf(err.Error())
@@ -121,8 +119,16 @@ func (cl *client) showHandler(c *gin.Context) {
 
 	g := &(gc.Game)
 	g.updateClickablesFor(cu, g.selectedThiefArea())
+
+	unread, err := cl.MLog.Unread(c, gc.id(), cu)
+	if err != nil {
+		sn.JErr(c, err)
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"game":       g,
+		"unread":     unread,
 		"subscribed": s.Tokens,
 		"cu":         cu,
 	})
@@ -144,7 +150,19 @@ func (cl *client) mlogHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"messages": ml.Messages})
+	cu, err := cl.User.Current(c)
+	if err == nil {
+		ml, err = cl.MLog.UpdateRead(c, ml, cu)
+		if err != nil {
+			sn.JErr(c, err)
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"messages": ml.Messages,
+		"unread":   0,
+	})
 }
 
 func (cl *client) mlogAddHandler(c *gin.Context) {
@@ -186,14 +204,16 @@ func (cl *client) mlogAddHandler(c *gin.Context) {
 	}
 
 	m := ml.AddMessage(cu, obj.Message)
-
 	_, err = cl.MLog.Put(c, id, ml)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": m})
+	c.JSON(http.StatusOK, gin.H{
+		"message": m,
+		"unread":  0,
+	})
 }
 
 func (cl *client) undo(c *gin.Context) {
@@ -829,29 +849,54 @@ type ranking struct {
 	Projected *rating.CurrentRating `json:"projected"`
 }
 
+type rankParams struct {
+	Options struct {
+		Page         int `json:"page"`
+		ItemsPerPage int `json:"itemsPerPage"`
+	} `json:"options"`
+	Forward string `json:"forward"`
+}
+
+func (r rankParams) key() string {
+	return fmt.Sprintf("%#v", r)
+}
+
+type cachedRankings struct {
+	Ranks      []*ranking
+	TotalItems int
+	Forward    string
+}
+
 func (cl *client) rankingsIndex(c *gin.Context) {
 	cl.Log.Debugf(msgEnter)
 	defer cl.Log.Debugf(msgExit)
 
-	obj := struct {
-		Options struct {
-			Page         int `json:"page"`
-			ItemsPerPage int `json:"itemsPerPage"`
-		} `json:"options"`
-		Forward string `json:"forward"`
-	}{}
-
-	err := c.ShouldBind(&obj)
+	cu, err := cl.User.Current(c)
 	if err != nil {
 		sn.JErr(c, err)
 		return
 	}
 
-	cl.Log.Debugf("obj: %#v", obj)
-	cu, err := cl.User.Current(c)
+	var obj rankParams
+	err = c.ShouldBind(&obj)
 	if err != nil {
 		sn.JErr(c, err)
 		return
+	}
+
+	v, found := cl.Cache.Get(obj.key())
+	if found {
+		cached, ok := v.(cachedRankings)
+		if ok {
+			c.JSON(http.StatusOK, gin.H{
+				"gheaders":   cached.Ranks,
+				"totalItems": cached.TotalItems,
+				"forward":    cached.Forward,
+				"cu":         cu,
+			})
+			return
+		}
+		cl.Cache.Delete(obj.key())
 	}
 
 	forward, err := datastore.DecodeCursor(obj.Forward)
@@ -916,6 +961,12 @@ func (cl *client) rankingsIndex(c *gin.Context) {
 		sn.JErr(c, err)
 		return
 	}
+
+	cl.Cache.SetDefault(obj.key(), cachedRankings{
+		Ranks:      rs,
+		TotalItems: cnt,
+		Forward:    forward.String(),
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"gheaders":   rs,

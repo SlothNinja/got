@@ -11,7 +11,7 @@ require (
 	github.com/SlothNinja/cookie v1.0.2
 	github.com/SlothNinja/game v1.0.24
 	github.com/SlothNinja/log v1.0.5
-	github.com/SlothNinja/mlog v1.0.5
+	github.com/SlothNinja/mlog v1.0.6
 	github.com/SlothNinja/rating v1.0.11
 	github.com/SlothNinja/restful v1.0.0
 	github.com/SlothNinja/send v1.0.1
@@ -24,6 +24,6 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/mailjet/mailjet-apiv3-go v0.0.0-20201009050126-c24bc15a9394
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
+	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc
 	google.golang.org/api v0.44.0
 )

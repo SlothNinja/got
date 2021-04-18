@@ -17,7 +17,14 @@
           <v-tooltip bottom color='info'>
             <template v-slot:activator='{ on }'>
               <v-btn v-on='on' icon @click.stop='toggleChat'>
-                <v-icon>chat</v-icon>
+                <v-badge
+                  :value='unread'
+                  overlap
+                  bottom
+                  :content='unread'
+                  >
+                  <v-icon>chat</v-icon>
+                </v-badge>
               </v-btn>
             </template>
             <span>Chat</span>
@@ -34,7 +41,7 @@
 
     <sn-nav-drawer v-model='nav' ></sn-nav-drawer>
 
-    <sn-chat-drawer v-model='chatDrawer' :game='game' ></sn-chat-drawer>
+    <sn-chat-drawer v-model='chatDrawer' :game='game' :unread.sync='unread' ></sn-chat-drawer>
 
     <sn-log-drawer v-model='logDrawer' :game='game' ></sn-log-drawer>
 
@@ -133,6 +140,7 @@ export default {
       stop: false,
       subscribed: [],
       loaded: false,
+      unread: 0,
       game: {
         title: '',
         id: 0,
@@ -263,6 +271,10 @@ export default {
         document.title = data.game.title + ' #' + data.game.id
       }
 
+      if (_.has(data, 'unread')) {
+        self.unread = data.unread
+      }
+
       if (_.has(data, 'message') && (data.message != '')) {
         self.snackbar.message = data.message
         self.snackbar.open = true
@@ -347,10 +359,8 @@ export default {
     },
     action: function (data) {
       var self = this
-      console.log(`action data: ${JSON.stringify(data)}`)
       var action = data.action
       if (action == 'refresh') {
-        console.log(`refresh fetchData`)
         self.fetchData()
         return
       }

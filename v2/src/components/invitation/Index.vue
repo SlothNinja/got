@@ -10,53 +10,72 @@
     <v-main>
       <v-container>
         <v-card>
-          <v-card-title primary-title>
-            Invitations
-          </v-card-title>
-          <v-data-table
-            @click:row="expandRow"
-            :expanded.sync="expanded"
-            :headers="headers"
-            :items="items"
-            :loading="loading"
-            :options.sync="options"
-            loading-text="Loading... Please wait"
-            :server-items-length="totalItems"
-            :items-per-page='10'
-            :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
-            show-expand
-            single-expand
-            >
-            <template v-slot:item.title="{ item }">
-              <v-icon class='mb-2' small v-if='!item.public'>mdi-lock</v-icon>{{item.title}}
-            </template>
-            <template v-slot:item.creator="{ item }">
-              <v-row no-gutters>
-                <v-col>
-                  <sn-user-btn :user="creator(item)" size="x-small">
-                    {{creator(item).name}}
-                  </sn-user-btn>
-                </v-col>
-              </v-row>
-            </template>
-            <template v-slot:item.players="{ item }">
-              <v-row no-gutters>
-                <v-col class='my-1' cols='12' md='6' v-for="user in users(item)" :key="user.id" >
-                  <sn-user-btn :user="user" size="x-small">
-                    {{user.name}}
-                  </sn-user-btn>
-                </v-col>
-              </v-row>
-            </template>
-            <template v-slot:expanded-item="{ headers, item }">
-              <sn-expanded-row
-                :span='headers.length'
-                :item='item'
-                @action='action($event)'
+          <v-row>
+            <v-col cols='1' style='min-width:80px;max-width:80px'>
+              <v-img
+                class='ma-2'
+                min-width='74'
+                max-width='74'
+                :src="boxPath()"
                 >
-              </sn-expanded-row>
-            </template>
-          </v-data-table>
+              </v-img>
+            </v-col>
+            <v-col>
+              <v-card-title>
+                Guild of Thieves
+              </v-card-title>
+              <v-card-subtitle>
+                Invitations
+              </v-card-subtitle>
+            </v-col>
+          </v-row>
+          <v-card-text>
+            <v-data-table
+              :item-class='striped'
+              @click:row="expandRow"
+              :expanded.sync="expanded"
+              :headers="headers"
+              :items="items"
+              :loading="loading"
+              :options.sync="options"
+              loading-text="Loading... Please wait"
+              :server-items-length="totalItems"
+              :items-per-page='10'
+              :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
+              show-expand
+              single-expand
+              >
+              <template v-slot:item.title="{ item }">
+                <v-icon class='mb-2' small v-if='!item.public'>mdi-lock</v-icon>{{item.title}}
+              </template>
+              <template v-slot:item.creator="{ item }">
+                <v-row no-gutters>
+                  <v-col>
+                    <sn-user-btn :user="creator(item)" size="x-small">
+                      {{creator(item).name}}
+                    </sn-user-btn>
+                  </v-col>
+                </v-row>
+              </template>
+              <template v-slot:item.players="{ item }">
+                <v-row no-gutters>
+                  <v-col class='my-1' cols='12' md='6' v-for="user in users(item)" :key="user.id" >
+                    <sn-user-btn :user="user" size="x-small">
+                      {{user.name}}
+                    </sn-user-btn>
+                  </v-col>
+                </v-row>
+              </template>
+              <template v-slot:expanded-item="{ headers, item }">
+                <sn-expanded-row
+                  :span='headers.length'
+                  :item='item'
+                  @action='action($event)'
+                  >
+                </sn-expanded-row>
+              </template>
+            </v-data-table>
+          </v-card-text>
         </v-card>
       </v-container>
     </v-main>
@@ -69,6 +88,7 @@
 import UserButton from '@/components/lib/user/Button'
 import Expansion from '@/components/invitation/Expansion'
 import CurrentUser from '@/components/lib/mixins/CurrentUser'
+import BoxPath from '@/components/mixins/BoxPath'
 
 import Toolbar from '@/components/lib/Toolbar'
 import NavDrawer from '@/components/lib/NavDrawer'
@@ -81,7 +101,7 @@ const axios = require('axios')
 
 export default {
   name: 'index',
-  mixins: [ CurrentUser ],
+  mixins: [ CurrentUser, BoxPath ],
   components: {
     'sn-user-btn': UserButton,
     'sn-expanded-row': Expansion,
@@ -124,6 +144,7 @@ export default {
     expandRow: function(item) {
       this.expanded = item === this.expanded[0] ? [] : [item]
     },
+    striped: () => 'striped',
     fetchData: _.debounce(function () {
       let self = this
       self.loading = true
@@ -150,7 +171,7 @@ export default {
           if (forward) {
             self.forward = forward
           }
- 
+
           let cu = _.get(response, 'data.cu', false)
           if (cu) {
             self.cu = cu
@@ -258,7 +279,6 @@ export default {
       ]
     },
     width: function () {
-      console.log(`mdAndUp: ${this.$vuetify.breakpoint.mdAndUp}`)
       if (this.$vuetify.breakpoint.mdAndUp) {
         return '30%'
       } else {
@@ -287,7 +307,7 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-h1, h2, h3 {
-  font-weight: normal;
+::v-deep tbody tr.striped:nth-of-type(odd) {
+  background-color: rgba(0, 0, 0, .04);
 }
 </style>

@@ -51,7 +51,7 @@
           </v-flex>
           <v-flex xs6>
             <v-card height="31em">
-              <v-img height='200px' :src="require('../../assets/got-box.jpg')" />
+              <v-img height='200px' :src="boxPath()" />
                 <v-card-text>
                   <v-layout row>
                     <v-flex xs5>Designer</v-flex>
@@ -99,13 +99,14 @@ import Snackbar from '@/components/lib/Snackbar'
 import Footer from '@/components/lib/Footer'
 
 import CurrentUser from '@/components/lib/mixins/CurrentUser'
+import BoxPath from '@/components/mixins/BoxPath'
 
 const _ = require('lodash')
 const axios = require('axios')
 
 export default {
   name: 'newInvitation',
-  mixins: [ CurrentUser ],
+  mixins: [ CurrentUser, BoxPath ],
   data () {
     return {
       show: false,

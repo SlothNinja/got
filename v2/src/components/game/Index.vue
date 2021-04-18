@@ -10,39 +10,57 @@
     <v-main>
       <v-container>
         <v-card>
-          <v-card-title>
-            {{ status }} Games
-          </v-card-title>
-          <v-data-table
-            @click:row="showGame"
-            :headers="headers"
-            :items="items"
-            :loading="loading"
-            :options.sync="options"
-            loading-text="Loading... Please wait"
-            :server-items-length="totalItems"
-            :items-per-page='10'
-            :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
-            >
-            <template v-slot:item.creator="{ item }">
-              <v-row no-gutters>
-                <v-col>
-                  <sn-user-btn :user="creator(item)" size="x-small">
-                    {{creator(item).name}}
-                  </sn-user-btn>
-                </v-col>
-              </v-row>
-            </template>
-            <template v-slot:item.players="{ item }">
-              <v-row no-gutters>
-                <v-col class='my-1' cols='12' md='6' v-for="user in users(item)" :key="user.id" >
-                  <sn-user-btn :user="user" size="x-small">
-                    <span :class='userClass(item, user)'>{{user.name}}</span>
-                  </sn-user-btn>
-                </v-col>
-              </v-row>
-            </template>
-          </v-data-table>
+          <v-row>
+            <v-col cols='1' style='min-width:80px;max-width:80px'>
+              <v-img
+                class='ma-2'
+                min-width='74'
+                max-width='74'
+                :src="boxPath()"
+                >
+              </v-img>
+            </v-col>
+            <v-col>
+              <v-card-title>
+                Guild of Thieves
+              </v-card-title>
+              <v-card-subtitle>
+                {{ status }} Games
+              </v-card-subtitle>
+            </v-col>
+          </v-row>
+          <v-card-text>
+            <v-data-table
+              @click:row="showGame"
+              :headers="headers"
+              :items="items"
+              :loading="loading"
+              :options.sync="options"
+              loading-text="Loading... Please wait"
+              :server-items-length="totalItems"
+              :items-per-page='10'
+              :footer-props="{ itemsPerPageOptions: [ 10, 25, 50 ] }"
+              >
+              <template v-slot:item.creator="{ item }">
+                <v-row no-gutters>
+                  <v-col>
+                    <sn-user-btn :user="creator(item)" size="x-small">
+                      {{creator(item).name}}
+                    </sn-user-btn>
+                  </v-col>
+                </v-row>
+              </template>
+              <template v-slot:item.players="{ item }">
+                <v-row no-gutters>
+                  <v-col class='my-1' cols='12' md='6' v-for="user in users(item)" :key="user.id" >
+                    <sn-user-btn :user="user" size="x-small">
+                      <span :class='userClass(item, user)'>{{user.name}}</span>
+                    </sn-user-btn>
+                  </v-col>
+                </v-row>
+              </template>
+            </v-data-table>
+          </v-card-text>
         </v-card>
       </v-container>
     </v-main>
@@ -53,6 +71,7 @@
 <script>
 import UserButton from '@/components/lib/user/Button'
 import CurrentUser from '@/components/lib/mixins/CurrentUser'
+import BoxPath from '@/components/mixins/BoxPath'
 
 import Toolbar from '@/components/lib/Toolbar'
 import NavDrawer from '@/components/lib/NavDrawer'
@@ -65,7 +84,7 @@ const axios = require('axios')
 
 export default {
   name: 'index',
-  mixins: [ CurrentUser ],
+  mixins: [ CurrentUser, BoxPath ],
   components: {
     'sn-user-btn': UserButton,
     'sn-toolbar': Toolbar,
@@ -256,7 +275,6 @@ export default {
       ]
     },
     width: function () {
-      console.log(`mdAndUp: ${this.$vuetify.breakpoint.mdAndUp}`)
       if (this.$vuetify.breakpoint.mdAndUp) {
         return '30%'
       } else {
@@ -288,7 +306,7 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-h1, h2, h3 {
-  font-weight: normal;
+::v-deep tbody tr:nth-of-type(odd) {
+  background-color: rgba(0, 0, 0, .04);
 }
 </style>
