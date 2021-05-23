@@ -9,8 +9,8 @@
              :color='colorByPlayer(player)'
              size='small'
              >
-            </sn-user-btn>
               {{nameFor(player)}}
+            </sn-user-btn>
           </div>
           <div><strong>Score:</strong> {{player.score}}</div>
           <div v-if='player.passed'><strong>Passed</strong></div>

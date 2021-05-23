@@ -4,7 +4,7 @@
       <slot></slot>
     </td>
     <td class='text-left'>
-      <sn-user-btn :user="user" size="x-small"></sn-user-btn> {{user.name}}
+      <sn-user-btn :user="user" size="x-small">{{user.name}}</sn-user-btn> 
     </td>
     <td class='text-center'>
       {{detailsFor(user.id, 'glo')}}

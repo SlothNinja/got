@@ -14,8 +14,8 @@
           size='x-small'
           :color='colorByPID(player.id)'
         >
+          {{nameFor(player)}}
         </sn-user-btn>
-        <span class='ml-1'>{{nameFor(player)}}</span>
       </v-col>
     </v-row>
     <div>
